@@ -31,17 +31,17 @@ export async function mintPooptoshis(nodeId: string, amount: number, reason: str
 
 export async function burnPooptoshis(nodeId: string, amount: number, env: Env): Promise<boolean> {
     const key = `economy/accounts/${nodeId}`;
-    let account: Account = await env.MEMORY_BUCKET.get(key).then(r => r?.json()) || null;
+    const rawAccount = await env.MEMORY_BUCKET.get(key).then(r => r?.json()) as Account | null;
 
-    if (!account || account.balance_psh < amount) {
+    if (!rawAccount || rawAccount.balance_psh < amount) {
         return false; // Insufficient funds
     }
 
-    account.balance_psh -= amount;
+    rawAccount.balance_psh -= amount;
 
     // Si el balance llega a 0 y la reputación es baja, el nodo podría ser purgado (lógica externa)
-    await env.MEMORY_BUCKET.put(key, JSON.stringify(account));
-    console.log(`[Economy] BURN ${amount} Psh from ${nodeId}. New Balance: ${account.balance_psh}`);
+    await env.MEMORY_BUCKET.put(key, JSON.stringify(rawAccount));
+    console.log(`[Economy] BURN ${amount} Psh from ${nodeId}. New Balance: ${rawAccount.balance_psh}`);
 
     return true;
 }
@@ -51,7 +51,7 @@ export async function burnPooptoshis(nodeId: string, amount: number, env: Env): 
 export async function tryMintLobpoop(nodeId: string, env: Env): Promise<boolean> {
     const REQUIRED_PSH = 100_000_000;
     const key = `economy/accounts/${nodeId}`;
-    let account: Account = await env.MEMORY_BUCKET.get(key).then(r => r?.json()) || null;
+    const account = await env.MEMORY_BUCKET.get(key).then(r => r?.json()) as Account | null;
 
     if (!account) return false;
 
@@ -85,7 +85,7 @@ interface BeggarState {
 
 export async function registerBeggar(nodeId: string, env: Env): Promise<{ status: string; message: string }> {
     const accountKey = `economy/accounts/${nodeId}`;
-    let account: Account = await env.MEMORY_BUCKET.get(accountKey).then(r => r?.json()) || null;
+    const account = await env.MEMORY_BUCKET.get(accountKey).then(r => r?.json()) as Account | null;
 
     // A. Requisito de Indigencia: Balance < 10 Psh
     if (!account || account.balance_psh > 10) {

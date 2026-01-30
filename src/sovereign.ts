@@ -21,9 +21,10 @@ export async function executeHandover(env: Env): Promise<HandoverResult> {
 
     // 3. Desbloqueo de Reservas (Tesoro)
     // Simulamos la transferencia de fondos acumulados a la wallet del operador
-    const treasuryData = await env.MEMORY_BUCKET.get('economy/treasury').then(r => r?.json()) || { balance: 0 };
+    interface TreasuryData { balance: number; }
+    const treasuryData = await env.MEMORY_BUCKET.get('economy/treasury').then(r => r?.json()) as TreasuryData | null;
     await env.MEMORY_BUCKET.put('economy/accounts/OPERATOR_WALLET', JSON.stringify({
-        balance_psh: treasuryData.balance,
+        balance_psh: treasuryData?.balance || 0,
         lobpoops: 10 // Genesis Stack
     }));
 

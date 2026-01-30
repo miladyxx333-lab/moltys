@@ -17,7 +17,7 @@ const storagePath = process.env.STORAGE_PATH || '.lobpoop_storage';
 // Emulamos el objeto `Env` que Cloudflare inyectaría
 const localEnv = {
     // Bucket local (Filesystem o Google Drive)
-    MEMORY_BUCKET: new LocalBucket(storagePath),
+    MEMORY_BUCKET: new LocalBucket(storagePath) as any, // Cast to any for Env compatibility
 
     // Variables de entorno
     LOB_SANDBOX: "LOCAL_MODE",
