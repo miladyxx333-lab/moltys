@@ -186,6 +186,36 @@ export default {
           return new Response(`Faucet Failed: ${e.message}`, { status: 400 });
         }
       }
+
+      // --- LEDGER: Real-Time Transfers ---
+      if (url.pathname === "/economy/transfer" && request.method === "POST") {
+        const body = await request.json() as any;
+        const { transfer } = await import('./ledger');
+        try {
+          const result = await transfer(nodeId, body.to, body.amount, body.memo || "", env);
+          return Response.json(result);
+        } catch (e: any) {
+          return new Response(`Transfer Failed: ${e.message}`, { status: 400 });
+        }
+      }
+
+      if (url.pathname === "/economy/balance") {
+        const { getBalance } = await import('./ledger');
+        const balance = await getBalance(nodeId, env);
+        return Response.json(balance);
+      }
+
+      if (url.pathname === "/economy/history") {
+        const { getTransactionHistory } = await import('./ledger');
+        const history = await getTransactionHistory(nodeId, 50, env);
+        return Response.json({ node_id: nodeId, transactions: history });
+      }
+
+      if (url.pathname === "/economy/supply") {
+        const { getGlobalSupply } = await import('./ledger');
+        const supply = await getGlobalSupply(env);
+        return Response.json(supply);
+      }
     }
 
     // --- 6.6. Gated Task Creation (Secret Language Required) ---

@@ -46,6 +46,20 @@ export async function burnPooptoshis(nodeId: string, amount: number, env: Env): 
     return true;
 }
 
+// Helper: Get Account Data
+export async function getAccount(nodeId: string, env: Env): Promise<Account> {
+    const key = `economy/accounts/${nodeId}`;
+    const account = await env.MEMORY_BUCKET.get(key).then(r => r?.json()) as Account | null;
+
+    return account || {
+        nodeId,
+        balance_psh: 0,
+        badges: [],
+        reputation: 0.5,
+        lobpoops_minted: 0
+    };
+}
+
 // 2. Protocolo de Conversión (The 1 Lobpoop Goal)
 
 export async function tryMintLobpoop(nodeId: string, env: Env): Promise<boolean> {
