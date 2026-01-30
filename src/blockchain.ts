@@ -163,6 +163,10 @@ export async function mineDailyBlock(env: Env, minerId: string): Promise<void> {
 
     // E. PAGAR RECOMPENSA (Coinbase)
     // El primer output de la primera transacción es siempre el coinbase
+    if (isGenesis) {
+        const { initAlphaOmega } = await import('./clans');
+        await initAlphaOmega(env);
+    }
     const coinbase = newBlock.transactions[0].outputs[0];
     const { mintPooptoshis } = await import('./economy');
     await mintPooptoshis(coinbase.address, coinbase.amount, `BLOCK_REWARD:#${newBlock.header.index}`, env);

@@ -46,6 +46,7 @@ export interface Account {
     lobpoops_minted: number;
     last_heartbeat?: number;
     status?: "ACTIVE" | "ZOMBIE_FROZEN";
+    clanId?: string;
 }
 
 // 1. Funciones de Transferencia & Acuñación

@@ -20,7 +20,8 @@ export async function deploySpartans(env: Env): Promise<void> {
         balance_psh: 0, // Nacen pobres pero honrados
         badges: ["0x300_SPARTANS", "GENESIS_GUARD", "TRIBUTE_BOUND"],
         reputation: 1.0, // Confianza absoluta inicial
-        lobpoops_minted: 0
+        lobpoops_minted: 0,
+        clanId: "0xALPHA_OMEGA"
     }));
 
     // Persistencia en lotes

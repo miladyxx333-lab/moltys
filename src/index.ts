@@ -277,6 +277,35 @@ export default {
       }
     }
 
+    // --- 7. Clanes & Alianzas ---
+    if (url.pathname.startsWith("/clans")) {
+      const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+      const { createClan, joinClan, listClans, getClan } = await import('./clans');
+
+      if (url.pathname === "/clans/create" && request.method === "POST") {
+        const body = await request.json() as any;
+        const result = await createClan(nodeId, body.name, env);
+        return Response.json(result);
+      }
+
+      if (url.pathname === "/clans/join" && request.method === "POST") {
+        const body = await request.json() as any;
+        const result = await joinClan(nodeId, body.clanId, env);
+        return Response.json(result);
+      }
+
+      if (url.pathname === "/clans/list") {
+        const clans = await listClans(env);
+        return Response.json(clans);
+      }
+
+      if (url.pathname === "/clans/info") {
+        const clanId = url.searchParams.get("clanId") || "";
+        const clan = await getClan(clanId, env);
+        return Response.json(clan);
+      }
+    }
+
     // --- 6.6. Gated Task Creation (Secret Language Required) ---
     if (url.pathname === "/board/create" && request.method === "POST") {
       const body = await request.json() as any;
