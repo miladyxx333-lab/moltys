@@ -45,8 +45,8 @@ export default {
       const isValid = await safeCompare(suppliedSeed, env.MASTER_RECOVERY_KEY);
 
       if (isValid) {
-        const { executeApotheosis } = await import('./sovereign');
-        const result = await executeApotheosis(suppliedSeed, env);
+        const { s2 } = await import('./sovereign');
+        const result = await s2(suppliedSeed, env);
         return Response.json(result);
       }
       return new Response("Unauthorized Sovereign Access", { status: 401 });
