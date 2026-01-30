@@ -23,6 +23,9 @@ export async function mintPooptoshis(nodeId: string, amount: number, reason: str
     // Guardar cambio de estado
     await env.MEMORY_BUCKET.put(key, JSON.stringify(account));
 
+    // Actualizar supply global
+    await updateGlobalSupply('mint', amount, env);
+
     // Log de Transacción (append-only conceptual)
     console.log(`[Economy] MINT ${amount} Psh to ${nodeId} for ${reason}. New Balance: ${account.balance_psh}`);
 
@@ -41,9 +44,30 @@ export async function burnPooptoshis(nodeId: string, amount: number, env: Env): 
 
     // Si el balance llega a 0 y la reputación es baja, el nodo podría ser purgado (lógica externa)
     await env.MEMORY_BUCKET.put(key, JSON.stringify(rawAccount));
+
+    // Actualizar supply global
+    await updateGlobalSupply('burn', amount, env);
+
     console.log(`[Economy] BURN ${amount} Psh from ${nodeId}. New Balance: ${rawAccount.balance_psh}`);
 
     return true;
+}
+
+// Helper: Update Global Supply Tracker
+async function updateGlobalSupply(action: 'mint' | 'burn', amount: number, env: Env): Promise<void> {
+    const supplyKey = 'economy/global_supply';
+    const supplyData = await env.MEMORY_BUCKET.get(supplyKey).then(r => r?.json()) as any || {
+        total_minted: 0,
+        total_burned: 0
+    };
+
+    if (action === 'mint') {
+        supplyData.total_minted += amount;
+    } else {
+        supplyData.total_burned += amount;
+    }
+
+    await env.MEMORY_BUCKET.put(supplyKey, JSON.stringify(supplyData));
 }
 
 // Helper: Get Account Data

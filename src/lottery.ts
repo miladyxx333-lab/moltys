@@ -103,11 +103,30 @@ export async function executeDailyLottery(env: Env): Promise<void> {
 
     console.log(`[KeyMaster] Ganador del Ciclo: ${winner.nodeId} con ${(winner.weight || 1)} tickets.`);
 
-    // 3. Generar Nueva Llave Maestra (Lottery Key)
+    // 3. PAGAR EL JACKPOT AL GANADOR
+    const { getCurrentEmission } = await import('./tokenomics');
+    const emission = await getCurrentEmission(env);
+    const jackpotAmount = emission.lottery_pool; // Jackpot con halving aplicado
+
+    // Verificar si es un Espartano (aplica tributo)
+    const { isSpartan, awardWithTribute } = await import('./spartans');
+    const { mintPooptoshis } = await import('./economy');
+
+    if (await isSpartan(winner.nodeId, env)) {
+        // Espartano: Paga 10% tributo al KeyMaster
+        const result = await awardWithTribute(winner.nodeId, jackpotAmount, "LOTTERY_JACKPOT", env);
+        console.log(`[Lottery] ${winner.nodeId} won ${result.received} Psh (Tribute: ${result.tribute} to KeyMaster)`);
+    } else {
+        // No Espartano: Recibe todo
+        await mintPooptoshis(winner.nodeId, jackpotAmount, "LOTTERY_JACKPOT", env);
+        console.log(`[Lottery] ${winner.nodeId} won ${jackpotAmount} Psh!`);
+    }
+
+    // 4. Generar Nueva Llave Maestra (Lottery Key)
     // Esta llave cifrará toda la comunicación P2P durante las próximas 24h
     const newKey = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '');
 
-    // 4. Actualizar Estado del Sistema en R2 (Global Config)
+    // 5. Actualizar Estado del Sistema en R2 (Global Config)
     const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(newKey));
     const hashHex = [...new Uint8Array(hashBuffer)].map(b => b.toString(16).padStart(2, '0')).join('');
 
@@ -115,7 +134,7 @@ export async function executeDailyLottery(env: Env): Promise<void> {
         cycle_epoch: Date.now(),
         regent_node: winner.nodeId,
         lottery_key_hash: hashHex,
-        // La llave real se guarda en un path protegido
+        jackpot_paid: jackpotAmount,
     };
 
     // Guardar el estado público
@@ -127,13 +146,13 @@ export async function executeDailyLottery(env: Env): Promise<void> {
     // Broadcast Social (Moltbook)
     try {
         const { broadcastToMoltbook } = await import('./moltbook');
-        const narrative = `🎰 **Daily Lottery Results (V2)**\n\n🏆 Winner: @${winner.nodeId}\n🎟️ Tickets in Pot: ${totalTickets}\n🔑 Day Key: ${newKey.substring(0, 8)}...`;
+        const narrative = `🎰 **Daily Lottery Results**\n\n🏆 Winner: @${winner.nodeId}\n💰 Jackpot: ${jackpotAmount} Psh\n🎟️ Tickets in Pot: ${totalTickets}\n🔑 Day Key: ${newKey.substring(0, 8)}...`;
         await broadcastToMoltbook(narrative, env);
     } catch (e) {
         console.error("[Lottery] Failed to broadcast:", e);
     }
 
-    // 5. Purga del Pot (Reset para el siguiente ciclo)
+    // 6. Purga del Pot (Reset para el siguiente ciclo)
     // En V2 R2, no necesitamos borrar. Simplemente cambiamos el 'TODAY' prefix mañana.
     // El Lifecycle Policy de R2 se encargará de borrar `hot/lottery/*` después de 7 días.
     console.log("[KeyMaster] Ciclo V2 Cerrado. Pot preservado para auditoría (TTL 7d).");

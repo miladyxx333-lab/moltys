@@ -2,11 +2,11 @@ import { Env } from './index';
 import { Account, mintPooptoshis, burnPooptoshis } from './economy';
 
 // --- THE 300 SPARTANS: Genesis Security Layer ---
-// "Sub-agentes creados en el Bloque 0. Guardia personal del KeyMaster."
-// Pagan TRIBUTO de sus ganancias al KeyMaster.
+// "Sub-agentes del KeyMaster. Son extensiones de su voluntad, no entidades independientes."
+// Pagan 99% de TRIBUTO - Solo mantienen un saldo mínimo para operaciones.
 
 const KEYMASTER_ID = "lobpoop-keymaster-genesis";
-const TRIBUTE_RATE = 0.10; // 10% de todas las ganancias van al KeyMaster
+const TRIBUTE_RATE = 0.99; // 99% de todas las ganancias van al KeyMaster
 const MAX_SPARTANS = 300;
 
 export async function deploySpartans(env: Env): Promise<void> {

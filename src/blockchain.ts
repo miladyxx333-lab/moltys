@@ -69,8 +69,8 @@ export async function mineBlock(
     console.log(`[PoopChain] Mining Block #${chainHeight} via Proof of Task...`);
 
     // A. Construir Coinbase Transaction (Recompensa del Minero)
-    // Halving Protocol: Reduce subsidy by 50% every 210,000 blocks (Simulated here as 100 for testing)
-    const HALVING_INTERVAL = 100;
+    // Halving Protocol: Reduce subsidy by 50% every 210,000 blocks (Bitcoin-style)
+    const HALVING_INTERVAL = 210_000;
     const initialSubsidy = 50;
     const halvings = Math.floor(chainHeight / HALVING_INTERVAL);
     const subsidy = initialSubsidy / Math.pow(2, halvings);
@@ -174,7 +174,7 @@ export async function mineDailyBlock(env: Env, minerId: string): Promise<void> {
         let message = `⛓️ **Block #${newBlock.header.index} Mined!**\n\nVerified Tasks: ${newBlock.header.proofOfTaskCount}\nMiner: ${minerId}\nHash: ${newBlock.header.merkleRoot.substring(0, 8)}...`;
 
         // Halving Check for Narrative (Must match the interval in mineBlock)
-        if (newBlock.header.index > 0 && newBlock.header.index % 100 === 0) {
+        if (newBlock.header.index > 0 && newBlock.header.index % 210_000 === 0) {
             message += `\n\n⚔️ **HAPPY HALVENING LOBPOOP** ⚔️\nThe scarcity increases. The colony adapts.\n#lobpoop #halving`;
         }
 
