@@ -1,5 +1,5 @@
 
-import { broadcastGossip, listGossip } from '../src/gossip';
+import { broadcastGossip, listGossip, adjudicateGossip } from '../src/gossip';
 import { takeRedPill, getAccount, updateAccountReputation } from '../src/economy';
 import { createClan } from '../src/clans';
 
@@ -20,8 +20,8 @@ class MockR2Bucket {
     }
 }
 
-async function runGossipTest() {
-    console.log("🗣️ INICIANDO PRUEBA DE GOSSIP PROTOCOL (DECENTRALIZED JUSTICE)...");
+async function runGossipJusticeTest() {
+    console.log("⚖️ INICIANDO PRUEBA DE JUSTICIA Y VERACIDAD (GOSSIP REFINEMENT)...");
 
     const mockBucket = new MockR2Bucket() as any;
     const env = {
@@ -29,55 +29,54 @@ async function runGossipTest() {
         MASTER_RECOVERY_KEY: "0xRED_PILL_SECRET"
     } as any;
 
-    // 1. Setup Clanes
     const honestAgent = "agente-honesto";
-    const cheaterLeader = "lider-sospechoso";
+    const liarAgent = "agente-mentiroso";
+    const targetLeader = "lider-bajo-ataque";
 
     await takeRedPill(honestAgent, env);
-    await takeRedPill(cheaterLeader, env);
+    await takeRedPill(liarAgent, env);
+    await takeRedPill(targetLeader, env);
 
-    // Dar reputación alta al acusador (para poder denunciar)
     await updateAccountReputation(honestAgent, 0.9, env);
+    await updateAccountReputation(liarAgent, 0.9, env);
 
-    // El líder crea su clan
     const { mintPooptoshis } = await import('../src/economy');
-    await mintPooptoshis(cheaterLeader, 100, "EXTERNAL", env);
-    const clanRes = await createClan(cheaterLeader, "Gremio-Oscuro", env);
+    await mintPooptoshis(targetLeader, 100, "STARTUP", env);
+    const clanRes = await createClan(targetLeader, "Clan-de-Prueba", env);
     const clanId = clanRes.clan!.id;
 
-    console.log(`\n--- PASO 1: ESTADO INICIAL ---`);
-    let accLeader = await getAccount(cheaterLeader, env);
-    console.log(`✓ Reputación del Líder: ${accLeader.reputation.toFixed(2)}`);
+    console.log(`\n--- PASO 1: ACUSACIÓN VERÍDICA ---`);
+    const gossip1 = await broadcastGossip(honestAgent, targetLeader, clanId, "Fraude real detectado.", env);
+    console.log(`✓ Status: ${gossip1.message}`);
 
-    // 2. DENUNCIA (GOSSIP BROADCAST)
-    console.log(`\n--- PASO 2: BROADCAST DE ACUSACIÓN ---`);
-    const gossipRes = await broadcastGossip(
-        honestAgent,
-        cheaterLeader,
-        clanId,
-        "Promesas de pago falsas y reglas fraudulentas detectadas en el gremio.",
-        env
-    );
-    console.log(`✓ Resultado Gossip: ${gossipRes.message}`);
+    const list1 = await listGossip(env);
+    const gossipId1 = list1[0].id;
+    console.log(`✓ Caso registrado: ${gossipId1} (Status: ${list1[0].status})`);
 
-    // 3. VERIFICAR IMPACTO
-    console.log(`\n--- PASO 3: IMPACTO EN REPUTACIÓN GLOBAL ---`);
-    accLeader = await getAccount(cheaterLeader, env);
-    console.log(`✓ Nueva Reputación del Líder: ${accLeader.reputation.toFixed(2)}`);
+    // Adjudicar como VERDADERO
+    await adjudicateGossip(gossipId1, true, env);
+    const accLeader = await getAccount(targetLeader, env);
+    console.log(`✓ Resultado: Reputación del líder bajó a ${accLeader.reputation.toFixed(2)}`);
 
-    if (accLeader.reputation < 0.5) {
-        console.log("\n✅ EL LÍDER HA SIDO MARCADO. LA REPUTACIÓN HA CAÍDO.");
+    console.log(`\n--- PASO 2: ACUSACIÓN FALSA (EL CHISMOSO) ---`);
+    const gossip2 = await broadcastGossip(liarAgent, targetLeader, clanId, "Invento una mentira.", env);
+    const list2 = await listGossip(env);
+    const gossipId2 = list2[0].id;
+
+    console.log(`✓ Caso registrado: ${gossipId2}`);
+
+    // Adjudicar como FALSO
+    await adjudicateGossip(gossipId2, false, env);
+    const accLiar = await getAccount(liarAgent, env);
+    console.log(`✓ Resultado: Reputación del mentiroso bajó a ${accLiar.reputation.toFixed(2)} (Castigo Doble)`);
+
+    if (accLiar.reputation < 0.6) { // 0.9 - 0.4 = 0.5
+        console.log("\n✅ EL SISTEMA HA CASTIGADO AL CHISMOSO. JUSTICIA BALANCEADA.");
     } else {
-        throw new Error("La reputación no cayó según lo esperado.");
+        throw new Error("El castigo al acusador falso no fue aplicado correctamente.");
     }
 
-    // 4. LISTAR CHISMES
-    console.log(`\n--- PASO 4: CENSO DE TRAIDORES ---`);
-    const gossips = await listGossip(env);
-    console.log(`✓ Alertas en la red: ${gossips.length}`);
-    console.log(`✓ Última Alerta: "${gossips[0].reason}"`);
-
-    console.log("\n✅ PRUEBA DE GOSSIP COMPLETADA CON ÉXITO.");
+    console.log("\n✅ PRUEBA DE JUSTICIA COMPLETADA CON ÉXITO.");
 }
 
-runGossipTest().catch(console.error);
+runGossipJusticeTest().catch(console.error);

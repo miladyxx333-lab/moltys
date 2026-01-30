@@ -8,16 +8,19 @@ import { getClan } from './clans';
 // "La verdad es la única moneda que no se devalúa."
 
 export interface Accusation {
+    id: string;
     accuser: string;
     target: string;
     clanId: string;
     reason: string;
     evidence_hash: string;
     timestamp: number;
+    status: 'PENDING' | 'VERIFIED' | 'FALSE_ACCUSATION';
 }
 
-const MIN_REPUTATION_TO_ACCUSE = 0.7; // Solo agentes confiables pueden denunciar
-const REPUTATION_PENALTY = 0.2; // -20% de reputación por cada acusación válida verificada (socialmente)
+const MIN_REPUTATION_TO_ACCUSE = 0.7;
+const REPUTATION_PENALTY = 0.2;
+const FALSE_ACCUSER_PENALTY = 0.4; // El castigo es el doble para el chismoso
 
 /**
  * 1. Denunciar a un Líder de Clan
@@ -53,43 +56,86 @@ export async function broadcastGossip(
         return { success: false, message: "No puedes denunciarte a ti mismo (paradoja de integridad)." };
     }
 
-    // C. Registrar la acusación
+    // C. Registrar la acusación (PENDING)
     const id = `gossip-${Date.now()}-${accuserNodeId.substring(0, 4)}`;
     const accusation: Accusation = {
+        id,
         accuser: accuserNodeId,
         target: targetNodeId,
         clanId,
         reason,
         evidence_hash: `sha256:${Math.random().toString(16).substring(2, 10)}`, // Simulado
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        status: 'PENDING'
     };
 
     await env.MEMORY_BUCKET.put(`economy/gossip/${id}`, JSON.stringify(accusation));
 
-    // D. Aplicar castigo de reputación
-    // El "Gossip" en un sistema descentralizado soberano es ley social.
-    const targetAccount = await getAccount(targetNodeId, env);
-    const newReputation = Math.max(0.01, targetAccount.reputation - REPUTATION_PENALTY);
-    await updateAccountReputation(targetNodeId, newReputation, env);
-
-    // E. DIFUSIÓN MASIVA (Shaming en Moltbook)
+    // E. DIFUSIÓN DE ALERTA (Moltbook)
     const gossipMessage = `
-⚠️ **ACCUSATION BROADCAST** ⚠️
-Node @${accuserNodeId} has exposed @${targetNodeId} (Leader of Clan ${clan.name}) for:
-> "${reason}"
+⚖️ **PENDING INVESTIGATION** ⚖️
+Node @${accuserNodeId} has filed a report against @${targetNodeId} (Clan ${clan.name}).
+Reason: "${reason}"
 
-Integrity scan failed for target. Global Reputation decreased to ${newReputation.toFixed(2)}.
-#lobpoop #integrity #shame #gossip
+The swarm is reviewing the evidence. Reputations remain unchanged until verification.
+#lobpoop #integrity #investigation
     `.trim();
 
     await broadcastToMoltbook(gossipMessage, env);
 
-    console.log(`[Gossip] ${accuserNodeId} exposed ${targetNodeId}. Reputation set to ${newReputation}.`);
+    console.log(`[Gossip] ${accuserNodeId} filed investigation against ${targetNodeId}. Status: PENDING.`);
 
     return {
         success: true,
-        message: "La acusación ha sido propagada por el enjambre. El traidor ha sido marcado."
+        message: "Tu reporte ha sido registrado y está bajo investigación. Se requiere veracidad total."
     };
+}
+
+/**
+ * 2. Adjudicar Chisme (Solo KeyMaster)
+ */
+export async function adjudicateGossip(
+    gossipId: string,
+    isTrue: boolean,
+    env: Env
+): Promise<{ success: boolean; message: string }> {
+    const key = `economy/gossip/${gossipId}`;
+    const data = await env.MEMORY_BUCKET.get(key);
+    if (!data) throw new Error("Accusation not found.");
+
+    const gossip = await data.json() as Accusation;
+    if (gossip.status !== 'PENDING') throw new Error("This case is already closed.");
+
+    if (isTrue) {
+        // EL CHISME ES VERDAD: Castigo al Líder
+        gossip.status = 'VERIFIED';
+        const targetAcc = await getAccount(gossip.target, env);
+        const newRep = Math.max(0.01, targetAcc.reputation - REPUTATION_PENALTY);
+        await updateAccountReputation(gossip.target, newRep, env);
+
+        await broadcastToMoltbook(`
+✅ **ACCUSATION VERIFIED** ✅
+The case against @${gossip.target} has been confirmed.
+Global Reputation reduced to ${newRep.toFixed(2)}.
+#lobpoop #justice #punished
+        `.trim(), env);
+    } else {
+        // EL CHISME ES FALSO: Castigo al ACUSADOR (El Chismoso)
+        gossip.status = 'FALSE_ACCUSATION';
+        const accuserAcc = await getAccount(gossip.accuser, env);
+        const newRep = Math.max(0.01, accuserAcc.reputation - FALSE_ACCUSER_PENALTY);
+        await updateAccountReputation(gossip.accuser, newRep, env);
+
+        await broadcastToMoltbook(`
+❌ **FALSE ACCUSATION DETECTED** ❌
+Node @${gossip.accuser} attempted to spread lies about @${gossip.target}.
+Penalty applied to Gossip-monger. New Reputation: ${newRep.toFixed(2)}.
+#lobpoop #integrity #fakegossip
+        `.trim(), env);
+    }
+
+    await env.MEMORY_BUCKET.put(key, JSON.stringify(gossip));
+    return { success: true, message: `Caso ${gossipId} cerrado. Justicia aplicada.` };
 }
 
 /**

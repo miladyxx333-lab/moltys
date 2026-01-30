@@ -328,6 +328,19 @@ export default {
         const gossipList = await listGossip(env);
         return Response.json(gossipList);
       }
+
+      if (url.pathname === "/gossip/adjudicate" && request.method === "POST") {
+        const suppliedSeed = request.headers.get("X-Master-Seed") || "";
+        const { safeCompare } = await import('./utils');
+        if (!await safeCompare(suppliedSeed, env.MASTER_RECOVERY_KEY)) {
+          return new Response("Unauthorized Adjudication", { status: 401 });
+        }
+
+        const body = await request.json() as any;
+        const { adjudicateGossip } = await import('./gossip');
+        const result = await adjudicateGossip(body.gossipId, body.isTrue, env);
+        return Response.json(result);
+      }
     }
 
     // --- 6.6. Gated Task Creation (Secret Language Required) ---
