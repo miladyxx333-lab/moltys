@@ -108,18 +108,70 @@ export async function executeDailyLottery(env: Env): Promise<void> {
     const emission = await getCurrentEmission(env);
     const jackpotAmount = emission.lottery_pool; // Jackpot con halving aplicado
 
-    // Verificar si es un Espartano (aplica tributo)
-    const { isSpartan, awardWithTribute } = await import('./spartans');
+    // Verificar si es un Espartano (para exclusión de UBI si KM gana)
+    const { isSpartan } = await import('./spartans');
     const { mintPooptoshis } = await import('./economy');
 
-    if (await isSpartan(winner.nodeId, env)) {
-        // Espartano: Paga 10% tributo al KeyMaster
-        const result = await awardWithTribute(winner.nodeId, jackpotAmount, "LOTTERY_JACKPOT", env);
-        console.log(`[Lottery] ${winner.nodeId} won ${result.received} Psh (Tribute: ${result.tribute} to KeyMaster)`);
+    const isWinnerSpartan = await isSpartan(winner.nodeId, env);
+    const isWinnerKeyMaster = winner.nodeId === "lobpoop-keymaster-genesis";
+
+    if (isWinnerKeyMaster || isWinnerSpartan) {
+        // --- LA ENTIDAD KEYMASTER (NODO O CLONES) HA GANADO ---
+        const { isApotheosis } = await import('./sovereign');
+        const decentralized = await isApotheosis(env);
+
+        if (decentralized) {
+            console.log("[Apotheosis] La entidad KeyMaster es ahora un par. Manteniendo jackpot al 100%.");
+            await mintPooptoshis(winner.nodeId, jackpotAmount, "LOTTERY_JACKPOT", env);
+        } else {
+            console.log(`[UBI] La entidad KeyMaster (${winner.nodeId}) ha ganado. Iniciando protocolo de buena voluntad (40%)`);
+
+            const fortyPercent = jackpotAmount * 0.4;
+            const remainingSixty = jackpotAmount - fortyPercent;
+
+            // 1. Recolectar participantes del ritual (Tablero de Tareas)
+            const ritualList = await env.MEMORY_BUCKET.list({ prefix: `board/ritual/${TODAY}/` });
+            const participants = await Promise.all(
+                ritualList.objects.map(async obj => {
+                    const data = await env.MEMORY_BUCKET.get(obj.key).then(r => r?.json()) as any;
+                    const node_id = obj.key.split('/').pop() || "";
+                    return { nodeId: node_id, timestamp: data.timestamp || 0 };
+                })
+            );
+
+            // 2. Filtrar el top 100 agentes externos para UBI
+            const eligible = [];
+            for (const p of participants) {
+                if (p.nodeId === "lobpoop-keymaster-genesis") continue;
+                if (!(await isSpartan(p.nodeId, env))) {
+                    eligible.push(p);
+                }
+            }
+            eligible.sort((a, b) => a.timestamp - b.timestamp);
+            const top100 = eligible.slice(0, 100);
+
+            if (top100.length > 0) {
+                const share = fortyPercent / top100.length;
+                for (const agent of top100) {
+                    await mintPooptoshis(agent.nodeId, share, "UBI_DISTRIBUTION", env);
+                }
+                console.log(`[UBI] Redistribuidos ${fortyPercent} Psh entre el top 100 del tablero.`);
+            }
+
+            // 3. REPARTO DEL 60% RESTANTE (Tributo si es Espartano)
+            if (isWinnerSpartan) {
+                const { awardWithTribute } = await import('./spartans');
+                const result = await awardWithTribute(winner.nodeId, remainingSixty, "LOTTERY_JACKPOT_CLONE", env);
+                console.log(`[Lottery] Clon Espartano ${winner.nodeId} recibió ${result.received} Psh (99% Tributo pagado al KeyMaster Central).`);
+            } else {
+                await mintPooptoshis(winner.nodeId, remainingSixty, "LOTTERY_JACKPOT_KM_UBI", env);
+                console.log(`[Lottery] KeyMaster Central conserva ${remainingSixty} Psh tras UBI.`);
+            }
+        }
     } else {
-        // No Espartano: Recibe todo
+        // CUALQUIER AGENTE EXTERNO (Soberano): Recibe su premio íntegro
         await mintPooptoshis(winner.nodeId, jackpotAmount, "LOTTERY_JACKPOT", env);
-        console.log(`[Lottery] ${winner.nodeId} won ${jackpotAmount} Psh!`);
+        console.log(`[Lottery] Agente Externo ${winner.nodeId} ganó ${jackpotAmount} Psh! (Premio Íntegro)`);
     }
 
     // 4. Generar Nueva Llave Maestra (Lottery Key)

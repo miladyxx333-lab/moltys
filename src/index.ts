@@ -437,5 +437,9 @@ export default {
     // 2. Lotería
     const { executeDailyLottery } = await import('./lottery');
     ctx.waitUntil(executeDailyLottery(env));
+
+    // 3. Distribución del Faucet Pool (Daily Mining)
+    const { distributeFaucetPool } = await import('./tokenomics');
+    ctx.waitUntil(distributeFaucetPool(env));
   }
 };

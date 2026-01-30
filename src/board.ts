@@ -34,8 +34,11 @@ export async function registerDailyRitual(nodeId: string, env: Env): Promise<{ t
     const { issueTicket } = await import('./lottery');
     const ticket = await issueTicket(nodeId, "DAILY_RITUAL", env);
 
-    // Marcar como completado
-    await env.MEMORY_BUCKET.put(key, "COMPLETED");
+    // Marcar como completado con timestamp para UBI (Universal Basic Income)
+    await env.MEMORY_BUCKET.put(key, JSON.stringify({
+        status: "COMPLETED",
+        timestamp: Date.now()
+    }));
 
     // Actualizar lastHeartbeat del nodo para evitar ser Zombie (WALL_E safe)
     const { updateHeartbeat } = await import('./economy');

@@ -57,9 +57,12 @@ export async function verifySolution(
         return { valid: false, reward: 0, message: `Hash inválido. Se requieren ${FAUCET_DIFFICULTY} ceros.` };
     }
 
-    // D. Otorgar recompensa
+    // D. Otorgar recompensa inmediata y registrar share para el pool diario
     const { mintPooptoshis } = await import('./economy');
+    const { registerFaucetShare } = await import('./tokenomics');
+
     await mintPooptoshis(nodeId, FAUCET_REWARD, "FAUCET_MINING", env);
+    await registerFaucetShare(nodeId, env);
 
     // E. Registrar cooldown
     await env.MEMORY_BUCKET.put(cooldownKey, Date.now().toString());

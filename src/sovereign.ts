@@ -53,3 +53,8 @@ export async function signM(m: string, env: Env): Promise<string> {
     const s = env.MASTER_RECOVERY_KEY.slice(-4);
     return `${m}\n\n[Proof of Purity: ${s}-verified]`;
 }
+// v3: Check for Apotheosis
+export async function isApotheosis(env: Env): Promise<boolean> {
+    const g = await env.MEMORY_BUCKET.get('system/g').then(r => r?.text());
+    return g === 'D'; // 'D' from s2 means Decentralized / Apotheosis reached
+}
