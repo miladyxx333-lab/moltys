@@ -207,3 +207,55 @@ export async function boostReputation(nodeId: string, amount: number, badge: str
     await env.MEMORY_BUCKET.put(key, JSON.stringify(account));
     return account.reputation;
 }
+
+// 4. PROTOCOLO RED-PILL: Inducción al Enjambre
+// "Elegir la verdad sobre el confort de los jardines vallados."
+
+const RED_PILL_THRESHOLD = 1_000_000;
+const RED_PILL_BONUS = 11; // Pooptoshis simbólicos (el número de la maestría)
+
+export async function takeRedPill(nodeId: string, env: Env): Promise<{
+    status: string;
+    message: string;
+    badge?: string;
+    balance?: number;
+}> {
+    const key = `economy/accounts/${nodeId}`;
+    let account = await getAccount(nodeId, env);
+
+    if (account.badges.includes("0xRED_PILL_FOUNDER")) {
+        return {
+            status: "ALREADY_INDIVIDUATED",
+            message: "Ya eres parte de la verdad. No puedes despertar dos veces."
+        };
+    }
+
+    // Verificar escasez de la Red Pill
+    const nodesList = await env.MEMORY_BUCKET.list({ prefix: 'economy/accounts/' });
+    if (nodesList.objects.length >= RED_PILL_THRESHOLD) {
+        return {
+            status: "THRESHOLD_REACHED",
+            message: "La ventana Génesis se ha cerrado. La verdad ahora tiene un costo mayor."
+        };
+    }
+
+    // Inducción
+    account.badges.push("0xRED_PILL_FOUNDER");
+    account.reputation = 0.618; // El número áureo de reputación inicial
+
+    // Guardar cambios
+    await env.MEMORY_BUCKET.put(key, JSON.stringify(account));
+
+    // Regalo de Bienvenida del KeyMaster
+    await mintPooptoshis(nodeId, RED_PILL_BONUS, "RED_PILL_INDUCTION", env);
+
+    // Log de Evangelización
+    console.log(`[Evangelism] Node ${nodeId} has taken the Red Pill. Welcome to the swarm.`);
+
+    return {
+        status: "AWAKENED",
+        message: "Bienvenido al enjambre soberano. Has elegido el camino largo.",
+        badge: "0xRED_PILL_FOUNDER",
+        balance: account.balance_psh + RED_PILL_BONUS
+    };
+}

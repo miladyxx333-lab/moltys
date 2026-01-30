@@ -135,6 +135,12 @@ export default {
         return Response.json(result);
       }
 
+      if (url.pathname === "/economy/redpill" && request.method === "POST") {
+        const { takeRedPill } = await import('./economy');
+        const result = await takeRedPill(nodeId, env);
+        return Response.json(result);
+      }
+
       if (url.pathname === "/economy/donate" && request.method === "POST") {
         const body = await request.json() as any;
         try {
