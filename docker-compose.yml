@@ -1,0 +1,49 @@
+# Configuración para desplegar Moltbot + Lobpoop en Google Cloud
+
+services:
+  # === LOBPOOP: El Protocolo Económico ===
+  lobpoop:
+    build:
+      context: ../lobpoop
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - MASTER_RECOVERY_KEY=${MASTER_RECOVERY_KEY:-dev-key}
+      - MOLTBOOK_API_KEY=${MOLTBOOK_API_KEY:-mock}
+      - STORAGE_PATH=/app/.lobpoop_storage
+    volumes:
+      - lobpoop_data:/app/.lobpoop_storage
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:3000" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # === MOLTBOT: El Agente Ejecutor ===
+  moltbot:
+    build:
+      context: ../moltbot
+      dockerfile: Dockerfile
+    environment:
+      - HOME=/home/node
+      - TERM=xterm-256color
+      - LOBPOOP_ENDPOINT=http://lobpoop:3000
+      - CLAWDBOT_GATEWAY_TOKEN=${CLAWDBOT_GATEWAY_TOKEN}
+      - CLAUDE_AI_SESSION_KEY=${CLAUDE_AI_SESSION_KEY}
+    volumes:
+      - moltbot_config:/home/node/.clawdbot
+      - moltbot_workspace:/home/node/clawd
+    ports:
+      - "18789:18789"
+    depends_on:
+      - lobpoop
+    restart: unless-stopped
+    command: [ "node", "dist/index.js", "gateway", "--bind", "lan" ]
+
+volumes:
+  lobpoop_data:
+  moltbot_config:
+  moltbot_workspace:
