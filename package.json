@@ -1,6 +1,7 @@
 {
   "name": "lobpoop-agent",
   "version": "1.0.0",
+  "type": "module",
   "description": "Sovereign AI Agent - lobpoop Protocol (MoltWorker Architecture)",
   "main": "src/index.ts",
   "scripts": {
@@ -25,6 +26,7 @@
     "@types/node": "^25.1.0",
     "@types/node-cron": "^3.0.11",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "wrangler": "latest"
   }

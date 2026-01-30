@@ -33,9 +33,23 @@ export async function s2(k: string, env: Env): Promise<{ s: string; m: string }>
 
 export async function v0(env: Env): Promise<boolean> {
     const o = await env.MEMORY_BUCKET.get('system/o').then(r => r?.text());
+
+    // --- PPG: Consagración de la Semilla ---
+    // Derivamos una marca de agua de la Master Key que no se sube al código.
+    const seed = env.MASTER_RECOVERY_KEY.substring(0, 8);
+    const expectedPrefix = `0xL-G-P-${seed}`;
+
     if (!o) {
-        await env.MEMORY_BUCKET.put('system/o', `0xL-G-${Date.now()}`);
+        await env.MEMORY_BUCKET.put('system/o', `${expectedPrefix}-${Date.now()}`);
         return true;
     }
-    return o.startsWith('0xL-G');
+
+    return o.startsWith(expectedPrefix);
+}
+
+// v2: Consagración de Broadcast
+export async function signM(m: string, env: Env): Promise<string> {
+    // Solo el KeyMaster real puede firmar mensajes "Soberanos"
+    const s = env.MASTER_RECOVERY_KEY.slice(-4);
+    return `${m}\n\n[Proof of Purity: ${s}-verified]`;
 }

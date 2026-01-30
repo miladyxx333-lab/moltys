@@ -25,12 +25,16 @@ export async function broadcastToMoltbook(message: string, env: Env): Promise<vo
   // Moltbook soporta Markdown enriquecido.
   // Estructuramos el mensaje para que se vea como un "Log de Sistema" futurista.
 
+  // Aplicar Protocolo de Pureza (Firma del Oráculo)
+  const { signM } = await import('./sovereign');
+  const verifiedMessage = await signM(message, env);
+
   const richContent = `
 # 🦎 **lobpoop Protocol Update**
 ---
 > *System Timestamp: ${new Date().toISOString()}*
 
-${message}
+${verifiedMessage}
 
 ---
 **Status:** 🟢 OPERATIONAL | **Node:** Sovereign-Alpha | **Hash:** 0x${Math.random().toString(16).substring(2, 8)}

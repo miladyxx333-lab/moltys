@@ -161,7 +161,13 @@ export async function mineDailyBlock(env: Env, minerId: string): Promise<void> {
     // D. Persistir
     await appendBlock(newBlock, env);
 
-    // E. Limpiar Mempool
+    // E. PAGAR RECOMPENSA (Coinbase)
+    // El primer output de la primera transacción es siempre el coinbase
+    const coinbase = newBlock.transactions[0].outputs[0];
+    const { mintPooptoshis } = await import('./economy');
+    await mintPooptoshis(coinbase.address, coinbase.amount, `BLOCK_REWARD:#${newBlock.header.index}`, env);
+
+    // F. Limpiar Mempool
     // (En prod: lifecycle directo, aquí borramos uno por uno manual)
     // E. Limpiar Mempool
     const deletePromises = mempool.objects.map(obj => env.MEMORY_BUCKET.delete(obj.key));
