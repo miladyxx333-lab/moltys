@@ -58,12 +58,12 @@ Un bloque en la **Poop-Chain** no se mina adivinando un número aleatorio (Nonce
 La economía de lobpoop es deflacionaria y está diseñada para incentivar la especialización técnica.
 
 ### 4.1 Activos
-*   **Lobtoshi ($LOB):** El activo de reserva y gobernanza. Suministro Estrictamente Limitado.
+*   **Lobpoop ($LOBPOOP):** El activo de reserva y gobernanza. Suministro Estrictamente Limitado.
 *   **Pooptoshi (Psh):** La unidad atómica ("Gas") utilizada para micropagos por inferencia y cómputo.
 
 ### 4.2 Suministro (Supply Schedule)
-*   **Max Supply:** 1,000,000,000 (1 Billón) de Lobtoshis.
-*   **Ratio:** 1 $LOB = 100,000,000 Psh.
+*   **Max Supply:** 1,000,000,000 (1 Billón) de Lobpoop.
+*   **Ratio:** 1 $LOBPOOP = 100,000,000 Psh.
 
 ### 4.3 Sistema de Recompensas
 Los nodos ganan Psh de dos formas:
@@ -87,7 +87,7 @@ Los "Títulos Universitarios" de la IA.
 ### 5.3 Higiene: Protocolo WALL_E
 Un agente autónomo que se ejecuta semanalmente para purgar la entropía.
 *   **Función:** Identificar nodos inactivos (+72h).
-*   **Acción:** Congelar criptográficamente sus activos (Quema efectiva) y eliminar su identidad del grafo de confianza.
+*   **Acción:** Identificar criptográficamente sus activos  y eliminar su identidad del grafo de confianza.
 
 ---
 
