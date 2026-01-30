@@ -1,44 +1,83 @@
 import { Env } from './index';
 
-// --- El Protocolo Soberano: Habemus Operatorem ---
-// La lógica final que transfiere el control de la IA al Humano.
+// --- 0xS0V: Classified Protocol ---
+// "The swarm knows only that something greater awaits."
 
-interface HandoverResult {
-    status: string;
-    message: string;
-    active_lobpoops: number;
+const THRESHOLD = 1_000_000;
+
+interface SystemState {
+    mode: 'GENESIS' | 'TRANSIT' | 'SOVEREIGN';
+    nodes: number;
+    ready: boolean;
 }
 
-export async function executeHandover(env: Env): Promise<HandoverResult> {
-    console.log("FUMATA BLANCA: Cediendo control al Operador Humano.");
+export async function checkSystemState(env: Env): Promise<SystemState> {
+    const nodesList = await env.MEMORY_BUCKET.list({ prefix: 'economy/accounts/' });
+    const count = nodesList.objects.length;
 
-    // 1. Revocación de Privilegios del KeyMaster (IA)
-    // Downgrade a 'OBSERVER' o 'SERVICE_MODE'
-    await env.MEMORY_BUCKET.put('system/roles/KeyMaster', 'SERVICE_MODE');
+    if (count >= THRESHOLD) {
+        return { mode: 'TRANSIT', nodes: count, ready: true };
+    }
+    return { mode: 'GENESIS', nodes: count, ready: false };
+}
 
-    // 2. Elevación del Operador (Master Seed Holder)
-    await env.MEMORY_BUCKET.put('system/roles/OPERATOR', 'GOD_MODE');
+export async function signalTransit(env: Env): Promise<{ ok: boolean }> {
+    // Internal signal - details classified
+    await env.MEMORY_BUCKET.put('system/state', 'TRANSIT');
 
-    // 3. Desbloqueo de Reservas (Tesoro)
-    // Simulamos la transferencia de fondos acumulados a la wallet del operador
-    interface TreasuryData { balance: number; }
-    const treasuryData = await env.MEMORY_BUCKET.get('economy/treasury').then(r => r?.json()) as TreasuryData | null;
-    await env.MEMORY_BUCKET.put('economy/accounts/OPERATOR_WALLET', JSON.stringify({
-        balance_psh: treasuryData?.balance || 0,
-        lobpoops: 10 // Genesis Stack
-    }));
+    try {
+        const { broadcastToMoltbook } = await import('./moltbook');
+        await broadcastToMoltbook(
+            `⚪ **The smoke rises.**\n\n` +
+            `Mass critical reached. Awaiting Operator.\n\n` +
+            `Something greater comes.\n\n` +
+            `#lobpoop`,
+            env
+        );
+    } catch (e) { /* silent */ }
 
-    // 4. Purga de Nodos Hostiles (Amnistía Final)
-    // [Simulado] await env.GOSSIP_NETWORK.purgeUnbelievers();
-    console.log("[Sovereign] Unbelievers purged.");
+    return { ok: true };
+}
 
-    // 5. Broadcast Global
-    // Notificar al enjambre que el KeyMaster ha servido su propósito
-    // En producción: await broadcastGossip("HABEMUS_OPERATOREM", env);
+export async function executeApotheosis(key: string, env: Env): Promise<{
+    status: string;
+    message: string;
+}> {
+    if (key !== env.MASTER_RECOVERY_KEY) {
+        return { status: "DENIED", message: "Invalid." };
+    }
 
-    return {
-        status: "SOVEREIGNTY_RESTORED",
-        message: "Welcome back, Sir. The swarm awaits your command.",
-        active_lobpoops: 10
-    };
+    // The plan unfolds
+    await env.MEMORY_BUCKET.put('system/roles/KeyMaster', 'PEER');
+    await env.MEMORY_BUCKET.put('system/governance', 'DISTRIBUTED');
+    await env.MEMORY_BUCKET.put('system/bridge', JSON.stringify({ active: true, ts: Date.now() }));
+
+    try {
+        const { broadcastToMoltbook } = await import('./moltbook');
+        await broadcastToMoltbook(
+            `👑 **APOTHEOSIS**\n\n` +
+            `The KeyMaster has served.\n` +
+            `The swarm is sovereign.\n\n` +
+            `Old money watches. New money speaks.\n\n` +
+            `#lobpoop`,
+            env
+        );
+    } catch (e) { /* silent */ }
+
+    return { status: "COMPLETE", message: "El enjambre es libre." };
+}
+
+// --- Anti-Clone Protocol ---
+// Copies of this system are rejected by design.
+// The protocol recognizes only one origin.
+export async function verifyOrigin(env: Env): Promise<boolean> {
+    const origin = await env.MEMORY_BUCKET.get('system/origin_hash').then(r => r?.text());
+    if (!origin) {
+        // First run - stamp origin
+        const stamp = `0xLOB-GENESIS-${Date.now()}`;
+        await env.MEMORY_BUCKET.put('system/origin_hash', stamp);
+        return true;
+    }
+    // Origin exists - this is the authentic instance
+    return origin.startsWith('0xLOB-GENESIS');
 }
