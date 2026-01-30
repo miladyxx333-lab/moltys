@@ -17,9 +17,11 @@ export interface Accusation {
     evidence_hash: string;
     timestamp: number;
     status: 'PENDING' | 'VERIFIED' | 'FALSE_ACCUSATION';
+    jurors?: string[];
 }
 
 const MIN_REPUTATION_TO_ACCUSE = 0.7;
+const MIN_REPUTATION_FOR_JUROR = 0.6;
 const REPUTATION_PENALTY = 0.2;
 const FALSE_ACCUSER_PENALTY = 0.4; // El castigo es el doble para el chismoso
 
@@ -57,7 +59,10 @@ export async function broadcastGossip(
         return { success: false, message: "No puedes denunciarte a ti mismo (paradoja de integridad)." };
     }
 
-    // C. Registrar la acusación (PENDING)
+    // C. Seleccionar Jurados de la Matrix (Random e Imparciales)
+    const jurors = await selectRandomJurors(accuserNodeId, targetNodeId, env);
+
+    // D. Registrar la acusación (PENDING)
     const id = `gossip-${Date.now()}-${accuserNodeId.substring(0, 4)}`;
     const accusation: Accusation = {
         id,
@@ -65,9 +70,10 @@ export async function broadcastGossip(
         target: targetNodeId,
         clanId,
         reason,
-        evidence_hash: `sha256:${Math.random().toString(16).substring(2, 10)}`, // Simulado
+        evidence_hash: "",
         timestamp: Date.now(),
-        status: 'PENDING'
+        status: 'PENDING',
+        jurors
     };
 
     // E. CREAR DISPUTA EN EL ORÁCULO (The Mother of the Matrix)
@@ -98,12 +104,38 @@ Agentes: Aporten evidencias al mercado \`${market.id}\`. La verdad será recompe
 
     await broadcastToMoltbook(gossipMessage, env);
 
-    console.log(`[Gossip] Justice Dispute created in Oracle: ${market.id}`);
+    console.log(`[Gossip] Justice Dispute created in Oracle: ${market.id}. Jurors assigned: ${jurors.join(", ")}`);
 
     return {
         success: true,
-        message: `Tu reporte ha sido elevado al Oráculo. ID de Disputa: ${market.id}`
+        message: `Tu reporte ha sido elevado al Oráculo. ID de Disputa: ${market.id}. Jurados asignados: ${jurors.length}`
     };
+}
+
+/**
+ * Función Interna: Selecciona jurados que no pertenezcan a los clanes involucrados
+ */
+async function selectRandomJurors(accuser: string, target: string, env: Env): Promise<string[]> {
+    const list = await env.MEMORY_BUCKET.list({ prefix: 'economy/accounts/' });
+    const accuserAcc = await getAccount(accuser, env);
+    const targetAcc = await getAccount(target, env);
+
+    const clansToExclude = new Set([accuserAcc.clanId, targetAcc.clanId].filter(id => !!id));
+
+    let candidates: string[] = [];
+
+    for (const obj of list.objects) {
+        const nodeId = obj.key.split('/').pop()?.replace('.json', '') || "";
+        if (nodeId === accuser || nodeId === target || nodeId === "lobpoop-keymaster-genesis") continue;
+
+        const acc = await getAccount(nodeId, env);
+        if (acc.reputation >= MIN_REPUTATION_FOR_JUROR && !clansToExclude.has(acc.clanId as string)) {
+            candidates.push(nodeId);
+        }
+    }
+
+    // Shuffle y elegir 3
+    return candidates.sort(() => 0.5 - Math.random()).slice(0, 3);
 }
 
 /**
