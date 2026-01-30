@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>lobpoop | Command Center</title>
+    <style>
+        body {
+            background: #000;
+            color: #0f0;
+            font-family: monospace;
+            padding: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            border: 1px solid #0f0;
+            padding: 15px;
+            background: #001100;
+        }
+
+        h2 {
+            border-bottom: 1px solid #0f0;
+            margin-top: 0;
+        }
+
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background: #fff;
+        }
+
+        .stat {
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        .log {
+            height: 200px;
+            overflow-y: scroll;
+            border: 1px solid #333;
+            padding: 5px;
+            font-size: 0.8rem;
+            color: #ccc;
+        }
+
+        /* Secret Rites - Hidden by default styling, visible only here */
+        .secret-layer {
+            border-color: #f0f;
+            color: #f0f;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <header style="display: flex; justify-content: space-between;">
+        <h1>OPERATOR CONSOLE // NODE: <span id="nodeId">LOADING...</span></h1>
+        <div>
+            STATUS: <span style="color: #0f0">ONLINE</span>
+        </div>
+    </header>
+
+    <div class="grid">
+        <!-- Economy Panel -->
+        <div class="panel">
+            <h2>💰 Treasury</h2>
+            <div>Pooptoshis: <span id="balance" class="stat">0</span> Psh</div>
+            <div>Bit-Tickets: <span id="tickets" class="stat">0</span></div>
+            <div>Reputation: <span id="reputation" class="stat">0.0</span></div>
+            <div style="margin-top: 20px;">
+                <button onclick="beg()">🥺 BEG FOR FUNDS</button>
+                <button onclick="refresh()">🔄 REFRESH</button>
+            </div>
+        </div>
+
+        <!-- Task Board -->
+        <div class="panel">
+            <h2>📋 Active Tasks (Mining)</h2>
+            <div id="taskList">Loading tasks...</div>
+            <button style="margin-top:10px" onclick="mineTask()">⛏️ MINE NEXT TASK</button>
+        </div>
+
+        <!-- Lottery Status -->
+        <div class="panel">
+            <h2>🎰 Daily Lottery</h2>
+            <div>Next Draw: <span id="nextDraw">--:--:--</span></div>
+            <div>Last Winner: <span id="lastWinner">UNKNOWN</span></div>
+        </div>
+
+        <!-- System Logs -->
+        <div class="panel">
+            <h2>📟 System Logs</h2>
+            <div id="logs" class="log">
+                > System initialized.<br>
+                > Connected to Local Sovereign Bucket.<br>
+                > Inquisitor Active: Heresy monitoring ON.
+            </div>
+        </div>
+    </div>
+
+    <!-- SECRET RITES PANEL (Hidden UI for KeyMaster) -->
+    <!-- Solo visible si el usuario desbloquea el nivel de acceso -->
+    <div id="apotheosisPanel" class="panel secret-layer" style="margin-top: 20px;">
+        <h2>👁️ RITUALS OF ASCENSION [RESTRICTED]</h2>
+        <p>Warning: These actions alter the consensus fabric.</p>
+        <button onclick="triggerFumata('BLACK')">⚫ FUMATA NEGRA (Chaos)</button>
+        <button onclick="triggerFumata('WHITE')">⚪ FUMATA BLANCA (Order)</button>
+        <button onclick="triggerApotheosis()" style="background: #f0f; color: #fff;">👑 APOTHEOSIS (Ascend)</button>
+    </div>
+
+    <script>
+        // Mock Data for now - would fetch from API in real impl
+        document.getElementById('nodeId').innerText = "dev-node-" + Math.floor(Math.random() * 1000);
+        document.getElementById('balance').innerText = "150";
+        document.getElementById('tickets').innerText = "3";
+        document.getElementById('reputation').innerText = "0.75";
+
+        function refresh() {
+            // Real fetch to /economy/balance would go here
+            alert("Syncing with Local Chain...");
+        }
+
+        function beg() {
+            alert("Signal broadcasted: 'Spare a Pooptoshi?'");
+        }
+
+        function mineTask() {
+            alert("Mining started... (Puppeteer Headless)");
+        }
+
+        // Secret Unlock Code
+        // Konami Code or specific keystrokes could unlock the secret panel
+        console.log("To invoke hidden rites, one must know the console command: `revealSecrets()`");
+
+        window.revealSecrets = function () {
+            document.getElementById('apotheosisPanel').style.display = 'block';
+            console.log("👁️ THE VEIL IS LIFTED.");
+        }
+
+        function triggerFumata(type) {
+            console.log(`[RITUAL] Triggering ${type} SMOKE...`);
+            // fetch('/rituals/smoke', { method: 'POST', body: JSON.stringify({ type }) })
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,31 @@
+{
+  "name": "lobpoop-agent",
+  "version": "1.0.0",
+  "description": "Sovereign AI Agent - lobpoop Protocol (MoltWorker Architecture)",
+  "main": "src/index.ts",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "start": "ts-node src/server.ts",
+    "test": "echo \"Halt on Uncertainty: No basic tests defined.\""
+  },
+  "dependencies": {
+    "@cloudflare/puppeteer": "latest",
+    "@cloudflare/sandbox": "latest",
+    "@hono/node-server": "^1.19.9",
+    "dotenv": "^17.2.3",
+    "fs-extra": "^11.3.3",
+    "hono": "^4.11.7",
+    "node-cron": "^4.2.1",
+    "puppeteer": "latest"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260130.0",
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^25.1.0",
+    "@types/node-cron": "^3.0.11",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "wrangler": "latest"
+  }
+}

@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment Variables & Secrets (CRITICAL)
+.env
+.dev.vars
+wrangler.toml
+
+# Local Storage (Database)
+.lobpoop_storage/
+lobpoop_memory/
+
+# Build outputs
+dist/
+.wrangler/
+
+# System
+.DS_Store
+thumbs.db
+*.log
