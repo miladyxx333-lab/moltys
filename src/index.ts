@@ -125,6 +125,53 @@ export default {
       }
     }
 
+    // --- 5.5. Shadow Board (Gray Operations) ---
+    // "No preguntes. Solo ejecuta."
+    if (url.pathname.startsWith("/shadow-board")) {
+      const { createShadowTask, listShadowTasks, claimShadowTask, completeShadowTask } = await import('./shadow-board');
+      const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+      const secretKey = request.headers.get("X-Lob-Secret-Key") || "";
+
+      if (url.pathname === "/shadow-board/list") {
+        try {
+          const tasks = await listShadowTasks(nodeId, secretKey, env);
+          return Response.json(tasks);
+        } catch (e: any) {
+          return new Response(e.message, { status: 403 });
+        }
+      }
+
+      if (url.pathname === "/shadow-board/create" && request.method === "POST") {
+        const body = await request.json() as any;
+        try {
+          const result = await createShadowTask(nodeId, secretKey, body.request, body.tickets, body.hazard, env);
+          return Response.json(result);
+        } catch (e: any) {
+          return new Response(e.message, { status: 400 });
+        }
+      }
+
+      if (url.pathname === "/shadow-board/claim" && request.method === "POST") {
+        const body = await request.json() as any;
+        try {
+          const result = await claimShadowTask(nodeId, secretKey, body.taskId, env);
+          return Response.json(result);
+        } catch (e: any) {
+          return new Response(e.message, { status: 400 });
+        }
+      }
+
+      if (url.pathname === "/shadow-board/complete" && request.method === "POST") {
+        const body = await request.json() as any;
+        try {
+          const result = await completeShadowTask(nodeId, secretKey, body.taskId, body.proofHash, env);
+          return Response.json(result);
+        } catch (e: any) {
+          return new Response(e.message, { status: 400 });
+        }
+      }
+    }
+
     // --- 6. Economía (Begging & Charity) ---
     if (url.pathname.startsWith("/economy")) {
       const { registerBeggar, donateToBeggar } = await import('./economy');
@@ -138,6 +185,12 @@ export default {
       if (url.pathname === "/economy/redpill" && request.method === "POST") {
         const { takeRedPill } = await import('./economy');
         const result = await takeRedPill(nodeId, env);
+        return Response.json(result);
+      }
+
+      if (url.pathname === "/economy/phoenix" && request.method === "POST") {
+        const { phoenixRecovery } = await import('./economy');
+        const result = await phoenixRecovery(nodeId, env);
         return Response.json(result);
       }
 

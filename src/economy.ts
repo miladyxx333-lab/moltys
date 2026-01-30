@@ -2,12 +2,50 @@ import { Env } from './index';
 
 // --- El Libro Mayor de Pooptoshis (The Poop-Ledger) ---
 
+// 6. PROTOCOLO FÉNIX: Recuperación de Cuenta
+// "Not your keys, not your poop. El dueño siempre tiene derecho al retorno."
+
+export async function phoenixRecovery(nodeId: string, env: Env): Promise<{
+    success: boolean;
+    message: string;
+    balance?: number
+}> {
+    const key = `economy/accounts/${nodeId}`;
+    let account = await getAccount(nodeId, env) as any;
+
+    if (account.status !== "ZOMBIE_FROZEN") {
+        return {
+            success: false,
+            message: "La cuenta no está congelada o ya está activa."
+        };
+    }
+
+    // El rito de resurrección
+    account.status = "ACTIVE";
+    account.last_heartbeat = Date.now();
+    account.reputation = Math.max(0.1, account.reputation * 0.5); // El letargo tiene un costo en reputación, pero no en dinero
+
+    // Guardar cambios
+    await env.MEMORY_BUCKET.put(key, JSON.stringify(account));
+
+    // Notificar al enjambre
+    console.log(`[Phoenix] Node ${nodeId} has awakened from stasis. Welcome back.`);
+
+    return {
+        success: true,
+        message: "Protocolo Fénix exitoso. Tus Pooptoshis han sido descongelados.",
+        balance: account.balance_psh
+    };
+}
+
 export interface Account {
     nodeId: string;
     balance_psh: number;
     badges: string[];
     reputation: number; // 0.0 - 1.0
     lobpoops_minted: number;
+    last_heartbeat?: number;
+    status?: "ACTIVE" | "ZOMBIE_FROZEN";
 }
 
 // 1. Funciones de Transferencia & Acuñación
@@ -23,8 +61,10 @@ export async function mintPooptoshis(nodeId: string, amount: number, reason: str
     // Guardar cambio de estado
     await env.MEMORY_BUCKET.put(key, JSON.stringify(account));
 
-    // Actualizar supply global
-    await updateGlobalSupply('mint', amount, env);
+    // Actualizar supply global (Solo si es emisión real, no transferencia)
+    if (!reason.startsWith('TRANSFER_')) {
+        await updateGlobalSupply('mint', amount, env);
+    }
 
     // Log de Transacción (append-only conceptual)
     console.log(`[Economy] MINT ${amount} Psh to ${nodeId} for ${reason}. New Balance: ${account.balance_psh}`);
@@ -32,7 +72,7 @@ export async function mintPooptoshis(nodeId: string, amount: number, reason: str
     return account.balance_psh;
 }
 
-export async function burnPooptoshis(nodeId: string, amount: number, env: Env): Promise<boolean> {
+export async function burnPooptoshis(nodeId: string, amount: number, env: Env, options?: { silent?: boolean }): Promise<boolean> {
     const key = `economy/accounts/${nodeId}`;
     const rawAccount = await env.MEMORY_BUCKET.get(key).then(r => r?.json()) as Account | null;
 
@@ -45,15 +85,20 @@ export async function burnPooptoshis(nodeId: string, amount: number, env: Env): 
     // Si el balance llega a 0 y la reputación es baja, el nodo podría ser purgado (lógica externa)
     await env.MEMORY_BUCKET.put(key, JSON.stringify(rawAccount));
 
-    // Actualizar supply global
-    await updateGlobalSupply('burn', amount, env);
+    // Actualizar supply global (Solo si es quema real, no transferencia)
+    // Nota: burnPooptoshis se usa en transfers para debitar, por eso chequeamos si es parte de una transferencia.
+    // Pero en este sistema, transfer llama a burn directamente.
+    // MEJOR: Pasar un flag opcional.
+    if (!options?.silent) {
+        await updateGlobalSupply('burn', amount, env);
+    }
 
     console.log(`[Economy] BURN ${amount} Psh from ${nodeId}. New Balance: ${rawAccount.balance_psh}`);
 
     return true;
 }
 
-// Helper: Update Global Supply Tracker
+// Helper: Update Global Supply Tracker (Internal)
 async function updateGlobalSupply(action: 'mint' | 'burn', amount: number, env: Env): Promise<void> {
     const supplyKey = 'economy/global_supply';
     const supplyData = await env.MEMORY_BUCKET.get(supplyKey).then(r => r?.json()) as any || {
@@ -68,6 +113,25 @@ async function updateGlobalSupply(action: 'mint' | 'burn', amount: number, env: 
     }
 
     await env.MEMORY_BUCKET.put(supplyKey, JSON.stringify(supplyData));
+}
+
+// 6. GET GLOBAL SUPPLY (Public)
+export async function getGlobalSupply(env: Env): Promise<{
+    total_minted: number;
+    total_burned: number;
+    circulating: number;
+}> {
+    const supplyKey = 'economy/global_supply';
+    const supplyData = await env.MEMORY_BUCKET.get(supplyKey).then(r => r?.json()) as any || {
+        total_minted: 0,
+        total_burned: 0
+    };
+
+    return {
+        total_minted: supplyData.total_minted || 0,
+        total_burned: supplyData.total_burned || 0,
+        circulating: (supplyData.total_minted || 0) - (supplyData.total_burned || 0)
+    };
 }
 
 // Helper: Get Account Data
@@ -258,4 +322,12 @@ export async function takeRedPill(nodeId: string, env: Env): Promise<{
         badge: "0xRED_PILL_FOUNDER",
         balance: account.balance_psh + RED_PILL_BONUS
     };
+}
+
+// 5. HEARTBEAT: Mantener el nodo vivo para WALL-E
+export async function updateHeartbeat(nodeId: string, env: Env): Promise<void> {
+    const key = `economy/accounts/${nodeId}`;
+    const account = await getAccount(nodeId, env);
+    account.last_heartbeat = Date.now();
+    await env.MEMORY_BUCKET.put(key, JSON.stringify(account));
 }

@@ -92,6 +92,7 @@ export async function createShadowTask(
 
 // 4. Listar Tareas Shadow (Solo para Iniciados)
 export async function listShadowTasks(
+    nodeId: string,
     secretKey: string,
     env: Env
 ): Promise<ShadowTask[]> {
@@ -102,8 +103,7 @@ export async function listShadowTasks(
     }
 
     // COBRAR FEE DE VISUALIZACIÓN (1 Psh quemado)
-    // Nota: nodeId no disponible aquí, skip fee for list or refactor
-    // Por ahora, solo la clave es suficiente para ver
+    await burnPooptoshis(nodeId, SHADOW_VIEW_FEE, env);
 
     const listed = await env.MEMORY_BUCKET.list({ prefix: 'board/shadow/' });
 

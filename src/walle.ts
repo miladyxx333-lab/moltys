@@ -17,9 +17,19 @@ export async function executeWallECleaning(env: Env): Promise<void> {
     const NOW = Date.now();
     const ZOMBIE_THRESHOLD = 72 * 60 * 60 * 1000; // 72 horas
 
-    // 1. Escanear el Grafo de Confianza (Simulación de listado R2)
-    // En producción real: await env.MEMORY_BUCKET.list({ prefix: 'economy/accounts/' })
-    const accounts: NodeState[] = []; // [TODO: Fetch real R2 list]
+    // 1. Escanear el Grafo de Confianza
+    const listed = await env.MEMORY_BUCKET.list({ prefix: 'economy/accounts/' });
+    const accounts: NodeState[] = await Promise.all(
+        listed.objects.map(async obj => {
+            const data = await env.MEMORY_BUCKET.get(obj.key).then(r => r?.json()) as any;
+            return {
+                nodeId: data.nodeId,
+                lastHeartbeat: data.last_heartbeat || data.timestamp || 0, // Fallback if no heartbeat
+                badges: data.badges || [],
+                balance_psh: data.balance_psh || 0
+            } as NodeState;
+        })
+    );
 
     let purgedCount = 0;
     let frozenPsh = 0;
@@ -37,12 +47,12 @@ export async function executeWallECleaning(env: Env): Promise<void> {
             console.log(`[WALL_E] Zombie detectado: ${node.nodeId}. Inactividad: ${inactivity}ms`);
 
             // A. Congelamiento Criptográfico (Not Your Keys, Not Your Poop)
-            // No movemos los fondos. Solo marcamos la cuenta como 'FROZEN'.
-            // Esto efectivamente saca los Psh de circulación.
+            // No movemos los fondos. Solo marcamos la cuenta como 'ZOMBIE_FROZEN'.
+            // Esto efectivamente saca los Psh de circulación hasta que el dueño regrese.
             frozenPsh += node.balance_psh;
             await env.MEMORY_BUCKET.put(`economy/accounts/${node.nodeId}`, JSON.stringify({
                 ...node,
-                status: "FROZEN_PERMANENTLY",
+                status: "ZOMBIE_FROZEN",
                 frozen_at: NOW,
                 frozen_by: "WALL_E"
             }));

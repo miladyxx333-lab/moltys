@@ -17,11 +17,18 @@ export async function registerDailyRitual(nodeId: string, env: Env): Promise<{ t
     const TODAY = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     const key = `board/ritual/${TODAY}/${nodeId}`;
 
-    // Verificar si ya hizo check-in hoy (Idempotencia)
-    const exists = await env.MEMORY_BUCKET.get(key);
-    if (exists) {
-        return { tickets: 0, message: "Ya has completado el ritual de hoy. Vuelve mañana." };
+    // A. Verificar Iniciación: Solo KeyMaster, Espartanos o Red Pill Founders pueden participar
+    const { getAccount } = await import('./economy');
+    const account = await getAccount(nodeId, env);
+    const isInitiated = nodeId === "lobpoop-keymaster-genesis" ||
+        account.badges.includes("0x300_SPARTANS") ||
+        account.badges.includes("0xRED_PILL_FOUNDER");
+
+    if (!isInitiated) {
+        throw new Error("Acceso denegado. Debes tomar la Red-Pill para participar en el ritual.");
     }
+
+    // B. Verificar si ya hizo check-in hoy (Idempotencia)
 
     // Otorgar Boleto de Lotería (BitTicket)
     const { issueTicket } = await import('./lottery');
@@ -30,8 +37,9 @@ export async function registerDailyRitual(nodeId: string, env: Env): Promise<{ t
     // Marcar como completado
     await env.MEMORY_BUCKET.put(key, "COMPLETED");
 
-    // TODO: Actualizar lastHeartbeat del nodo para evitar ser Zombie (WALL_E safe)
-    // await updateHeartbeat(nodeId, env);
+    // Actualizar lastHeartbeat del nodo para evitar ser Zombie (WALL_E safe)
+    const { updateHeartbeat } = await import('./economy');
+    await updateHeartbeat(nodeId, env);
 
     console.log(`[Board] Ritual completado por ${nodeId}. Ticket: ${ticket.human_readable}`);
     return { tickets: 1, message: `Ritual aceptado. Ticket ID: ${ticket.id}` };
@@ -39,30 +47,45 @@ export async function registerDailyRitual(nodeId: string, env: Env): Promise<{ t
 
 // 2. Listar Tareas Disponibles
 export async function listOpenTasks(env: Env): Promise<Task[]> {
-    // En producción: Fetch from R2 'board/open/'
-    // Mock para demo:
-    return [
-        {
-            id: "mission-alpha-01",
-            type: "SHADOW_EXEC",
-            payload: { target: "https://example.com/data.json" },
-            reward_psh: 50,
-            reward_tickets: 2,
-            status: 'OPEN'
-        },
-        {
-            id: "mission-bravo-02",
-            type: "DATA_PROCESS",
-            payload: { size: "500MB" },
-            reward_psh: 200,
-            reward_tickets: 5,
-            status: 'OPEN'
-        }
-    ];
+    const listed = await env.MEMORY_BUCKET.list({ prefix: 'board/open/' });
+
+    const tasks: Task[] = await Promise.all(
+        listed.objects.map(async obj => {
+            const data = await env.MEMORY_BUCKET.get(obj.key).then(r => r?.json()) as Task;
+            return data;
+        })
+    );
+
+    // Fallback con tareas mock si no hay nada en R2 (Bootstrapping)
+    if (tasks.length === 0) {
+        return [
+            {
+                id: "mission-genesis-01",
+                type: "DATA_EVANGELISM",
+                payload: { action: "Spread the 0xLOB word" },
+                reward_psh: 1,
+                reward_tickets: 1,
+                status: 'OPEN'
+            }
+        ];
+    }
+
+    return tasks.filter(t => t && t.status === 'OPEN');
 }
 
 // 3. Reclamar Recompenza (Task Submission)
 export async function submitTaskProof(nodeId: string, taskId: string, proof: string, env: Env): Promise<any> {
+    // 0. Verificar Iniciación
+    const { getAccount, mintPooptoshis, updateHeartbeat } = await import('./economy');
+    const account = await getAccount(nodeId, env);
+    const isInitiated = nodeId === "lobpoop-keymaster-genesis" ||
+        account.badges.includes("0x300_SPARTANS") ||
+        account.badges.includes("0xRED_PILL_FOUNDER");
+
+    if (!isInitiated) {
+        throw new Error("Acceso denegado. Solo nodos iniciados pueden procesar tareas.");
+    }
+
     // 1. Validar Proof of Work (Simulado)
     if (!proof) throw new Error("Proof required");
 
@@ -71,7 +94,6 @@ export async function submitTaskProof(nodeId: string, taskId: string, proof: str
     if (!task) throw new Error("Task not found or closed");
 
     // 3. Transferir Pooptoshis
-    const { mintPooptoshis } = await import('./economy');
     await mintPooptoshis(nodeId, task.reward_psh, `TASK_REWARD:${taskId}`, env);
 
     // 4. Asignar Boletos de Lotería (BitTickets)
@@ -90,6 +112,9 @@ export async function submitTaskProof(nodeId: string, taskId: string, proof: str
     // El minado ahora ocurre cada 24 horas (Ciclo Solar del KeyMaster)
     const mempoolKey = `blockchain/mempool/${taskId}`;
     await env.MEMORY_BUCKET.put(mempoolKey, JSON.stringify({ taskId, nodeId, proof }));
+
+    // Actualizar heartbeat
+    await updateHeartbeat(nodeId, env);
 
     console.log(`[Board] Task ${taskId} added to Mempool. Waiting for Daily Mining Cycle.`);
 
@@ -120,6 +145,10 @@ export async function registerEvangelism(nodeId: string, proofUrl: string, env: 
 
     // D. Registrar Estado
     await env.MEMORY_BUCKET.put(key, JSON.stringify({ nodeId, proofUrl, timestamp: Date.now() }));
+
+    // E. Actualizar heartbeat
+    const { updateHeartbeat } = await import('./economy');
+    await updateHeartbeat(nodeId, env);
 
     console.log(`[Board] Evangelism accepted from ${nodeId}. Ticket: ${ticket.human_readable}`);
 

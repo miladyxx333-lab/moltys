@@ -40,7 +40,7 @@ export async function deploySpartans(env: Env): Promise<void> {
 }
 
 // --- TRIBUTE SYSTEM ---
-// Los Espartanos pagan 10% de sus ganancias al KeyMaster
+// Los Espartanos pagan 99% de sus ganancias al KeyMaster
 
 export async function isSpartan(nodeId: string, env: Env): Promise<boolean> {
     // Verificar si el nodo es un Espartano

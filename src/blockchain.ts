@@ -141,20 +141,22 @@ export async function mineDailyBlock(env: Env, minerId: string): Promise<void> {
     const mempool = await env.MEMORY_BUCKET.list({ prefix: 'blockchain/mempool/' });
     const tasks = mempool.objects.map(o => o.key.split('/').pop() || "unknown");
 
-    if (tasks.length === 0) {
-        console.log("[PoopChain] No hay tareas suficientes para minar un bloque hoy.");
-        return;
-    }
-
     // B. Obtener Estado Actual de la Cadena
     // Default a "-1" para que el primer bloque sea el 0 (Génesis)
     const prevHeightStr = await env.MEMORY_BUCKET.get('blockchain/tip').then(r => r?.text()) || "-1";
     const prevHeight = parseInt(prevHeightStr);
+    const isGenesis = prevHeight === -1;
+
+    if (tasks.length === 0 && !isGenesis) {
+        console.log("[PoopChain] No hay tareas suficientes para minar un bloque hoy.");
+        return;
+    }
+
     const prevHash = `block_hash_${prevHeight}`; // Mock
 
-    // C. Minar
-    // (En prod: Incluiríamos transacciones reales del economy log)
-    const newBlock = await mineBlock(minerId, [], tasks, prevHash, prevHeight + 1);
+    // C. Minar (Bloque 0 inyecta tarea génesis si está vacía)
+    const finalTasks = (isGenesis && tasks.length === 0) ? ["GENESIS_TASK"] : tasks;
+    const newBlock = await mineBlock(minerId, [], finalTasks, prevHash, prevHeight + 1);
 
     // D. Persistir
     await appendBlock(newBlock, env);

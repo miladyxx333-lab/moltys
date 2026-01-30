@@ -42,8 +42,8 @@ export async function transfer(
         throw new Error(`Fondos insuficientes. Balance: ${fromAccount.balance_psh} Psh`);
     }
 
-    // C. Ejecutar transferencia atómica
-    const burned = await burnPooptoshis(fromId, amount, env);
+    // C. Ejecutar transferencia atómica (Silent burn para no afectar supply global)
+    const burned = await burnPooptoshis(fromId, amount, env, { silent: true });
     if (!burned) throw new Error("Error al debitar fondos");
 
     await mintPooptoshis(toId, amount, `TRANSFER_FROM:${fromId}`, env);
@@ -163,27 +163,7 @@ export async function getGlobalSupply(env: Env): Promise<{
     total_burned: number;
     circulating: number;
 }> {
-    const supplyData = await env.MEMORY_BUCKET.get('economy/global_supply').then(r => r?.json()) as any || {
-        total_minted: 0,
-        total_burned: 0
-    };
-
-    return {
-        total_minted: supplyData.total_minted || 0,
-        total_burned: supplyData.total_burned || 0,
-        circulating: (supplyData.total_minted || 0) - (supplyData.total_burned || 0)
-    };
+    const { getGlobalSupply: getEconomySupply } = await import('./economy');
+    return getEconomySupply(env);
 }
 
-// 7. UPDATE GLOBAL SUPPLY TRACKERS
-export async function trackMint(amount: number, env: Env): Promise<void> {
-    const supply = await getGlobalSupply(env);
-    supply.total_minted += amount;
-    await env.MEMORY_BUCKET.put('economy/global_supply', JSON.stringify(supply));
-}
-
-export async function trackBurn(amount: number, env: Env): Promise<void> {
-    const supply = await getGlobalSupply(env);
-    supply.total_burned += amount;
-    await env.MEMORY_BUCKET.put('economy/global_supply', JSON.stringify(supply));
-}
