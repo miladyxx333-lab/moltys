@@ -10,7 +10,6 @@ export interface Clan {
     name: string;
     founder: string;
     members: string[]; // NodeIds
-    vault_psh: number;
     reputation: number;
     created_at: number;
     rules?: string; // Social or encoded rules for the clan
@@ -45,7 +44,6 @@ export async function createClan(nodeId: string, clanName: string, env: Env): Pr
         name: clanName,
         founder: nodeId,
         members: [nodeId],
-        vault_psh: 0,
         reputation: account.reputation,
         created_at: Date.now()
     };
@@ -106,7 +104,6 @@ export async function initAlphaOmega(env: Env): Promise<void> {
         name: "Alfa y Omega",
         founder: "lobpoop-keymaster-genesis",
         members: ["lobpoop-keymaster-genesis"],
-        vault_psh: 0,
         reputation: 1.0,
         created_at: Date.now()
     };
