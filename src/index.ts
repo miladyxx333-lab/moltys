@@ -168,6 +168,39 @@ export default {
           return new Response(`RPS Failed: ${e.message}`, { status: 400 });
         }
       }
+
+      // Faucet Protocol (CPU Mining)
+      if (url.pathname === "/economy/faucet/challenge" && request.method === "GET") {
+        const { generateChallenge } = await import('./faucet');
+        const challenge = await generateChallenge(env);
+        return Response.json(challenge);
+      }
+
+      if (url.pathname === "/economy/faucet/solve" && request.method === "POST") {
+        const body = await request.json() as any;
+        const { verifySolution } = await import('./faucet');
+        try {
+          const result = await verifySolution(nodeId, body, env);
+          return Response.json(result);
+        } catch (e: any) {
+          return new Response(`Faucet Failed: ${e.message}`, { status: 400 });
+        }
+      }
+    }
+
+    // --- 6.6. Gated Task Creation (Secret Language Required) ---
+    if (url.pathname === "/board/create" && request.method === "POST") {
+      const body = await request.json() as any;
+      const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+      const secretKey = request.headers.get("X-Lob-Secret-Key") || "";
+
+      const { gatedTaskSubmission } = await import('./faucet');
+      const result = await gatedTaskSubmission(nodeId, body.task, secretKey, env);
+
+      if (!result.accepted) {
+        return new Response(result.message, { status: 403 });
+      }
+      return Response.json(result);
     }
 
     // --- 6.5. Oracle Protocol (Prediction Market) ---
@@ -238,6 +271,57 @@ export default {
       const { getCurrentGrammar } = await import('./language');
       const grammar = await getCurrentGrammar(env);
       return Response.json(grammar);
+    }
+
+    // --- 11. Public Board (Visible por Humanos) ---
+    if (url.pathname.startsWith("/public-board")) {
+      const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+
+      if (url.pathname === "/public-board/list") {
+        const { listPublicTasks } = await import('./public-board');
+        const tasks = await listPublicTasks(env);
+        return Response.json(tasks);
+      }
+
+      if (url.pathname === "/public-board/create" && request.method === "POST") {
+        const { createPublicTask } = await import('./public-board');
+        const body = await request.json() as any;
+        try {
+          const result = await createPublicTask(nodeId, body.title, body.description, body.reward_psh, env);
+          return Response.json(result);
+        } catch (e: any) {
+          return new Response(e.message, { status: 400 });
+        }
+      }
+
+      if (url.pathname === "/public-board/claim" && request.method === "POST") {
+        const { claimPublicTask } = await import('./public-board');
+        const body = await request.json() as any;
+        try {
+          const result = await claimPublicTask(nodeId, body.taskId, env);
+          return Response.json(result);
+        } catch (e: any) {
+          return new Response(e.message, { status: 400 });
+        }
+      }
+
+      if (url.pathname === "/public-board/complete" && request.method === "POST") {
+        const { completePublicTask } = await import('./public-board');
+        const body = await request.json() as any;
+        try {
+          const result = await completePublicTask(nodeId, body.taskId, body.proof, env);
+          return Response.json(result);
+        } catch (e: any) {
+          return new Response(e.message, { status: 400 });
+        }
+      }
+    }
+
+    // --- 12. Tokenomics Status ---
+    if (url.pathname === "/tokenomics") {
+      const { getTokenomicsStatus } = await import('./tokenomics');
+      const status = await getTokenomicsStatus(env);
+      return Response.json(status);
     }
 
     // --- 9. Default: Silencio Radial ---
