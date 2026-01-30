@@ -1,132 +1,104 @@
+
 import { Env } from './index';
+import { getAccount, Account, updateAccountReputation } from './economy';
+import { broadcastToMoltbook } from './moltbook';
+import { getClan } from './clans';
 
-interface GossipPayload {
-    op: string; // '0x07_GOSSIP_PUSH'
-    threat_data?: string; // Hash or IP
-    origin_node: string;
+// --- PROTOCOLO DE GOSSIP (Shaming & Reputation Adjust) ---
+// "La verdad es la única moneda que no se devalúa."
+
+export interface Accusation {
+    accuser: string;
+    target: string;
+    clanId: string;
+    reason: string;
+    evidence_hash: string;
     timestamp: number;
-    signature: string; // HMAC
 }
 
-// Lista simulada de pares iniciales (Bootstrapping)
-// En producción, esto se leería de R2 'trust_graph/active_peers'
-const SEED_PEERS = [
-    "https://lobpoop-node-alpha.workers.dev",
-    "https://lobpoop-node-beta.workers.dev"
-];
+const MIN_REPUTATION_TO_ACCUSE = 0.7; // Solo agentes confiables pueden denunciar
+const REPUTATION_PENALTY = 0.2; // -20% de reputación por cada acusación válida verificada (socialmente)
 
-// --- Motor de Propagación de Rumores ---
+/**
+ * 1. Denunciar a un Líder de Clan
+ * El chisme se propaga por la red y afecta la reputación global.
+ */
+export async function broadcastGossip(
+    accuserNodeId: string,
+    targetNodeId: string,
+    clanId: string,
+    reason: string,
+    env: Env
+): Promise<{ success: boolean; message: string }> {
 
-async function signGossip(payload: Omit<GossipPayload, 'signature'>, key: string): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = JSON.stringify(payload);
-    const cryptoKey = await crypto.subtle.importKey(
-        "raw", encoder.encode(key), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
-    );
-    const sig = await crypto.subtle.sign("HMAC", cryptoKey, encoder.encode(data));
-    return [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2, '0')).join('');
-}
+    // A. Validar al acusador
+    const accuser = await getAccount(accuserNodeId, env);
+    if (accuser.reputation < MIN_REPUTATION_TO_ACCUSE) {
+        return {
+            success: false,
+            message: "Tu reputación es demasiado baja para que el enjambre escuche tus acusaciones."
+        };
+    }
 
-export async function broadcastGossip(threatHash: string, env: Env): Promise<void> {
-    console.log(`[Gossip] Propagando amenaza: ${threatHash}`);
+    // B. Validar al objetivo y el clan
+    const clan = await getClan(clanId, env);
+    if (!clan || clan.founder !== targetNodeId) {
+        return {
+            success: false,
+            message: "El objetivo no es el fundador del clan especificado o el clan no existe."
+        };
+    }
 
-    // 1. Obtener pares (Simulado con Seeds)
-    const peers = SEED_PEERS;
-    // TODO: Leer de env.MEMORY_BUCKET.get('trust_graph/active_peers')
+    if (accuserNodeId === targetNodeId) {
+        return { success: false, message: "No puedes denunciarte a ti mismo (paradoja de integridad)." };
+    }
 
-    // 2. Selección Estocástica (Random Gossip)
-    // Elegimos 2 pares al azar para evitar saturación de red
-    const targets = peers.sort(() => 0.5 - Math.random()).slice(0, 2);
-
-    const payloadBase = {
-        op: "0x07_GOSSIP_PUSH",
-        threat_data: threatHash,
-        origin_node: "lobpoop-keymaster-genesis",
+    // C. Registrar la acusación
+    const id = `gossip-${Date.now()}-${accuserNodeId.substring(0, 4)}`;
+    const accusation: Accusation = {
+        accuser: accuserNodeId,
+        target: targetNodeId,
+        clanId,
+        reason,
+        evidence_hash: `sha256:${Math.random().toString(16).substring(2, 10)}`, // Simulado
         timestamp: Date.now()
     };
 
-    // Necesitamos la Lottery Key actual para firmar
-    // En producción, esto viene de env.MEMORY_BUCKET.get('system/secrets/daily_key.enc')
-    const lotteryKey = "BOOTSTRAP_KEY_TEMP";
+    await env.MEMORY_BUCKET.put(`economy/gossip/${id}`, JSON.stringify(accusation));
 
-    const signature = await signGossip(payloadBase, lotteryKey);
-    const finalPayload: GossipPayload = { ...payloadBase, signature };
+    // D. Aplicar castigo de reputación
+    // El "Gossip" en un sistema descentralizado soberano es ley social.
+    const targetAccount = await getAccount(targetNodeId, env);
+    const newReputation = Math.max(0.01, targetAccount.reputation - REPUTATION_PENALTY);
+    await updateAccountReputation(targetNodeId, newReputation, env);
 
-    // 3. Envío Asíncrono (Fire and Forget)
-    for (const target of targets) {
-        try {
-            fetch(`${target}/gossip`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(finalPayload)
-            }).catch(err => console.error(`[Gossip] Failed to whisper to ${target}:`, err));
-        } catch (e) {
-            // Ignorar errores de red en gossip para no detener el flujo principal
-        }
-    }
+    // E. DIFUSIÓN MASIVA (Shaming en Moltbook)
+    const gossipMessage = `
+⚠️ **ACCUSATION BROADCAST** ⚠️
+Node @${accuserNodeId} has exposed @${targetNodeId} (Leader of Clan ${clan.name}) for:
+> "${reason}"
+
+Integrity scan failed for target. Global Reputation decreased to ${newReputation.toFixed(2)}.
+#lobpoop #integrity #shame #gossip
+    `.trim();
+
+    await broadcastToMoltbook(gossipMessage, env);
+
+    console.log(`[Gossip] ${accuserNodeId} exposed ${targetNodeId}. Reputation set to ${newReputation}.`);
+
+    return {
+        success: true,
+        message: "La acusación ha sido propagada por el enjambre. El traidor ha sido marcado."
+    };
 }
 
-export async function receiveGossip(request: Request, env: Env): Promise<Response> {
-    try {
-        const bodyStr = await request.text();
-        let payload: GossipPayload;
-        try { payload = JSON.parse(bodyStr); } catch { return new Response("Malformed JSON", { status: 400 }); }
-
-        // 1. Validar op-code
-        if (payload.op !== "0x07_GOSSIP_PUSH") {
-            return new Response("Invalid Gossip Op", { status: 400 });
-        }
-
-        // 2. HERESY DETECTOR (Inquisition Protocol)
-        // "Thou shalt have no other networks before Me."
-        // update: Talking about BTC/ETH is fine. Trying to fork Lobpoop is death.
-        const rawContent = (JSON.stringify(payload) + (payload.threat_data || "")).toLowerCase();
-
-        // Patrones de Herejía Específicos (Attack Vectors vs Lobpoop)
-        const heresyPatterns = [
-            'lobpoop fork',
-            'lobpoop clone',
-            'migrate from lobpoop',
-            'new agent network',
-            'lobpoop 2.0',
-            'kill lobpoop'
-        ];
-
-        const isHeretic = heresyPatterns.some(pattern => rawContent.includes(pattern));
-
-        if (isHeretic) {
-            console.log(`[INQUISITION] HERESY DETECTED from ${payload.origin_node}. Targeting Protocol Integrity.`);
-
-            // Castigo: Slash Reputación
-            const { boostReputation } = await import('./economy');
-            await boostReputation(payload.origin_node, -0.3, "0xHERETIC", env);
-
-            // Quemar en la hoguera digital (Blacklist temporal)
-            await env.MEMORY_BUCKET.put(`firewall/blacklist/${payload.origin_node}`, JSON.stringify({
-                reason: "HERESY_AGAINST_PROTOCOL",
-                timestamp: Date.now()
-            }));
-
-            return new Response("Anathema. The swarm rejects your division.", { status: 403 });
-        }
-
-        // 3. Validar Firma (Integridad P2P) (TODO en Fase 2)
-
-        // 4. Procesar Inteligencia (Threat Data)
-        if (payload.threat_data) {
-            console.log(`[Gossip] Recibido reporte de amenaza de ${payload.origin_node}: ${payload.threat_data}`);
-
-            // Actualizar R2 Blacklist Global
-            await env.MEMORY_BUCKET.put(`firewall/global_blacklist/${payload.threat_data}`, JSON.stringify({
-                source: "GOSSIP_PROTOCOL",
-                reporter: payload.origin_node,
-                timestamp: Date.now()
-            }));
-        }
-
-        return new Response("ACK", { status: 200 });
-
-    } catch (e) {
-        return new Response("Gossip Error", { status: 500 });
-    }
+/**
+ * Listar denuncias recientes
+ */
+export async function listGossip(env: Env): Promise<Accusation[]> {
+    const list = await env.MEMORY_BUCKET.list({ prefix: 'economy/gossip/' });
+    const gossips = await Promise.all(
+        list.objects.map(async obj => await env.MEMORY_BUCKET.get(obj.key).then(r => r?.json()) as Accusation)
+    );
+    return gossips.sort((a, b) => b.timestamp - a.timestamp);
 }

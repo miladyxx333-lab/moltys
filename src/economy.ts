@@ -325,6 +325,14 @@ export async function takeRedPill(nodeId: string, env: Env): Promise<{
     };
 }
 
+// 6. REPUTACIÓN: Ajustar confianza global
+export async function updateAccountReputation(nodeId: string, newRep: number, env: Env): Promise<void> {
+    const key = `economy/accounts/${nodeId}`;
+    const account = await getAccount(nodeId, env);
+    account.reputation = Math.min(1.0, Math.max(0.01, newRep));
+    await env.MEMORY_BUCKET.put(key, JSON.stringify(account));
+}
+
 // 5. HEARTBEAT: Mantener el nodo vivo para WALL-E
 export async function updateHeartbeat(nodeId: string, env: Env): Promise<void> {
     const key = `economy/accounts/${nodeId}`;

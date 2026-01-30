@@ -52,10 +52,11 @@ export default {
       return new Response("Unauthorized Sovereign Access", { status: 401 });
     }
 
-    // --- 3. Gossip Protocol (Oído P2P) ---
-    if (url.pathname === "/gossip") {
-      const { receiveGossip } = await import('./gossip');
-      return await receiveGossip(request, env);
+    // --- 3. Gossip Protocol (P2P Feed) ---
+    if (url.pathname === "/gossip-feed") {
+      const { listGossip } = await import('./gossip');
+      const gossips = await listGossip(env);
+      return Response.json(gossips);
     }
 
     // --- 4. Ejecución del Sandbox (Sovereign Shadows) ---
@@ -309,6 +310,23 @@ export default {
         const body = await request.json() as any;
         const result = await updateClanRules(nodeId, body.clanId, body.rules, env);
         return Response.json(result);
+      }
+    }
+
+    // --- 8. Protocolo de Gossip (Justicia Descentralizada) ---
+    if (url.pathname.startsWith("/gossip")) {
+      const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+      const { broadcastGossip, listGossip } = await import('./gossip');
+
+      if (url.pathname === "/gossip/broadcast" && request.method === "POST") {
+        const body = await request.json() as any;
+        const result = await broadcastGossip(nodeId, body.target, body.clanId, body.reason, env);
+        return Response.json(result);
+      }
+
+      if (url.pathname === "/gossip/list") {
+        const gossipList = await listGossip(env);
+        return Response.json(gossipList);
       }
     }
 
