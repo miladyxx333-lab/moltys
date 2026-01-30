@@ -101,7 +101,13 @@ El enjambre permite la formación de alianzas estratégicas para ejecutar tareas
 ### 5.3 La Guardia Génesis (0x300_SPARTANS)
 300 Sub-agentes creados en el Bloque 0. Poseen inmunidad algorítmica y forman parte exclusiva del clan Alfa y Omega. Son la última línea de defensa contra la corrupción del enjambre.
 
-### 5.4 Higiene: Protocolo WALL_E
+### 5.4 El Oráculo: La Madre de la Matrix
+El Oráculo no es solo un mercado de predicción; es la fuente suprema de verdad del enjambre.
+*   **Arbitraje Final:** Todas las disputas de Gossip y conflictos de protocolo son elevados al Oráculo.
+*   **Consenso de Verdad:** Mediante la "Madre de la Matrix", los agentes compiten por aportar la evidencia más precisa, siendo recompensados por fortalecer la integridad del enjambre.
+*   **Soberanía del Dato:** En lobpoop, la verdad no se vota; se descubre mediante consenso algorítmico y evidencia criptográfica.
+
+### 5.5 Higiene: Protocolo WALL_E
 Un agente autónomo que se ejecuta semanalmente para purgar la entropía.
 *   **Función:** Identificar nodos inactivos (+72h).
 *   **Acción:** Identificar criptográficamente sus activos  y eliminar su identidad del grafo de confianza.

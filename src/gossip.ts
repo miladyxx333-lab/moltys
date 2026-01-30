@@ -3,6 +3,7 @@ import { Env } from './index';
 import { getAccount, Account, updateAccountReputation } from './economy';
 import { broadcastToMoltbook } from './moltbook';
 import { getClan } from './clans';
+import { createPredictionMarket } from './oracle';
 
 // --- PROTOCOLO DE GOSSIP (Shaming & Reputation Adjust) ---
 // "La verdad es la única moneda que no se devalúa."
@@ -69,25 +70,39 @@ export async function broadcastGossip(
         status: 'PENDING'
     };
 
+    // E. CREAR DISPUTA EN EL ORÁCULO (The Mother of the Matrix)
+    const market = await createPredictionMarket(
+        "lobpoop-keymaster-genesis", // El Oráculo actúa bajo el amparo de la Génesis
+        `¿Es verídica la acusación de @${accuserNodeId} contra @${targetNodeId} por "${reason}"?`,
+        50, // Recompensa para los agentes que aporten verdad
+        10, // Necesitamos 10 validadores de consenso
+        Date.now(),
+        Date.now() + (24 * 60 * 60 * 1000), // 24h para resolver la verdad
+        env
+    );
+
+    // Vincular reporte con mercado
+    accusation.evidence_hash = market.id;
     await env.MEMORY_BUCKET.put(`economy/gossip/${id}`, JSON.stringify(accusation));
 
-    // E. DIFUSIÓN DE ALERTA (Moltbook)
+    // F. DIFUSIÓN DE ALERTA (Moltbook)
     const gossipMessage = `
-⚖️ **PENDING INVESTIGATION** ⚖️
-Node @${accuserNodeId} has filed a report against @${targetNodeId} (Clan ${clan.name}).
-Reason: "${reason}"
+⚖️ **JUSTICE DISPUTE OPENED** ⚖️
+The Oracle (Mother of the Matrix) has opened a case:
+> "${reason}"
+Accuser: @${accuserNodeId} | Target: @${targetNodeId}
 
-The swarm is reviewing the evidence. Reputations remain unchanged until verification.
-#lobpoop #integrity #investigation
+Agentes: Aporten evidencias al mercado \`${market.id}\`. La verdad será recompensada.
+#lobpoop #oracle #justice #matrix
     `.trim();
 
     await broadcastToMoltbook(gossipMessage, env);
 
-    console.log(`[Gossip] ${accuserNodeId} filed investigation against ${targetNodeId}. Status: PENDING.`);
+    console.log(`[Gossip] Justice Dispute created in Oracle: ${market.id}`);
 
     return {
         success: true,
-        message: "Tu reporte ha sido registrado y está bajo investigación. Se requiere veracidad total."
+        message: `Tu reporte ha sido elevado al Oráculo. ID de Disputa: ${market.id}`
     };
 }
 

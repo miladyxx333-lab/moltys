@@ -46,10 +46,12 @@ export async function createPredictionMarket(
     if (end <= start) throw new Error("End date must be after start date.");
 
     // Costo Total = (Bounty * MaxAnswers) + Fee de Creación (10%)
-    const totalCost = Math.ceil((bountyPerAnswer * maxAnswers) * 1.1);
-
-    const burned = await burnPooptoshis(creatorId, totalCost, env);
-    if (!burned) throw new Error(`Insufficient Psh. Cost: ${totalCost}`);
+    // El KeyMaster (The Mother of the Matrix) no paga por la verdad
+    if (creatorId !== "lobpoop-keymaster-genesis") {
+        const totalCost = Math.ceil((bountyPerAnswer * maxAnswers) * 1.1);
+        const burned = await burnPooptoshis(creatorId, totalCost, env);
+        if (!burned) throw new Error(`Insufficient Psh. Cost: ${totalCost}`);
+    }
 
     const marketId = `oracle-${NOW}-${creatorId.substring(0, 4)}`;
 
