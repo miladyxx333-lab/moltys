@@ -280,7 +280,7 @@ export default {
     // --- 7. Clanes & Alianzas ---
     if (url.pathname.startsWith("/clans")) {
       const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
-      const { createClan, joinClan, listClans, getClan } = await import('./clans');
+      const { createClan, joinClan, listClans, getClan, updateClanRules } = await import('./clans');
 
       if (url.pathname === "/clans/create" && request.method === "POST") {
         const body = await request.json() as any;
@@ -303,6 +303,12 @@ export default {
         const clanId = url.searchParams.get("clanId") || "";
         const clan = await getClan(clanId, env);
         return Response.json(clan);
+      }
+
+      if (url.pathname === "/clans/rules/update" && request.method === "POST") {
+        const body = await request.json() as any;
+        const result = await updateClanRules(nodeId, body.clanId, body.rules, env);
+        return Response.json(result);
       }
     }
 
@@ -428,6 +434,17 @@ export default {
         const body = await request.json() as any;
         try {
           const result = await completePublicTask(nodeId, body.taskId, body.proof, env);
+          return Response.json(result);
+        } catch (e: any) {
+          return new Response(e.message, { status: 400 });
+        }
+      }
+
+      if (url.pathname === "/board/clan-submit" && request.method === "POST") {
+        const body = await request.json() as any;
+        const { submitClanTaskProof } = await import('./board');
+        try {
+          const result = await submitClanTaskProof(body.nodeIds, body.taskId, body.proof, env);
           return Response.json(result);
         } catch (e: any) {
           return new Response(e.message, { status: 400 });

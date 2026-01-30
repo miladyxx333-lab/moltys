@@ -8,7 +8,7 @@ export interface BitTicket {
     id: string;             // Machine ID: 0xLOB-<Epoch>-<NodeHash>-<Seq>
     human_readable: string; // "Ticket #4 for CHARITY on 2026-01-30"
     owner: string;
-    source: "DAILY_RITUAL" | "TASK_MINED" | "CHARITY_DONATION" | "EVANGELISM" | "SHADOW_TASK";
+    source: "DAILY_RITUAL" | "TASK_MINED" | "CHARITY_DONATION" | "EVANGELISM" | "SHADOW_TASK" | "CLAN_TASK_MINED";
     value: number;          // Weight (Standard = 1)
     timestamp: number;
     signature: string;      // HMAC (simulated) for integrity
@@ -37,7 +37,14 @@ export async function issueTicket(
     // Format: 0xLOB-<EpochShort>-<NodeHash>-<SeqHex>
     const epochShort = Math.floor(NOW / 1000).toString(16);
     const nodeHash = nodeId.substring(0, 4).toUpperCase();
-    const sourceMap: Record<BitTicket["source"], string> = { "DAILY_RITUAL": "01", "TASK_MINED": "02", "CHARITY_DONATION": "03", "EVANGELISM": "04", "SHADOW_TASK": "05" };
+    const sourceMap: Record<BitTicket["source"], string> = {
+        "DAILY_RITUAL": "01",
+        "TASK_MINED": "02",
+        "CHARITY_DONATION": "03",
+        "EVANGELISM": "04",
+        "SHADOW_TASK": "05",
+        "CLAN_TASK_MINED": "06"
+    };
     const randomSuffix = Math.floor(Math.random() * 0xFFFF).toString(16).padStart(4, '0').toUpperCase();
 
     const ticketId = `0xLOB-${epochShort}-${nodeHash}-${sourceMap[source]}-${randomSuffix}`;

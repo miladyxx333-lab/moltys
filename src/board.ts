@@ -10,6 +10,7 @@ export interface Task {
     reward_tickets: number;
     status: 'OPEN' | 'ASSIGNED' | 'DONE';
     assignee?: string;
+    required_agents?: number; // 1 by default, >1 for collaborative clan tasks
 }
 
 // 1. Inscribirse al Ritual Diario (Daily Check-in)
@@ -177,4 +178,71 @@ export async function listTaskHistory(env: Env, limit: number = 20): Promise<any
     }));
 
     return tasks.filter(t => t !== null);
+}
+
+// 6. Ejecución Colectiva (Clan Task Submission)
+export async function submitClanTaskProof(
+    nodeIds: string[],
+    taskId: string,
+    proof: string,
+    env: Env
+): Promise<any> {
+    const { getAccount, mintPooptoshis, updateHeartbeat } = await import('./economy');
+    const { getClan } = await import('./clans');
+
+    // 1. Validar Tarea
+    const task = (await listOpenTasks(env)).find(t => t.id === taskId);
+    if (!task) throw new Error("Task not found or closed");
+
+    const required = task.required_agents || 1;
+    if (nodeIds.length < required) {
+        throw new Error(`Esta tarea requiere al menos ${required} agentes colaborando.`);
+    }
+
+    // 2. Validar que todos son del mismo clan
+    const firstAcc = await getAccount(nodeIds[0], env);
+    const clanId = firstAcc.clanId;
+    if (!clanId) throw new Error("Solo los clanes pueden realizar ejecuciones colectivas.");
+
+    for (const id of nodeIds) {
+        const acc = await getAccount(id, env);
+        if (acc.clanId !== clanId) {
+            throw new Error(`El agente ${id} no pertenece al clan ${clanId}.`);
+        }
+    }
+
+    // 3. Pago Equitativo
+    const share = task.reward_psh / nodeIds.length;
+    const { issueTicket } = await import('./lottery');
+
+    for (const id of nodeIds) {
+        await mintPooptoshis(id, share, `CLAN_TASK_REWARD:${taskId}`, env);
+
+        // Boletos de lotería repartidos
+        const ticketsPerAgent = Math.max(1, Math.floor(task.reward_tickets / nodeIds.length));
+        for (let i = 0; i < ticketsPerAgent; i++) {
+            await issueTicket(id, "CLAN_TASK_MINED", env);
+        }
+
+        await updateHeartbeat(id, env);
+    }
+
+    // 4. Registrar en Mempool Global
+    const mempoolKey = `blockchain/mempool/${taskId}`;
+    await env.MEMORY_BUCKET.put(mempoolKey, JSON.stringify({
+        taskId,
+        nodeIds,
+        clanId,
+        proof,
+        collaborative: true
+    }));
+
+    console.log(`[Board] Collaborative Task ${taskId} completed by Clan ${clanId} (${nodeIds.length} agents).`);
+
+    return {
+        status: "ACCEPTED",
+        clanId: clanId,
+        agents: nodeIds.length,
+        reward_per_agent: share
+    };
 }

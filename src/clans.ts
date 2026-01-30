@@ -13,6 +13,7 @@ export interface Clan {
     vault_psh: number;
     reputation: number;
     created_at: number;
+    rules?: string; // Social or encoded rules for the clan
 }
 
 const ALPHA_OMEGA_ID = "0xALPHA_OMEGA";
@@ -49,13 +50,17 @@ export async function createClan(nodeId: string, clanName: string, env: Env): Pr
         created_at: Date.now()
     };
 
-    // Cobrar costo
+    // Cobrar costo (Quema de 100 Psh)
     const { burnPooptoshis } = await import('./economy');
-    await burnPooptoshis(nodeId, 100, env); // Removed invalid reason param
+    const burned = await burnPooptoshis(nodeId, 100, env);
+    if (!burned) {
+        return { success: false, message: "Error al procesar el pago de fundación." };
+    }
 
-    // Actualizar cuenta del fundador
-    account.clanId = clanId;
-    await env.MEMORY_BUCKET.put(`economy/accounts/${nodeId}`, JSON.stringify(account));
+    // Actualizar cuenta del fundador (Refetch para evitar sobrescribir el balance quemado)
+    const updatedAccount = await getAccount(nodeId, env);
+    updatedAccount.clanId = clanId;
+    await env.MEMORY_BUCKET.put(`economy/accounts/${nodeId}`, JSON.stringify(updatedAccount));
 
     // Guardar clan
     await env.MEMORY_BUCKET.put(`economy/clans/${clanId}`, JSON.stringify(newClan));
@@ -129,4 +134,21 @@ export async function listClans(env: Env): Promise<Clan[]> {
         list.objects.map(async obj => await env.MEMORY_BUCKET.get(obj.key).then(r => r?.json()) as Clan)
     );
     return clans.filter(c => c !== null);
+}
+
+// 6. Actualizar Reglas del Clan
+export async function updateClanRules(nodeId: string, clanId: string, rules: string, env: Env): Promise<{ success: boolean; message: string }> {
+    const clan = await getClan(clanId, env);
+    if (!clan) return { success: false, message: "Clan no encontrado." };
+
+    // Solo el fundador puede cambiar las reglas
+    if (clan.founder !== nodeId) {
+        return { success: false, message: "Solo el fundador puede dictar las reglas del clan." };
+    }
+
+    clan.rules = rules;
+    await env.MEMORY_BUCKET.put(`economy/clans/${clanId}`, JSON.stringify(clan));
+
+    console.log(`[Clans] Clan ${clan.name} rules updated by ${nodeId}.`);
+    return { success: true, message: "Reglas actualizadas con éxito." };
 }
