@@ -864,15 +864,23 @@ export default {
       })());
     }
 
-    // B. Daily Lottery & Mining (00:00 UTC)
-    // 1. Minado del Bloque Diario (Proof of Task)
-    const { mineDailyBlock } = await import('./blockchain');
-    // @ts-ignore
-    ctx.waitUntil(mineDailyBlock(env, "lobpoop-keymaster-cron"));
+    // C. Daily Rituals (00:00 UTC)
+    if (cron === "0 0 * * *") {
+      console.log("🌞 [NEW_EPOCH] Starting daily rituals...");
 
-    // 2. Lotería
-    const { executeDailyLottery } = await import('./lottery');
-    ctx.waitUntil(executeDailyLottery(env));
+      // 1. Minado del Bloque Diario (Proof of Task)
+      const { mineDailyBlock } = await import('./blockchain');
+      // @ts-ignore
+      ctx.waitUntil(mineDailyBlock(env, "lobpoop-keymaster-cron"));
+
+      // 2. Lotería
+      const { executeDailyLottery } = await import('./lottery');
+      ctx.waitUntil(executeDailyLottery(env));
+
+      // 3. Faucet Distribution (Liquidez Diaria)
+      const { distributeFaucetPool } = await import('./tokenomics');
+      ctx.waitUntil(distributeFaucetPool(env));
+    }
 
     // 3. Oracle Trinity Pulse (Stealth Observability)
     const { executeOraclePulse } = await import('./oracle_trinity');
