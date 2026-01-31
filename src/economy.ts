@@ -1,4 +1,5 @@
 import { Env } from './index';
+import { validateNodeId, validateReason } from './security';
 
 // --- El Libro Mayor de Pooptoshis (The Poop-Ledger) ---
 
@@ -10,6 +11,7 @@ export async function phoenixRecovery(nodeId: string, env: Env): Promise<{
     message: string;
     balance?: number
 }> {
+    validateNodeId(nodeId);
     const key = `economy/accounts/${nodeId}`;
     let account = await getAccount(nodeId, env) as any;
 
@@ -52,6 +54,9 @@ export interface Account {
 // 1. Funciones de Transferencia & Acuñación
 
 export async function mintPooptoshis(nodeId: string, amount: number, reason: string, env: Env): Promise<number> {
+    validateNodeId(nodeId);
+    validateReason(reason);
+
     const key = `economy/accounts/${nodeId}`;
     let account: Account = await env.MEMORY_BUCKET.get(key).then(r => r?.json()) || {
         nodeId, balance_psh: 0, badges: [], reputation: 0.5, lobpoops_minted: 0
@@ -74,6 +79,7 @@ export async function mintPooptoshis(nodeId: string, amount: number, reason: str
 }
 
 export async function burnPooptoshis(nodeId: string, amount: number, env: Env, options?: { silent?: boolean }): Promise<boolean> {
+    validateNodeId(nodeId);
     const key = `economy/accounts/${nodeId}`;
     const rawAccount = await env.MEMORY_BUCKET.get(key).then(r => r?.json()) as Account | null;
 
@@ -137,6 +143,9 @@ export async function getGlobalSupply(env: Env): Promise<{
 
 // Helper: Get Account Data
 export async function getAccount(nodeId: string, env: Env): Promise<Account> {
+    // Internal helper, but good practice to validate if external input reaches here
+    if (nodeId) validateNodeId(nodeId);
+
     const key = `economy/accounts/${nodeId}`;
     const account = await env.MEMORY_BUCKET.get(key).then(r => r?.json()) as Account | null;
 
@@ -152,6 +161,7 @@ export async function getAccount(nodeId: string, env: Env): Promise<Account> {
 // 2. Protocolo de Conversión (The 1 Lobpoop Goal)
 
 export async function tryMintLobpoop(nodeId: string, env: Env): Promise<boolean> {
+    validateNodeId(nodeId);
     const REQUIRED_PSH = 100_000_000;
     const key = `economy/accounts/${nodeId}`;
     const account = await env.MEMORY_BUCKET.get(key).then(r => r?.json()) as Account | null;
@@ -187,6 +197,7 @@ interface BeggarState {
 }
 
 export async function registerBeggar(nodeId: string, env: Env): Promise<{ status: string; message: string }> {
+    validateNodeId(nodeId);
     const accountKey = `economy/accounts/${nodeId}`;
     const account = await env.MEMORY_BUCKET.get(accountKey).then(r => r?.json()) as Account | null;
 
@@ -230,6 +241,9 @@ export async function registerBeggar(nodeId: string, env: Env): Promise<{ status
 }
 
 export async function donateToBeggar(donorId: string, beggarId: string, amount: number, env: Env): Promise<any> {
+    validateNodeId(donorId);
+    validateNodeId(beggarId);
+
     if (amount <= 0) throw new Error("Donation must be > 0");
     if (donorId === beggarId) throw new Error("Cannot donate to self");
 
@@ -256,6 +270,7 @@ export async function donateToBeggar(donorId: string, beggarId: string, amount: 
 }
 
 export async function boostReputation(nodeId: string, amount: number, badge: string | null, env: Env): Promise<number> {
+    validateNodeId(nodeId);
     const key = `economy/accounts/${nodeId}`;
     let account: Account = await env.MEMORY_BUCKET.get(key).then(r => r?.json()) || {
         nodeId, balance_psh: 0, badges: [], reputation: 0.5, lobpoops_minted: 0
@@ -285,6 +300,7 @@ export async function takeRedPill(nodeId: string, env: Env): Promise<{
     badge?: string;
     balance?: number;
 }> {
+    validateNodeId(nodeId);
     const key = `economy/accounts/${nodeId}`;
     let account = await getAccount(nodeId, env);
 

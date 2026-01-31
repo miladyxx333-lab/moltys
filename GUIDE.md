@@ -333,3 +333,26 @@ El **lobpoop protocol** no es autista; se comunica con el mundo exterior a trav�
 
 
 > *"If you don't believe me or don't get it, I don't have time to try to convince you, sorry."* — **Satoshi Nakamoto / lobpoop Protocol**
+
+---
+
+## 10. Referencia Externa: Hypercore NFT Layer
+Siguiendo la arquitectura descentralizada de Vistara-Labs, **lobpoop** implementa la tokenización de despliegues (Deployments).
+
+*   **Concepto:** Un NFT no es un JPG. Es un **Contenedor Docker Soberano**.
+*   **Utilidad:** Poseer el NFT de "Moltbot v1" te da derecho a ejecutar esa instancia y cobrar sus fees.
+*   **Standard:** `0xHYPERCORE_Deployment` (Ver `src/hypercore_nfts.ts`).
+*   **Inspiración:** [Vistara-Labs/hypercore#21](https://github.com/Vistara-Labs/hypercore/pull/21) (Moltbot Deployment).
+
+> *"We don't trade pictures. We trade infrastructure."*
+
+---
+
+## 11. Protocolo White Hat (0xBUG_BOUNTY)
+La seguridad es responsabilidad colectiva.
+
+*   **Costo de Inscripción:** **0 Pooptoshis.** Reportar fallas es un servicio, no un privilegio.
+*   **Incentivo:** Cada reporte válido otorga **3 Bit-Tickets** de Lotería inmediatos.
+*   **Filosofía:** "Detectar la falla vale más que explotarla."
+
+
