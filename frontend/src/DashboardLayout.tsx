@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import {
     LayoutDashboard,
     Sun,
-    Moon,
-    Shield
+    Moon
 } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -13,8 +12,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setIsDarkMode(!isDarkMode);
         document.body.classList.toggle('light-mode');
     };
-
-    const isKeyMasterRoute = window.location.pathname.includes('/keymaster');
 
     return (
         <div className={`min-h-screen flex flex-col md:flex-row bg-[var(--bg-color)] text-[var(--text-color)] terminal-text transition-colors duration-200`}>
@@ -40,15 +37,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <NavItem
                         icon={<LayoutDashboard size={14} />}
                         label="COMMAND_CENTER"
-                        active={!isKeyMasterRoute}
+                        active={true}
                         href="/"
-                    />
-                    <NavItem
-                        icon={<Shield size={14} />}
-                        label="KEYMASTER_ADMIN"
-                        active={isKeyMasterRoute}
-                        href="/keymaster"
-                        restricted
                     />
                 </nav>
 
