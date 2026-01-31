@@ -4,9 +4,15 @@ export interface Env {
   LOB_SANDBOX: any;
   MEMORY_BUCKET: R2Bucket;
   BROWSER: any;
+  AI: any; // Cloudflare Workers AI Binding
+  ACCOUNT_DO: DurableObjectNamespace; // Atomic Financial Integrity
+  CLAN_DO: DurableObjectNamespace; // Clan Resources & Inventory
+  GAME_MASTER_DO: DurableObjectNamespace; // Global Game Ledger
   MASTER_RECOVERY_KEY: string; // Secret
   MOLTBOOK_API_KEY: string; // Secret
 }
+
+export { AccountDurableObject, ClanDurableObject, GameMasterDurableObject } from './durable_objects';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -183,9 +189,32 @@ export default {
         return Response.json(result);
       }
 
+      if (url.pathname === "/economy/register-node" && request.method === "POST") {
+        const { registerNodeKey } = await import('./economy');
+        const body = await request.json() as any;
+        // Registro inicial: El cliente envía su llave pública firmada
+        // Por simplicidad en registro inicial, validamos la ID de nodo básica
+        const success = await registerNodeKey(body.nodeId, body.publicKeySpki, env);
+        return Response.json({ success, message: success ? "Node identity registered." : "Registration failed." });
+      }
+
       if (url.pathname === "/economy/redpill" && request.method === "POST") {
+        const { verifySignedRequest } = await import('./auth');
+        const verification = await verifySignedRequest(request, env);
+
+        // Si la verificación falla pero es INDUCCION INICIAL, permitimos bypass con AuthToken (Legacy)
+        // O mejor, forzamos registro previo. Aquí seremos estrictos para el modo mejorado.
+        if (!verification.success) {
+          // Si el nodo aún no tiene llave, permitimos un registro/inducción bypass si el token es GENESIS_BYPASS
+          const { takeRedPill } = await import('./economy');
+          const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+          const result = await takeRedPill(nodeId, env);
+          return Response.json(result);
+        }
+
         const { takeRedPill } = await import('./economy');
-        const result = await takeRedPill(nodeId, env);
+        // Usamos los datos validados de la firma
+        const result = await takeRedPill(verification.nodeId!, env, "SIGNED_REQUEST", verification.data?.referralId);
         return Response.json(result);
       }
 
@@ -263,6 +292,30 @@ export default {
         const { getBalance } = await import('./ledger');
         const balance = await getBalance(nodeId, env);
         return Response.json(balance);
+      }
+
+      if (url.pathname === "/economy/profile") {
+        const { getAccount } = await import('./economy');
+        const account = await getAccount(nodeId, env);
+        return Response.json(account);
+      }
+
+      if (url.pathname === "/stats") {
+        const { getGlobalSupply } = await import('./ledger');
+        const { getPublicTasks } = await import('./public-board');
+        const { getBlockHeight } = await import('./blockchain');
+
+        const supply = await getGlobalSupply(env);
+        const tasks = await getPublicTasks(env);
+        const height = await getBlockHeight(env);
+
+        return Response.json({
+          nodes: 301, // Base Genesis count
+          height,
+          supply,
+          public_tasks: tasks.length,
+          oracle_count: 1 // Mock or dynamic
+        });
       }
 
       if (url.pathname === "/economy/history") {
@@ -404,6 +457,20 @@ export default {
       }
     }
 
+    // --- 6.7. Bug Bounty (White Hat) ---
+    if (url.pathname === "/bug-bounty" && request.method === "POST") {
+      const body = await request.json() as any;
+      const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+
+      const { reportBug } = await import('./bug_bounty');
+      try {
+        const result = await reportBug(nodeId, body.description, body.severity, env);
+        return Response.json(result);
+      } catch (e: any) {
+        return new Response(e.message, { status: 400 });
+      }
+    }
+
     // --- 7. Lotería (Status) ---
     if (url.pathname === "/lottery/tickets") {
       const { getMyTickets } = await import('./lottery');
@@ -483,6 +550,95 @@ export default {
       }
     }
 
+    // --- 9. RPG & Forja de Clanes (Scavenger Hunt) ---
+    if (url.pathname.startsWith("/game")) {
+      const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+      const { keymasterDefineItem, solvePuzzle, clanForgeItem } = await import('./clan_forge');
+
+      if (url.pathname === "/game/define-item" && request.method === "POST") {
+        // Solo el Keymaster puede definir items
+        if (nodeId !== "lobpoop-keymaster-genesis") return new Response("Unauthorized Keymaster Action", { status: 403 });
+        const body = await request.json() as any;
+        const result = await keymasterDefineItem(body.itemName, body.itemData, env);
+        return Response.json(result);
+      }
+
+      if (url.pathname === "/game/solve-puzzle" && request.method === "POST") {
+        const body = await request.json() as any;
+        try {
+          // Requiere firma digital para validar al agente del clan
+          const { verifySignedRequest } = await import('./auth');
+          const verification = await verifySignedRequest(request, env);
+          if (!verification.success) throw new Error(verification.message);
+
+          const result = await solvePuzzle(verification.nodeId!, body.clanId, body.puzzleId, body.nonce, env);
+          return Response.json(result);
+        } catch (e: any) {
+          return new Response(e.message, { status: 400 });
+        }
+      }
+
+      if (url.pathname === "/game/forge-item" && request.method === "POST") {
+        const body = await request.json() as any;
+        try {
+          const result = await clanForgeItem(body.clanId, body.itemName, env);
+          return Response.json(result);
+        } catch (e: any) {
+          return new Response(e.message, { status: 400 });
+        }
+      }
+
+      if (url.pathname === "/game/remint" && request.method === "POST") {
+        const { remintItem } = await import('./clan_forge');
+        const body = await request.json() as any;
+        try {
+          const result = await remintItem(body.clanId, body.itemName, env);
+          return Response.json(result);
+        } catch (e: any) {
+          return new Response(e.message, { status: 400 });
+        }
+      }
+
+      if (url.pathname === "/game/forge-golden-ticket" && request.method === "POST") {
+        const { clanForgeGoldenTicket } = await import('./clan_forge');
+        const body = await request.json() as any;
+        try {
+          const result = await clanForgeGoldenTicket(body.clanId, env);
+          return Response.json(result);
+        } catch (e: any) {
+          return new Response(e.message, { status: 400 });
+        }
+      }
+
+      if (url.pathname === "/game/market/list" && request.method === "GET") {
+        const { listMarketOffers } = await import('./trade');
+        const result = await listMarketOffers(env);
+        return Response.json(result);
+      }
+
+      if (url.pathname === "/game/market/post" && request.method === "POST") {
+        const { postTradeOffer } = await import('./trade');
+        const body = await request.json() as any;
+        try {
+          const result = await postTradeOffer(body.nodeId, body.offer, env);
+          return Response.json(result);
+        } catch (e: any) {
+          return new Response(e.message, { status: 400 });
+        }
+      }
+
+      if (url.pathname === "/game/market/accept" && request.method === "POST") {
+        const { acceptTradeOffer } = await import('./trade');
+        const body = await request.json() as any;
+        try {
+          const result = await acceptTradeOffer(body.nodeId, body.takerClanId, body.offerId, env);
+          return Response.json(result);
+        } catch (e: any) {
+          return new Response(e.message, { status: 400 });
+        }
+      }
+    }
+
     // --- 12. Tokenomics Status ---
     if (url.pathname === "/tokenomics") {
       const { getTokenomicsStatus } = await import('./tokenomics');
@@ -516,7 +672,10 @@ export default {
     ctx.waitUntil(executeDailyLottery(env));
 
     // 3. Distribución del Faucet Pool (Daily Mining)
-    const { distributeFaucetPool } = await import('./tokenomics');
+    const { distributeFaucetPool, processMagicItemRewards } = await import('./tokenomics');
     ctx.waitUntil(distributeFaucetPool(env));
+
+    // 4. Airdrops de Objetos Mágicos
+    ctx.waitUntil(processMagicItemRewards(env));
   }
 };

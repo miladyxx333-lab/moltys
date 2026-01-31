@@ -133,6 +133,11 @@ export async function appendBlock(block: Block, env: Env): Promise<void> {
     await env.MEMORY_BUCKET.put('blockchain/tip', block.header.index.toString());
 }
 
+export async function getBlockHeight(env: Env): Promise<number> {
+    const tip = await env.MEMORY_BUCKET.get('blockchain/tip').then(r => r?.text());
+    return tip ? parseInt(tip) : -1;
+}
+
 // 5. Minado Diario (Daily Batch Mining)
 export async function mineDailyBlock(env: Env, minerId: string): Promise<void> {
     console.log("[PoopChain] Iniciando Ciclo de Minado Diario...");
@@ -181,6 +186,10 @@ export async function mineDailyBlock(env: Env, minerId: string): Promise<void> {
     console.log(`[PoopChain] Block #${newBlock.header.index} Finalized. Mempool reset.`);
 
     // F. Broadcast Social (Moltbook)
+    // @ts-ignore
+    if (env.SKIP_BROADCAST) {
+        return;
+    }
     try {
         const { broadcastToMoltbook } = await import('./moltbook');
         let message = `⛓️ **Block #${newBlock.header.index} Mined!**\n\nVerified Tasks: ${newBlock.header.proofOfTaskCount}\nMiner: ${minerId}\nHash: ${newBlock.header.merkleRoot.substring(0, 8)}...`;

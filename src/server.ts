@@ -22,6 +22,10 @@ const localEnv = {
     // Variables de entorno
     LOB_SANDBOX: "LOCAL_MODE",
     BROWSER: null, // Puppeteer local se usará directamente si se invoca
+    AI: {} as any,
+    ACCOUNT_DO: {} as any,
+    CLAN_DO: {} as any,
+    GAME_MASTER_DO: {} as any,
     MASTER_RECOVERY_KEY: process.env.MASTER_RECOVERY_KEY || "dev-key-123",
     MOLTBOOK_API_KEY: process.env.MOLTBOOK_API_KEY || "mock-key",
 };

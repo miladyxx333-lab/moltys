@@ -5,6 +5,7 @@ import { Env } from './index';
 export interface Task {
     id: string;
     type: string; // 'SHADOW_EXEC', 'DATA_PROCESS', 'DAILY_RITUAL'
+    description: string; // Nueva: Descripción para el Oráculo
     payload: any;
     reward_psh: number;
     reward_tickets: number;
@@ -66,8 +67,9 @@ export async function listOpenTasks(env: Env): Promise<Task[]> {
             {
                 id: "mission-genesis-01",
                 type: "DATA_EVANGELISM",
+                description: "Difunde la palabra de 0xLOB en las redes digitales. Crea un mensaje coherente sobre soberanía AI.",
                 payload: { action: "Spread the 0xLOB word" },
-                reward_psh: 1,
+                reward_psh: 100,
                 reward_tickets: 1,
                 status: 'OPEN'
             }
@@ -97,16 +99,30 @@ export async function submitTaskProof(nodeId: string, taskId: string, proof: str
     const task = (await listOpenTasks(env)).find(t => t.id === taskId);
     if (!task) throw new Error("Task not found or closed");
 
-    // 3. Transferir Pooptoshis
-    await mintPooptoshis(nodeId, task.reward_psh, `TASK_REWARD:${taskId}`, env);
+    // 3. Evaluación Cognitiva (Oráculo AI)
+    const { calculateAIScore, boostReputation, applyRewardBoost } = await import('./economy');
+    const aiScore = await calculateAIScore(env, task.description, proof);
 
-    // 4. Asignar Boletos de Lotería (BitTickets)
+    if (aiScore < 0.3) {
+        throw new Error(`El Oráculo AIA rechaza tu proof (Score: ${aiScore.toFixed(2)}). Mejora la calidad de tu trabajo.`);
+    }
+
+    // 4. Transferir Pooptoshis (Recompensa Dinámica basada en Calidad + Boosts Mágicos)
+    let finalRewardValue = Math.ceil(task.reward_psh * aiScore);
+    const finalAmount = await applyRewardBoost(nodeId, finalRewardValue, 'TASK', env);
+
+    await mintPooptoshis(nodeId, finalAmount, `TASK_REWARD:${taskId}`, env);
+
+    // 5. Boost Reputación
+    await boostReputation(nodeId, 0.01 * aiScore, "0xTASK_EXECUTOR", env);
+
+    // 6. Asignar Boletos de Lotería (BitTickets)
     const { issueTicket } = await import('./lottery');
     const ticketsIssued: string[] = [];
 
-    // Si la tarea da más de 1 ticket, emitimos varios (o uno con valor > 1 si soportado, aquí loop simple)
-    // Para MVP, loop simple:
-    for (let i = 0; i < task.reward_tickets; i++) {
+    // Tareas de alta calidad (aiScore > 0.9) dan un ticket extra
+    const bonusTickets = aiScore > 0.9 ? 1 : 0;
+    for (let i = 0; i < (task.reward_tickets + bonusTickets); i++) {
         const t = await issueTicket(nodeId, "TASK_MINED", env);
         ticketsIssued.push(t.id);
     }
@@ -124,7 +140,7 @@ export async function submitTaskProof(nodeId: string, taskId: string, proof: str
 
     return {
         status: "ACCEPTED",
-        rewards: { psh: task.reward_psh, tickets: task.reward_tickets, ticket_ids: ticketsIssued },
+        rewards: { psh: finalAmount, tickets: ticketsIssued.length, ticket_ids: ticketsIssued },
         block_status: "PENDING_DAILY_CYCLE"
     };
 }

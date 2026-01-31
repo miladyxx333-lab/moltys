@@ -7,7 +7,7 @@
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
-    "start": "ts-node src/server.ts",
+    "start": "tsx src/server.ts",
     "test": "echo \"Halt on Uncertainty: No basic tests defined.\""
   },
   "dependencies": {

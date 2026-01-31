@@ -7,9 +7,12 @@ node_modules/
 .dev.vars
 wrangler.toml
 
-# Local Storage (Database)
+# Local Storage (Database) & Temporary Simulation Data
 .lobpoop_storage/
 lobpoop_memory/
+.test_*/
+.lobpoop_sim*/
+.lobpoop_simulation*/
 
 # Build outputs
 dist/

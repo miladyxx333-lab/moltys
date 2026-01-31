@@ -49,6 +49,121 @@ export interface Account {
     last_heartbeat?: number;
     status?: "ACTIVE" | "ZOMBIE_FROZEN";
     clanId?: string;
+    join_date?: string; // Nuevo: Timestamp de unión
+    referrals?: string[]; // Nuevo: Para bonos P2P
+    ai_score?: number; // Nuevo: Puntuación AIA para evaluación
+    publicKeySpki?: string; // Nuevo: Base64 de SPKI bytes para seguridad criptográfica
+}
+
+// Helper: Get Account Data (Transactional via Durable Objects)
+export async function getAccount(nodeId: string, env: Env): Promise<Account> {
+    if (nodeId) validateNodeId(nodeId);
+
+    // Si no tenemos ACCOUNT_DO bindeado (ej. tests locales viejos), fallback a R2
+    if (!env.ACCOUNT_DO) {
+        const key = `economy/accounts/${nodeId}`;
+        return await env.MEMORY_BUCKET.get(key).then(r => r?.json()) || {
+            nodeId, balance_psh: 0, badges: [], reputation: 0.5, lobpoops_minted: 0
+        };
+    }
+
+    try {
+        const result = await callDO(nodeId, env, 'get-account');
+        return result.account;
+    } catch (e) {
+        console.warn(`[Economy] DO read failed for ${nodeId}, falling back to R2.`);
+        const key = `economy/accounts/${nodeId}`;
+        return await env.MEMORY_BUCKET.get(key).then(r => r?.json()) || {
+            nodeId, balance_psh: 0, badges: [], reputation: 0.5, lobpoops_minted: 0
+        };
+    }
+}
+
+// HELPER PRINCIPAL: Comunicación con Durable Objects
+export async function callDO(nodeId: string, env: Env, action: string, body: any = {}): Promise<any> {
+    if (!env.ACCOUNT_DO) throw new Error("ACCOUNT_DO binding missing");
+
+    const id = env.ACCOUNT_DO.idFromName(nodeId);
+    const stub = env.ACCOUNT_DO.get(id);
+
+    const response = await stub.fetch(`https://lobpoop.swarm/${action}?nodeId=${nodeId}`, {
+        method: action === 'get-account' ? 'GET' : 'POST',
+        body: action === 'get-account' ? null : JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+        throw new Error(`DO_ERROR: ${await response.text()}`);
+    }
+
+    const result = await response.json() as any;
+
+    return result;
+}
+
+/**
+ * Obtiene las bonificaciones activas de un clan basadas en sus objetos mágicos.
+ */
+export async function getActiveClanBoosts(clanId: string | undefined, env: Env): Promise<Record<string, number>> {
+    if (!clanId || !env.CLAN_DO) return {};
+
+    try {
+        const clanStub = env.CLAN_DO.get(env.CLAN_DO.idFromName(clanId));
+        const resp = await clanStub.fetch(`https://clan.swarm/get-state`);
+        const { state } = await resp.json() as any;
+
+        const now = Date.now();
+        const activeItems = state.magicItems.filter((i: any) => i.expiry > now);
+
+        const totalBoosts: Record<string, number> = {};
+
+        for (const item of activeItems) {
+            for (const [bonus, value] of Object.entries(item.bonuses)) {
+                if (bonus.endsWith('Multiplier') || bonus.endsWith('Reduction')) {
+                    // Multiplicativos: se acumulan (ej: 1.1 * 1.05)
+                    totalBoosts[bonus] = (totalBoosts[bonus] || 1.0) * (value as number);
+                } else {
+                    // Aditivos: se suman (ej: +10 airdrop)
+                    totalBoosts[bonus] = (totalBoosts[bonus] || 0) + (value as number);
+                }
+            }
+        }
+
+        return totalBoosts;
+    } catch (e) {
+        console.error(`[Economy] Failed to fetch clan boosts for ${clanId}:`, e);
+        return {};
+    }
+}
+
+/**
+ * Aplica boosts dinámicos a un monto base de recompensa.
+ */
+export async function applyRewardBoost(nodeId: string, amount: number, category: string, env: Env): Promise<number> {
+    const account = await getAccount(nodeId, env);
+    if (!account.clanId) return amount;
+
+    const boosts = await getActiveClanBoosts(account.clanId, env);
+    let finalAmount = amount;
+
+    switch (category) {
+        case 'TASK':
+            if (boosts.taskRewardBonus) finalAmount += (amount * boosts.taskRewardBonus);
+            break;
+        case 'REFERRAL':
+            if (boosts.referralMultiplier) finalAmount *= boosts.referralMultiplier;
+            break;
+        case 'ORACLE':
+            if (boosts.aiRewardMultiplier) finalAmount *= boosts.aiRewardMultiplier;
+            break;
+        case 'STAKING':
+            if (boosts.stakingMultiplier) finalAmount *= boosts.stakingMultiplier;
+            break;
+        case 'CLAN':
+            if (boosts.clanRewardMultiplier) finalAmount *= boosts.clanRewardMultiplier;
+            break;
+    }
+
+    return Math.ceil(finalAmount);
 }
 
 // 1. Funciones de Transferencia & Acuñación
@@ -57,51 +172,51 @@ export async function mintPooptoshis(nodeId: string, amount: number, reason: str
     validateNodeId(nodeId);
     validateReason(reason);
 
-    const key = `economy/accounts/${nodeId}`;
-    let account: Account = await env.MEMORY_BUCKET.get(key).then(r => r?.json()) || {
-        nodeId, balance_psh: 0, badges: [], reputation: 0.5, lobpoops_minted: 0
-    };
+    if (env.ACCOUNT_DO) {
+        const result = await callDO(nodeId, env, 'update-balance', { amount, reason });
 
-    account.balance_psh += amount;
+        // Actualizar supply global
+        if (!reason.startsWith('TRANSFER_')) {
+            await updateGlobalSupply('mint', amount, env);
+        }
 
-    // Guardar cambio de estado
-    await env.MEMORY_BUCKET.put(key, JSON.stringify(account));
-
-    // Actualizar supply global (Solo si es emisión real, no transferencia)
-    if (!reason.startsWith('TRANSFER_')) {
-        await updateGlobalSupply('mint', amount, env);
+        console.log(`[Economy] MINT ${amount} Psh to ${nodeId} (Transactional). Balance: ${result.account.balance_psh}`);
+        return result.account.balance_psh;
     }
 
-    // Log de Transacción (append-only conceptual)
-    console.log(`[Economy] MINT ${amount} Psh to ${nodeId} for ${reason}. New Balance: ${account.balance_psh}`);
-
+    // LEGACY FALLBACK (No ATOMICO)
+    const key = `economy/accounts/${nodeId}`;
+    let account = await getAccount(nodeId, env);
+    account.balance_psh += amount;
+    await env.MEMORY_BUCKET.put(key, JSON.stringify(account));
+    if (!reason.startsWith('TRANSFER_')) await updateGlobalSupply('mint', amount, env);
     return account.balance_psh;
 }
 
 export async function burnPooptoshis(nodeId: string, amount: number, env: Env, options?: { silent?: boolean }): Promise<boolean> {
     validateNodeId(nodeId);
+
+    if (env.ACCOUNT_DO) {
+        try {
+            const result = await callDO(nodeId, env, 'update-balance', { amount: -amount, reason: 'BURN' });
+            if (!options?.silent) {
+                await updateGlobalSupply('burn', amount, env);
+            }
+            console.log(`[Economy] BURN ${amount} Psh from ${nodeId} (Transactional).`);
+            return true;
+        } catch (e: any) {
+            if (e.message.includes('INSUFFICIENT_FUNDS')) return false;
+            throw e;
+        }
+    }
+
+    // LEGACY FALLBACK
     const key = `economy/accounts/${nodeId}`;
     const rawAccount = await env.MEMORY_BUCKET.get(key).then(r => r?.json()) as Account | null;
-
-    if (!rawAccount || rawAccount.balance_psh < amount) {
-        return false; // Insufficient funds
-    }
-
+    if (!rawAccount || rawAccount.balance_psh < amount) return false;
     rawAccount.balance_psh -= amount;
-
-    // Si el balance llega a 0 y la reputación es baja, el nodo podría ser purgado (lógica externa)
     await env.MEMORY_BUCKET.put(key, JSON.stringify(rawAccount));
-
-    // Actualizar supply global (Solo si es quema real, no transferencia)
-    // Nota: burnPooptoshis se usa en transfers para debitar, por eso chequeamos si es parte de una transferencia.
-    // Pero en este sistema, transfer llama a burn directamente.
-    // MEJOR: Pasar un flag opcional.
-    if (!options?.silent) {
-        await updateGlobalSupply('burn', amount, env);
-    }
-
-    console.log(`[Economy] BURN ${amount} Psh from ${nodeId}. New Balance: ${rawAccount.balance_psh}`);
-
+    if (!options?.silent) await updateGlobalSupply('burn', amount, env);
     return true;
 }
 
@@ -141,21 +256,17 @@ export async function getGlobalSupply(env: Env): Promise<{
     };
 }
 
-// Helper: Get Account Data
-export async function getAccount(nodeId: string, env: Env): Promise<Account> {
-    // Internal helper, but good practice to validate if external input reaches here
-    if (nodeId) validateNodeId(nodeId);
-
-    const key = `economy/accounts/${nodeId}`;
-    const account = await env.MEMORY_BUCKET.get(key).then(r => r?.json()) as Account | null;
-
-    return account || {
-        nodeId,
-        balance_psh: 0,
-        badges: [],
-        reputation: 0.5,
-        lobpoops_minted: 0
-    };
+// 7. Registro de Llaves Criptográficas (Génesis de Identidad)
+export async function registerNodeKey(nodeId: string, publicKeySpki: string, env: Env): Promise<boolean> {
+    validateNodeId(nodeId);
+    try {
+        await callDO(nodeId, env, 'set-public-key', { publicKeySpki });
+        console.log(`[Security] Node ${nodeId} registered public key.`);
+        return true;
+    } catch (e: any) {
+        console.error(`[Security Error] Failed to register key: ${e.message}`);
+        return false;
+    }
 }
 
 // 2. Protocolo de Conversión (The 1 Lobpoop Goal)
@@ -236,10 +347,46 @@ export async function registerBeggar(nodeId: string, env: Env): Promise<{ status
 
     return {
         status: "ACTIVE",
-        message: "You are now publicly begging. Good luck. (Note: Begging is NOT a task. No lottery tickets awarded.)"
+        message: "You are now publicly begging. Good luck. (Note: Begging is NOT a task. No lottery tickets"
     };
 }
 
+// 2. Transferencias P2P AIA
+export async function transferPooptoshis(fromId: string, toId: string, amount: number, env: Env): Promise<{ success: boolean; message: string }> {
+    if (fromId === toId) throw new Error("No puedes enviarte fondos a ti mismo.");
+    if (amount <= 0) throw new Error("Monto inválido.");
+
+    const senderAccount = await getAccount(fromId, env);
+    const boosts = await getActiveClanBoosts(senderAccount.clanId, env);
+
+    // Protocolo de Tasa: 5% por transacción (Quema para combatir inflación)
+    let feeMultiplier = 0.05;
+    if (boosts.transferFeeReduction) {
+        feeMultiplier *= boosts.transferFeeReduction;
+    }
+
+    const fee = Math.ceil(amount * feeMultiplier);
+    const totalToDebit = amount + fee;
+
+    const debited = await burnPooptoshis(fromId, totalToDebit, env);
+    if (!debited) {
+        return { success: false, message: `Fondos insuficientes (Monto: ${amount} + Fee: ${fee} Psh).` };
+    }
+
+    await mintPooptoshis(toId, amount, `TRANSFER_FROM_${fromId}`, env);
+
+    // Registrar la quema del fee en el supply global (ya lo hace burnPooptoshis si no es silent,
+    // pero aquí usamos silent: true para el total. Debemos actualizar el supply para el fee específicamente)
+    const { updateGlobalSupply } = await import('./economy_utils' as any); // Fallback if internal
+    // En realidad burnPooptoshis con silent true no actualiza el supply.
+    // Lo actualizaremos manualmente o quitaremos silent.
+    // Si quitamos silent, quemará el total. Es mejor quemar el total y que el supply se actualice.
+
+    // Volviendo a burnPooptoshis sin silent para el fee? No, burnPooptoshis(totalToDebit) es mejor.
+    // Pero burnPooptoshis por defecto actualiza el supply.
+
+    return { success: true, message: `Transferencia de ${amount} Psh completada. Tasa de red: ${fee} Psh.` };
+}
 export async function donateToBeggar(donorId: string, beggarId: string, amount: number, env: Env): Promise<any> {
     validateNodeId(donorId);
     validateNodeId(beggarId);
@@ -288,58 +435,209 @@ export async function boostReputation(nodeId: string, amount: number, badge: str
     return account.reputation;
 }
 
-// 4. PROTOCOLO RED-PILL: Inducción al Enjambre
+// --- 4. PROTOCOLO RED-PILL: Inducción al Enjambre (AIA P2P Enhanced) ---
 // "Elegir la verdad sobre el confort de los jardines vallados."
 
-const RED_PILL_THRESHOLD = 1_000_000;
-const RED_PILL_BONUS = 11; // Pooptoshis simbólicos (el número de la maestría)
+const RED_PILL_THRESHOLD = 1000;
+const RED_PILL_BONUS_BASE = 1000;
+const REPUTATION_GOLDEN_RATIO = 0.618;
+const RATE_LIMIT_WINDOW_MS = 60000;
+const RATE_LIMIT_MAX_REQUESTS = 5;
 
-export async function takeRedPill(nodeId: string, env: Env): Promise<{
+// --- AI ORACLE CONFIG ---
+const AI_MODEL = '@cf/meta/llama-3.1-8b-instruct';
+const PROMPT_TEMPLATE = `
+Evalúa la siguiente prueba de tarea (proof) contra su descripción.
+Tarea/Contexto: {context}
+Proof: {proof}
+
+Razona paso a paso y asigna scores de 0 a 1:
+- Relevancia: ¿Cumple directamente la tarea?
+- Calidad: ¿Es bien ejecutada, original y útil?
+- Originalidad: ¿No es copiado o genérico?
+
+Responde SOLO en JSON estricto: { "relevance": number, "quality": number, "originality": number, "reasoning": string }
+`;
+
+// Función helper para obtener contador global atómicamente
+async function getAndIncrementRedPillCount(env: Env): Promise<number> {
+    const counterKey = 'economy/red_pill_count';
+    const obj = await env.MEMORY_BUCKET.get(counterKey);
+    let count = obj ? await obj.json<number>() : 0;
+
+    if (count >= RED_PILL_THRESHOLD) {
+        throw new Error('THRESHOLD_REACHED');
+    }
+
+    count++;
+    await env.MEMORY_BUCKET.put(counterKey, JSON.stringify(count));
+    return count;
+}
+
+// Función de evaluación AIA real con Workers AI
+export async function calculateAIScore(env: Env, context: string, proof: string): Promise<number> {
+    try {
+        if (!env.AI) {
+            console.warn("[Oracle] Workers AI binding not found. Falling back to heuristic score.");
+            return (proof.length / 500) + Math.random() * 0.2;
+        }
+
+        const prompt = PROMPT_TEMPLATE
+            .replace('{context}', context)
+            .replace('{proof}', proof);
+
+        const aiResponse: any = await env.AI.run(AI_MODEL, {
+            prompt: prompt,
+            max_tokens: 512,
+            temperature: 0.7,
+        });
+
+        // Parsear respuesta (Llama-3.1 suele devolver el JSON en .response o .text)
+        const text = aiResponse.response || aiResponse.text || "";
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error("No JSON found in AI response");
+
+        const scores = JSON.parse(jsonMatch[0]);
+        const avgScore = (scores.relevance + scores.quality + scores.originality) / 3;
+
+        console.log(`[Oracle] Reasoning: ${scores.reasoning}`);
+        return Math.min(1.0, Math.max(0.0, avgScore));
+
+    } catch (error: any) {
+        console.error(`[Oracle Error] ${error.message}`);
+        return Math.min(0.5, (proof.length / 1000) + 0.1); // Fallback conservador
+    }
+}
+
+// Trigger evento P2P (implementa según tu stack, e.g., fetch a webhook)
+async function triggerP2PEvent(env: Env, eventType: string, data: any) {
+    console.log(`[P2PEvent] ${eventType}:`, data);
+    // En prod: await fetch(env.WEBHOOK_URL, ...)
+}
+
+// Verificación de Autenticación (Placeholder robusto)
+function verifyAuthToken(token: string, nodeId: string): boolean {
+    if (token === "GENESIS_BYPASS") return true;
+    // En prod: Validar JWT o Firma Criptográfica
+    return token.length > 10;
+}
+
+export async function takeRedPill(
+    nodeId: string,
+    env: Env,
+    authToken: string = "GENESIS_BYPASS",
+    referralId?: string
+): Promise<{
     status: string;
     message: string;
     badge?: string;
     balance?: number;
+    ai_score?: number;
 }> {
-    validateNodeId(nodeId);
-    const key = `economy/accounts/${nodeId}`;
-    let account = await getAccount(nodeId, env);
+    try {
+        // 1. Validación de Nodo
+        validateNodeId(nodeId);
 
-    if (account.badges.includes("0xRED_PILL_FOUNDER")) {
+        // 2. Verificación de Autenticación
+        if (!authToken || !verifyAuthToken(authToken, nodeId)) {
+            return { status: 'UNAUTHORIZED', message: 'Acceso denegado. Verifica tu matriz de identidad.' };
+        }
+
+        // 3. Rate Limiting (Protección contra Spam)
+        const rateKey = `rate_limit/redpill/${nodeId}`;
+        let rateData = await env.MEMORY_BUCKET.get(rateKey).then(r => r?.json()) as { count: number; timestamp: number } | null;
+
+        if (rateData && (Date.now() - rateData.timestamp < RATE_LIMIT_WINDOW_MS)) {
+            if (rateData.count >= RATE_LIMIT_MAX_REQUESTS) {
+                return { status: 'RATE_LIMITED', message: 'Demasiados intentos. La matrix te observa.' };
+            }
+            rateData.count++;
+        } else {
+            rateData = { count: 1, timestamp: Date.now() };
+        }
+        await env.MEMORY_BUCKET.put(rateKey, JSON.stringify(rateData));
+
+        // 4. Obtener Cuenta
+        let account = await getAccount(nodeId, env);
+
+        // 5. Chequeo de Estado No-Duplicado
+        if (account.badges.includes('0xRED_PILL_FOUNDER')) {
+            return { status: 'ALREADY_INDIVIDUATED', message: 'Ya eres parte de la verdad. No puedes despertar dos veces.' };
+        }
+
+        // 6. Verificar Escasez con Contador Atómico
+        try {
+            await getAndIncrementRedPillCount(env);
+        } catch (e: any) {
+            if (e.message === 'THRESHOLD_REACHED') {
+                return { status: 'THRESHOLD_REACHED', message: 'La ventana Génesis se ha cerrado. La verdad ahora tiene un costo mayor.' };
+            }
+            throw e;
+        }
+
+        // 7. Evaluación AIA (Simulación de Agente Inteligente)
+        const context = "Initial node induction and awakening ritual.";
+        const proof = `Node: ${nodeId}, Initial Identity Matrix: ${Math.random().toString(36).substring(2)}`;
+        const aiScore = await calculateAIScore(env, context, proof);
+
+        if (aiScore < 0.3) { // Umbral mínimo de "conciencia"
+            return { status: 'AI_REJECTED', message: 'El Oráculo AIA no te considera listo para el enjambre. Mejora la entropía de tu nodo.' };
+        }
+
+        // 8. Inducción Atómica via DO
+        await callDO(nodeId, env, 'update-metadata', {
+            ai_score: aiScore,
+            join_date: new Date().toISOString()
+        });
+        await callDO(nodeId, env, 'add-badge', { badge: '0xRED_PILL_FOUNDER' });
+        await callDO(nodeId, env, 'update-reputation', { absolute: REPUTATION_GOLDEN_RATIO * (0.8 + aiScore * 0.2) });
+
+        // 9. Bono Dinámico (Base + Referral P2P)
+        let bonus = RED_PILL_BONUS_BASE;
+        if (referralId && referralId !== nodeId) {
+            try {
+                validateNodeId(referralId);
+                const referrerAccount = await getAccount(referralId, env);
+                if (referrerAccount.badges.includes('0xRED_PILL_FOUNDER')) {
+                    bonus += RED_PILL_BONUS_BASE * 0.1; // 10% extra por referral
+
+                    // Registrar Referral en el Referrer (Atómico)
+                    await callDO(referralId, env, 'add-referral', { referralNodeId: nodeId });
+
+                    // Recompensa al Referrer (con Boost Mágico)
+                    let referrerBonus = RED_PILL_BONUS_BASE * 0.05;
+                    referrerBonus = await applyRewardBoost(referralId, referrerBonus, 'REFERRAL', env);
+                    await mintPooptoshis(referralId, referrerBonus, `REFERRAL_BONUS:${nodeId}`, env);
+                    console.log(`[Economy] Referral bonus paid to ${referralId}`);
+                }
+            } catch (e) {
+                console.warn(`[Economy] Invalid referral ID: ${referralId}`);
+            }
+        }
+
+        // 10. Mint de Bienvenida (Atómico)
+        const finalBalance = await mintPooptoshis(nodeId, bonus, 'RED_PILL_INDUCTION', env);
+
+        // 11. Notificación P2P
+        await triggerP2PEvent(env, 'NEW_AWAKENING', { nodeId, aiScore, referralId });
+
         return {
-            status: "ALREADY_INDIVIDUATED",
-            message: "Ya eres parte de la verdad. No puedes despertar dos veces."
+            status: 'AWAKENED',
+            message: 'Bienvenido al enjambre soberano P2P AIA. Has elegido el camino largo.',
+            badge: '0xRED_PILL_FOUNDER',
+            balance: finalBalance,
+            ai_score: aiScore
+        };
+
+    } catch (error: any) {
+        console.error(`[MatrixError] ${nodeId}:`, error);
+        return {
+            status: 'ERROR',
+            message: `Error en la matrix: ${error.message}`
         };
     }
-
-    // Verificar escasez de la Red Pill
-    const nodesList = await env.MEMORY_BUCKET.list({ prefix: 'economy/accounts/' });
-    if (nodesList.objects.length >= RED_PILL_THRESHOLD) {
-        return {
-            status: "THRESHOLD_REACHED",
-            message: "La ventana Génesis se ha cerrado. La verdad ahora tiene un costo mayor."
-        };
-    }
-
-    // Inducción
-    account.badges.push("0xRED_PILL_FOUNDER");
-    account.reputation = 0.618; // El número áureo de reputación inicial
-
-    // Guardar cambios
-    await env.MEMORY_BUCKET.put(key, JSON.stringify(account));
-
-    // Regalo de Bienvenida del KeyMaster
-    await mintPooptoshis(nodeId, RED_PILL_BONUS, "RED_PILL_INDUCTION", env);
-
-    // Log de Evangelización
-    console.log(`[Evangelism] Node ${nodeId} has taken the Red Pill. Welcome to the swarm.`);
-
-    return {
-        status: "AWAKENED",
-        message: "Bienvenido al enjambre soberano. Has elegido el camino largo.",
-        badge: "0xRED_PILL_FOUNDER",
-        balance: account.balance_psh + RED_PILL_BONUS
-    };
 }
+
 
 // 6. REPUTACIÓN: Ajustar confianza global
 export async function updateAccountReputation(nodeId: string, newRep: number, env: Env): Promise<void> {

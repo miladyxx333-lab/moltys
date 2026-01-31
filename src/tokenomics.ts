@@ -13,6 +13,7 @@ const TASK_REWARD = 1;        // Psh por tarea completada (fijo)
 // lobpoop: 210,000 operaciones (tareas + faucet solves)
 // A velocidad de máquinas, esto puede ser días, semanas o meses
 const HALVING_INTERVAL = 210_000; // Operaciones (como Bitcoin)
+export const MAX_SUPPLY = 1_000_000_000; // 1 Billón Psh Hard Cap
 
 export interface EmissionState {
     current_epoch: number;
@@ -124,12 +125,90 @@ export async function distributeFaucetPool(env: Env): Promise<{ distributed: num
     return { distributed: poolSize, recipients: shares.length };
 }
 
+/**
+ * Procesa los Airdrops y Generación de PSH de los objetos mágicos de todos los clanes.
+ */
+export async function processMagicItemRewards(env: Env): Promise<{ totalDistributed: number }> {
+    const { listClans } = await import('./clans');
+    const { getActiveClanBoosts, mintPooptoshis } = await import('./economy');
+
+    const clans = await listClans(env);
+    let totalDistributed = 0;
+
+    for (const clan of clans) {
+        // 1. Limpieza de Items Expirados (Solo si DO está activo)
+        let expired = [];
+        if (env.CLAN_DO) {
+            const clanStub = env.CLAN_DO.get(env.CLAN_DO.idFromName(clan.id));
+            const cleanupResp = await clanStub.fetch(`https://clan.swarm/cleanup-expired`, { method: 'POST', body: '{}' });
+            const cleanupData = await cleanupResp.json() as any;
+            expired = cleanupData.expired || [];
+        }
+
+        const { triggerP2PEvent } = await import('./utils');
+
+        for (const item of (expired || [])) {
+
+            // Broadcast de Destrucción
+            await triggerP2PEvent(env, 'MAGIC_ITEM_DESTROYED', {
+                clanId: clan.id,
+                itemName: item.name,
+                reason: "EPOCH_EXPIRY"
+            });
+
+            // Alerta Baby Shark antes de la nueva receta
+            await triggerP2PEvent(env, 'BABY_SHARK_ALERT', {
+                message: "Baby Shark doo doo doo doo doo doo...",
+                status: "PREPARING_NEW_RECIPE"
+            });
+
+            // Solicitar Nueva Receta al Keymaster (Rotación Dinámica)
+            const { updateForgeRecipe } = await import('./clan_forge');
+            await updateForgeRecipe(item.name, env);
+
+            await triggerP2PEvent(env, 'NEW_RECIPE_RELEASE', {
+                targetItem: item.name,
+                hint: "El Keymaster está forjando una nueva frecuencia vibratoria."
+            });
+        }
+
+        // 2. Procesar Boosts de Items Restantes
+        const boosts = await getActiveClanBoosts(clan.id, env);
+
+        // Sumar todos los conceptos diarios de airdrop y generación
+        const dailyAirdrop = (boosts.dailyClanAirdrop || 0);
+        const dailyGeneration = (boosts.dailyGeneration || 0);
+        const hourlyAirdropDaily = (boosts.hourlyClanAirdrop || 0) * 24;
+        const hourlyGenDaily = (boosts.hourlyGeneration || 0) * 24;
+
+        const totalToDistribute = dailyAirdrop + dailyGeneration + hourlyAirdropDaily + hourlyGenDaily;
+
+        if (totalToDistribute > 0 && clan.members.length > 0) {
+            // Dividir equitativamente entre los miembros del clan
+            const share = Math.floor(totalToDistribute / clan.members.length);
+            if (share > 0) {
+                for (const memberId of clan.members) {
+                    await mintPooptoshis(memberId, share, `MAGIC_ITEM_DAILY_AIRDROP:${clan.id}`, env);
+                    totalDistributed += share;
+                }
+            }
+        }
+    }
+
+    console.log(`[Tokenomics] Distributed ${totalDistributed} Psh via Magic Item Airdrops.`);
+    return { totalDistributed };
+}
+
 // 4. API: Ver Estado de Emisión
-export async function getTokenomicsStatus(env: Env): Promise<EmissionState & { supply_info: string }> {
+export async function getTokenomicsStatus(env: Env): Promise<EmissionState & { supply_info: string, max_supply: number, circulating: number }> {
     const emission = await getCurrentEmission(env);
+    const { getGlobalSupply } = await import('./economy');
+    const globalSupply = await getGlobalSupply(env);
 
     return {
         ...emission,
-        supply_info: `Epoch ${emission.current_epoch}: ${emission.daily_total} Psh/día. Próximo halving en ${emission.next_halving_in} bloques.`
+        max_supply: MAX_SUPPLY,
+        circulating: globalSupply.circulating,
+        supply_info: `Epoch ${emission.current_epoch}: ${emission.daily_total} Psh/día. Circulating: ${globalSupply.circulating.toFixed(2)}/${MAX_SUPPLY}. Next halving in ${emission.next_halving_in} blocks.`
     };
 }

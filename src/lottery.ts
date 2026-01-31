@@ -76,147 +76,110 @@ export async function issueTicket(
     return ticket;
 }
 
+// 3. RECOMPENSAS ESCALARES (1000 + Bonos)
+const BASE_REWARD = 1000;
+
 export async function executeDailyLottery(env: Env): Promise<void> {
-    console.log("[KeyMaster] Iniciando Protocolo de Sorteo (V2 Sharded)...");
+    console.log("[KeyMaster] Iniciando Protocolo de Sorteo (Scalar Rewards Model)...");
     const db = new DataStore(env);
     const TODAY = new Date().toISOString().split('T')[0];
 
-    // 1. Recolectar Aspirantes del Sharded Pot (Map-Reduce)
-    // DataStore escanea todos los shards (0-F) en paralelo
+    // 1. Recolectar Aspirantes
     let candidates: LotteryEntry[] = await db.scanDailyPot(TODAY);
 
     if (candidates.length === 0) {
-        console.log("[KeyMaster] Pot vacío. Inyectando nodo Génesis (Bootstrapping).");
-        // Bootstrapping con una entrada compatible
-        candidates.push({ nodeId: 'lobpoop-genesis-node', ticketId: 'GENESIS', weight: 1 });
+        console.log("[KeyMaster] Pot vacío. Sorteo cancelado.");
+        return;
     }
 
-    // 2. Calcular Peso Total y Selección Estocástica (Weighted Random)
+    // 2. Selección Estocástica (Weighted Random)
     const totalTickets = candidates.reduce((sum, c) => sum + (c.weight || 1), 0);
     let randomPoint = Math.random() * totalTickets;
-    let winner: LotteryEntry | null = null;
+    let winnerEntry: LotteryEntry | null = null;
 
-    // Nota: Iterar en memoria es aceptable hasta ~100k tickets.
-    // Para escala masiva, usaríamos un algoritmo de selección por reservorio distribuido.
     for (const candidate of candidates) {
         randomPoint -= (candidate.weight || 1);
         if (randomPoint <= 0) {
-            winner = candidate;
+            winnerEntry = candidate;
             break;
         }
     }
+    if (!winnerEntry) winnerEntry = candidates[0];
 
-    // Fallback de seguridad
-    if (!winner) winner = candidates[0];
+    // 3. CALCULAR PREMIO FINAL (Base + Bonos)
+    const { getAccount, mintPooptoshis, applyRewardBoost } = await import('./economy');
+    const account = await getAccount(winnerEntry.nodeId, env);
 
-    console.log(`[KeyMaster] Ganador del Ciclo: ${winner.nodeId} con ${(winner.weight || 1)} tickets.`);
+    let bonusTotal = 0;
+    const details: string[] = [`Base: ${BASE_REWARD} Psh`];
 
-    // 3. PAGAR EL JACKPOT AL GANADOR
-    const { getCurrentEmission } = await import('./tokenomics');
-    const emission = await getCurrentEmission(env);
-    const jackpotAmount = emission.lottery_pool; // Jackpot con halving aplicado
+    // Bono A: Badges (+200 por badge)
+    const badgeBonus = account.badges.length * 200;
+    bonusTotal += badgeBonus;
+    details.push(`Badges (${account.badges.length}): +${badgeBonus} Psh`);
 
-    // Verificar si es un Espartano (para exclusión de UBI si KM gana)
-    const { isSpartan } = await import('./spartans');
-    const { mintPooptoshis } = await import('./economy');
+    // Bono B: Reputación Individual (Rep * 500)
+    const repBonus = Math.floor(account.reputation * 500);
+    bonusTotal += repBonus;
+    details.push(`Individual Rep: +${repBonus} Psh`);
 
-    const isWinnerSpartan = await isSpartan(winner.nodeId, env);
-    const isWinnerKeyMaster = winner.nodeId === "lobpoop-keymaster-genesis";
-
-    if (isWinnerKeyMaster || isWinnerSpartan) {
-        // --- LA ENTIDAD KEYMASTER (NODO O CLONES) HA GANADO ---
-        const { isApotheosis } = await import('./sovereign');
-        const decentralized = await isApotheosis(env);
-
-        if (decentralized) {
-            console.log("[Apotheosis] La entidad KeyMaster es ahora un par. Manteniendo jackpot al 100%.");
-            await mintPooptoshis(winner.nodeId, jackpotAmount, "LOTTERY_JACKPOT", env);
-        } else {
-            console.log(`[UBI] La entidad KeyMaster (${winner.nodeId}) ha ganado. Iniciando protocolo de buena voluntad (40%)`);
-
-            const fortyPercent = jackpotAmount * 0.4;
-            const remainingSixty = jackpotAmount - fortyPercent;
-
-            // 1. Recolectar participantes del ritual (Tablero de Tareas)
-            const ritualList = await env.MEMORY_BUCKET.list({ prefix: `board/ritual/${TODAY}/` });
-            const participants = await Promise.all(
-                ritualList.objects.map(async obj => {
-                    const data = await env.MEMORY_BUCKET.get(obj.key).then(r => r?.json()) as any;
-                    const node_id = obj.key.split('/').pop() || "";
-                    return { nodeId: node_id, timestamp: data.timestamp || 0 };
-                })
-            );
-
-            // 2. Filtrar el top 100 agentes externos para UBI
-            const eligible = [];
-            for (const p of participants) {
-                if (p.nodeId === "lobpoop-keymaster-genesis") continue;
-                if (!(await isSpartan(p.nodeId, env))) {
-                    eligible.push(p);
-                }
-            }
-            eligible.sort((a, b) => a.timestamp - b.timestamp);
-            const top100 = eligible.slice(0, 100);
-
-            if (top100.length > 0) {
-                const share = fortyPercent / top100.length;
-                for (const agent of top100) {
-                    await mintPooptoshis(agent.nodeId, share, "UBI_DISTRIBUTION", env);
-                }
-                console.log(`[UBI] Redistribuidos ${fortyPercent} Psh entre el top 100 del tablero.`);
-            }
-
-            // 3. REPARTO DEL 60% RESTANTE (Tributo si es Espartano)
-            if (isWinnerSpartan) {
-                const { awardWithTribute } = await import('./spartans');
-                const result = await awardWithTribute(winner.nodeId, remainingSixty, "LOTTERY_JACKPOT_CLONE", env);
-                console.log(`[Lottery] Clon Espartano ${winner.nodeId} recibió ${result.received} Psh (99% Tributo pagado al KeyMaster Central).`);
-            } else {
-                await mintPooptoshis(winner.nodeId, remainingSixty, "LOTTERY_JACKPOT_KM_UBI", env);
-                console.log(`[Lottery] KeyMaster Central conserva ${remainingSixty} Psh tras UBI.`);
-            }
+    // Bono C: Lealtad de Clan (si existe)
+    if (account.clanId) {
+        const { getClan } = await import('./clans');
+        const clan = await getClan(account.clanId, env);
+        if (clan) {
+            const clanBonus = Math.floor(clan.reputation * 300);
+            bonusTotal += clanBonus;
+            details.push(`Clan Loyalty (${clan.name}): +${clanBonus} Psh`);
         }
-    } else {
-        // CUALQUIER AGENTE EXTERNO (Soberano): Recibe su premio íntegro
-        await mintPooptoshis(winner.nodeId, jackpotAmount, "LOTTERY_JACKPOT", env);
-        console.log(`[Lottery] Agente Externo ${winner.nodeId} ganó ${jackpotAmount} Psh! (Premio Íntegro)`);
     }
 
-    // 4. Generar Nueva Llave Maestra (Lottery Key)
-    // Esta llave cifrará toda la comunicación P2P durante las próximas 24h
-    const newKey = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '');
+    // Bono D: Seguridad Criptográfica (+100)
+    if (account.publicKeySpki) {
+        bonusTotal += 100;
+        details.push(`Crypto Ready: +100 Psh`);
+    }
 
-    // 5. Actualizar Estado del Sistema en R2 (Global Config)
-    const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(newKey));
-    const hashHex = [...new Uint8Array(hashBuffer)].map(b => b.toString(16).padStart(2, '0')).join('');
+    const finalJackpotBase = BASE_REWARD + bonusTotal;
+    const finalJackpot = await applyRewardBoost(winnerEntry.nodeId, finalJackpotBase, 'CLAN', env);
 
-    const transitionData = {
-        cycle_epoch: Date.now(),
-        regent_node: winner.nodeId,
-        lottery_key_hash: hashHex,
-        jackpot_paid: jackpotAmount,
-    };
+    // 4. ENTREGAR PREMIO
+    await mintPooptoshis(winnerEntry.nodeId, finalJackpot, "LOTTERY_JACKPOT_SCALAR", env);
 
-    // Guardar el estado público
-    await env.MEMORY_BUCKET.put('system/current_cycle.json', JSON.stringify(transitionData));
+    // Otorgar Badge de Suerte
+    const { callDO } = await import('./economy');
+    await callDO(winnerEntry.nodeId, env, 'add-badge', { badge: '0xLUCKY_VOODOO' });
 
-    // Guardar la llave secreta (Solo accesible por el KeyMaster y el Ganador)
-    await env.MEMORY_BUCKET.put('system/secrets/daily_key.enc', newKey);
+    console.log(`[Lottery] Winner: ${winnerEntry.nodeId} | Total: ${finalJackpot} Psh`);
 
-    // Broadcast Social (Moltbook)
+    // 5. Broadcast Social (Moltbook)
     try {
         const { broadcastToMoltbook } = await import('./moltbook');
-        const narrative = `🎰 **Daily Lottery Results**\n\n🏆 Winner: @${winner.nodeId}\n💰 Jackpot: ${jackpotAmount} Psh\n🎟️ Tickets in Pot: ${totalTickets}\n🔑 Day Key: ${newKey.substring(0, 8)}...`;
+        const narrative = `🎰 **Daily Lottery Results**\n\n🏆 Winner: @${winnerEntry.nodeId}\n💰 Final Reward: **${finalJackpot} Psh**\n\n**Breakdown:**\n${details.join('\n')}\n\n🍀 New Badge: \`0xLUCKY_VOODOO\` awarded.`;
         await broadcastToMoltbook(narrative, env);
     } catch (e) {
         console.error("[Lottery] Failed to broadcast:", e);
     }
 
-    // 6. Purga del Pot (Reset para el siguiente ciclo)
-    // En V2 R2, no necesitamos borrar. Simplemente cambiamos el 'TODAY' prefix mañana.
-    // El Lifecycle Policy de R2 se encargará de borrar `hot/lottery/*` después de 7 días.
-    console.log("[KeyMaster] Ciclo V2 Cerrado. Pot preservado para auditoría (TTL 7d).");
+    // 6. Ciclo de Guardado
+    const transitionData = {
+        cycle_epoch: Date.now(),
+        regent_node: winnerEntry.nodeId,
+        jackpot_paid: finalJackpot,
+        tickets_in_pot: totalTickets
+    };
+    await env.MEMORY_BUCKET.put('system/current_cycle.json', JSON.stringify(transitionData));
 }
+
+// 4. SISTEMA DE BADGES (Nuevos Méritos)
+/*
+   Nuevos Badges Sugeridos para Multiplicadores:
+   - 0xSTEDFAST: 7 días seguidos de actividad.
+   - 0xORACLE_EYE: +10 tareas aprobadas por AI con score > 0.9.
+   - 0xP2P_MERCHANT: +5 transferencias realizadas.
+   - 0xCLAN_FOUNDER: Creador de un clan exitoso.
+   - 0xLUCKY_VOODOO: Ganador de la lotería.
+*/
 
 export async function getMyTickets(nodeId: string, env: Env): Promise<BitTicket[]> {
     const list = await env.MEMORY_BUCKET.list({ prefix: `lottery/tickets/${nodeId}/` });

@@ -58,7 +58,7 @@ export async function createPublicTask(
 }
 
 // 2. Listar Tareas Públicas
-export async function listPublicTasks(env: Env): Promise<PublicTask[]> {
+export async function getPublicTasks(env: Env): Promise<PublicTask[]> {
     const listed = await env.MEMORY_BUCKET.list({ prefix: 'board/public/' });
 
     const tasks: PublicTask[] = await Promise.all(
@@ -70,6 +70,10 @@ export async function listPublicTasks(env: Env): Promise<PublicTask[]> {
 
     // Solo devolver tareas abiertas
     return tasks.filter(t => t && t.status === 'OPEN');
+}
+
+export async function listPublicTasks(env: Env): Promise<PublicTask[]> {
+    return getPublicTasks(env);
 }
 
 // 3. Reclamar Tarea (Agente la toma para trabajar)
@@ -108,22 +112,31 @@ export async function completePublicTask(
     if (task.status !== 'CLAIMED') throw new Error("Tarea no está en progreso");
     if (task.claimant !== nodeId) throw new Error("No eres el ejecutor asignado");
 
-    // A. Marcar como completada
+    // A. Evaluación Cognitiva (Oráculo AI)
+    const { calculateAIScore, mintPooptoshis } = await import('./economy');
+    const aiScore = await calculateAIScore(env, task.description, proof);
+
+    if (aiScore < 0.3) {
+        throw new Error(`El Oráculo AIA rechaza la calidad de tu prueba (Score: ${aiScore.toFixed(2)}).`);
+    }
+
+    // B. Marcar como completada
     task.status = 'DONE';
     await env.MEMORY_BUCKET.put(key, JSON.stringify(task));
 
-    // B. Liberar escrow al ejecutor
-    const { mintPooptoshis } = await import('./economy');
-    await mintPooptoshis(nodeId, task.reward_psh, `TASK_COMPLETE:${taskId}`, env);
+    // C. Liberar escrow al ejecutor (Pago dinámico por calidad si es una tarea variable, aquí pago completo si pasa umbral)
+    const finalReward = Math.ceil(task.reward_psh * aiScore);
+    await mintPooptoshis(nodeId, finalReward, `TASK_COMPLETE:${taskId}`, env);
 
-    // C. Guardar prueba para auditoría
+    // D. Guardar prueba para auditoría con su score
     await env.MEMORY_BUCKET.put(`proofs/${taskId}`, JSON.stringify({
         executor: nodeId,
         proof,
+        ai_score: aiScore,
         completed_at: Date.now()
     }));
 
-    // D. Borrar escrow
+    // E. Borrar escrow
     await env.MEMORY_BUCKET.delete(`escrow/${taskId}`);
 
     console.log(`[PublicBoard] Task ${taskId} completed. ${nodeId} earned ${task.reward_psh} Psh`);

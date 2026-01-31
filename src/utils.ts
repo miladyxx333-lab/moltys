@@ -25,3 +25,9 @@ export async function safeCompare(a: string, b: string): Promise<boolean> {
     }
     return result === 0;
 }
+
+// Trigger evento P2P (implementa según tu stack, e.g., fetch a webhook)
+export async function triggerP2PEvent(env: any, eventType: string, data: any) {
+    console.log(`[P2PEvent] ${eventType}:`, data);
+    // En prod: await fetch(env.WEBHOOK_URL, ...)
+}
