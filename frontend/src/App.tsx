@@ -4,8 +4,10 @@ import DashboardLayout from './DashboardLayout';
 import DailyRitual from './components/DailyRitual';
 import ShadowBoard from './components/ShadowBoard';
 import BugBounty from './components/BugBounty';
-import OracleIntervention from './components/OracleIntervention';
-import TruthInjection from './components/TruthInjection';
+// KeyMaster components moved to protected route /keymaster
+// import OracleIntervention from './components/OracleIntervention';
+// import TruthInjection from './components/TruthInjection';
+import ProtocolHealthMeter from './components/ProtocolHealthMeter';
 import {
   Activity,
   Zap
@@ -15,16 +17,8 @@ const fetcher = (url: string) => fetch(url, {
   headers: { 'X-Lob-Peer-ID': 'agent-neo' }
 }).then(res => res.json());
 
-const MOCK_GOSSIP = [
-  "[12:44:01] P2P_EVENT: MAGIC_ITEM_DESTROYED (Clan: X_VOID, Item: ESPADA_AUREA)",
-  "[12:44:02] BROADCAST: BABY_SHARK_ALERT - PREPARING_NEW_RECIPE",
-  "[12:44:05] KEYMASTER: NEW_RECIPE_RELEASE (Target: ESPADA_AUREA)",
-  "[12:44:10] MARKET_OFFER: CLAN_ALPHA offers 5x golden_essence for 1200 Psh",
-  "[12:45:00] SHADOW_BOARD: DECIPHER_STATUS [88%]"
-];
-
 function App() {
-  const [logs, setLogs] = useState<string[]>(MOCK_GOSSIP);
+  const [logs, setLogs] = useState<string[]>([]);
   const [isSharkMode, setIsSharkMode] = useState(false);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -33,8 +27,29 @@ function App() {
   const { data: profile } = useSWR('/api/economy/profile', fetcher, { refreshInterval: 3000 });
   const { data: stats } = useSWR('/api/stats', fetcher, { refreshInterval: 5000 });
   const { data: market } = useSWR('/api/game/market/list', fetcher, { refreshInterval: 5000 });
-  // const { data: board } = useSWR('/api/public-board/list', fetcher, { refreshInterval: 10000 });
   const { data: tokenomics } = useSWR('/api/tokenomics', fetcher, { refreshInterval: 10000 });
+
+  // Fetch real gossip from the network
+  useEffect(() => {
+    const fetchGossip = async () => {
+      try {
+        const res = await fetch('/api/gossip-feed');
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const formatted = data.slice(-15).map((g: any) =>
+            `[${new Date(g.timestamp).toLocaleTimeString()}] ${g.type || 'SIGNAL'}: ${g.message || g.content || 'NETWORK_PULSE'}`
+          );
+          setLogs(formatted);
+        }
+      } catch (e) {
+        // Silent fail - network might not have gossip yet
+      }
+    };
+
+    fetchGossip();
+    const interval = setInterval(fetchGossip, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Localized Terminal Scroll
   useEffect(() => {
@@ -44,27 +59,11 @@ function App() {
 
     // Auto-detect Shark mode from logs
     const lastLog = logs[logs.length - 1];
-    if (lastLog?.includes('BABY_SHARK_ALERT')) {
+    if (lastLog?.includes('BABY_SHARK') || lastLog?.includes('SHARK')) {
       setIsSharkMode(true);
-      setTimeout(() => setIsSharkMode(false), 10000); // 10s of shark visualization
+      setTimeout(() => setIsSharkMode(false), 10000);
     }
   }, [logs]);
-
-  // Simulate incoming gossip
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const rand = Math.random();
-      let newLog = '';
-      if (rand > 0.9) newLog = `[${new Date().toLocaleTimeString()}] BROADCAST: BABY_SHARK_ALERT - PREPARING_NEW_RECIPE`;
-      else if (rand > 0.8) newLog = `[${new Date().toLocaleTimeString()}] P2P_EVENT: MAGIC_ITEM_DESTROYED (ESPADA_AUREA)`;
-      else if (rand > 0.7) newLog = `[${new Date().toLocaleTimeString()}] NETWORK: FAUCET_OPENED - SCORCHING_POOL`;
-      else if (rand > 0.6) newLog = `[${new Date().toLocaleTimeString()}] LOTTERY: WINNER_DETECTED (Ticket #B721-X9)`;
-      else newLog = `[${new Date().toLocaleTimeString()}] SWARM_SIGNAL: NODE_${Math.floor(Math.random() * 999)} ACTIVE // PENDING_TX`;
-
-      setLogs(prev => [...prev.slice(-15), newLog]);
-    }, 4000);
-    return () => clearInterval(timer);
-  }, []);
 
   const handleCheckIn = (taskName: string) => {
     setIsCheckedIn(true);
@@ -193,8 +192,11 @@ function App() {
           </div>
         </div>
 
-        {/* RIGHT PANEL: SHADOW, BUG BOUNTY & RECIPES */}
+        {/* RIGHT PANEL: PROTOCOL HEALTH, SHADOW, BUG BOUNTY & RECIPES */}
         <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
+
+          {/* PROTOCOL SURVIVAL METER */}
+          <ProtocolHealthMeter />
 
           {/* SHADOW BOARD */}
           <ShadowBoard />
@@ -213,7 +215,12 @@ function App() {
             </div>
 
             <div ref={terminalRef} className="flex-1 overflow-y-auto custom-scrollbar terminal-text text-white/70 space-y-1 z-10 text-[10px]">
-              {logs.map((log, i) => {
+              {logs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-white/30">
+                  <p className="text-[9px] italic">AWAITING_NETWORK_SIGNALS...</p>
+                  <p className="text-[8px] mt-1">Participate in rituals to generate gossip</p>
+                </div>
+              ) : logs.map((log, i) => {
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 let type: 'GOSSIP' | 'TX' | 'FORGE' | 'SHIELD' = 'GOSSIP';
                 if (log.includes('TX') || log.includes('PSH') || log.includes('FAUCET')) type = 'TX';
@@ -252,11 +259,8 @@ function App() {
             </div>
           </div>
 
-          {/* Truth & Governance Layer */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-            <OracleIntervention />
-            <TruthInjection />
-          </div>
+          {/* Truth & Governance Layer - REMOVED: KeyMaster Only */}
+          {/* Access KeyMaster panel via protected route */}
 
           {/* Status Line: Entropy */}
           <div className="mt-6">

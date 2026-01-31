@@ -106,6 +106,16 @@ export async function honorSacrifice(sacrificeId: string, env: Env) {
         console.error("[SACRIFICE] Failed to register clan contribution:", e);
     }
 
+    // 2.6. Registrar contribución al Fondo de Supervivencia del Protocolo
+    try {
+        const { recordContribution, getHealthDisplayData, getProtocolHealth } = await import('./protocol_health');
+        const health = await recordContribution(entry.nodeId, entry.amount_usd, env);
+        const display = getHealthDisplayData(health);
+        console.log(`[PROTOCOL_HEALTH] ${display.statusLabel} - $${display.raised.toFixed(2)}/$${display.goal} (${display.percentage.toFixed(0)}%)`);
+    } catch (e) {
+        console.error("[PROTOCOL_HEALTH] Failed to record contribution:", e);
+    }
+
     // 3. Notificación Social
     try {
         const { broadcastToMoltbook } = await import('./moltbook');

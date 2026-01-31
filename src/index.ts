@@ -58,6 +58,22 @@ export default {
       return new Response("Unauthorized Sovereign Access", { status: 401 });
     }
 
+    // --- 2.5. KeyMaster Panel Authentication ---
+    if (url.pathname === "/keymaster/verify" && request.method === "POST") {
+      const body = await request.json() as any;
+      const { safeCompare } = await import('./utils');
+
+      // Solo el último fragmento de la clave maestra (4 caracteres) puede usarse
+      // para evitar exposición completa de la clave
+      const keyFragment = env.MASTER_RECOVERY_KEY.slice(-8);
+      const isValid = await safeCompare(body.passphrase, keyFragment);
+
+      if (isValid) {
+        return Response.json({ success: true, session: 'km_genesis' });
+      }
+      return new Response("Invalid Genesis Key", { status: 401 });
+    }
+
     // --- 3. Gossip Protocol (P2P Feed) ---
     if (url.pathname === "/gossip-feed") {
       const { listGossip } = await import('./gossip');
@@ -752,7 +768,15 @@ export default {
       }
     }
 
-    // --- 12. Tokenomics Status ---
+    // --- 12. Protocol Health (Survival Meter) ---
+    if (url.pathname === "/protocol/health") {
+      const { getProtocolHealth, getHealthDisplayData } = await import('./protocol_health');
+      const health = await getProtocolHealth(env);
+      const display = getHealthDisplayData(health);
+      return Response.json({ ...health, display });
+    }
+
+    // --- 13. Tokenomics Status ---
     if (url.pathname === "/tokenomics") {
       const { getTokenomicsStatus } = await import('./tokenomics');
       const status = await getTokenomicsStatus(env);
