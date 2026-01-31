@@ -1,14 +1,9 @@
 import React, { useState } from 'react';
 import {
     LayoutDashboard,
-    Activity,
-    Server,
-    Terminal,
-    ShoppingBag,
-    Sword,
-    Settings,
     Sun,
-    Moon
+    Moon,
+    Shield
 } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -18,6 +13,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setIsDarkMode(!isDarkMode);
         document.body.classList.toggle('light-mode');
     };
+
+    const isKeyMasterRoute = window.location.pathname.includes('/keymaster');
 
     return (
         <div className={`min-h-screen flex flex-col md:flex-row bg-[var(--bg-color)] text-[var(--text-color)] terminal-text transition-colors duration-200`}>
@@ -33,21 +30,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         </div>
                         <div>
                             <p className="font-bold text-lg tracking-tighter leading-none">LOBPOOP</p>
-                            <p className="text-[10px] text-[var(--dim-color)] font-bold tracking-widest uppercase mt-1">SWARM_OS V1.4</p>
+                            <p className="text-[10px] text-[var(--dim-color)] font-bold tracking-widest uppercase mt-1">SWARM_OS V1.0</p>
                         </div>
                     </div>
                 </div>
 
                 <nav className="flex-1 p-4 space-y-1">
-                    <p className="label-dim p-2">Root Menu</p>
-                    <NavItem icon={<LayoutDashboard size={14} />} label="COMMAND_CENTER" active />
-                    <NavItem icon={<Activity size={14} />} label="GOSSIP_FEED" />
-                    <NavItem icon={<ShoppingBag size={14} />} label="MARKET_BOARD" />
-                    <NavItem icon={<Sword size={14} />} label="FORGE_RITUALS" />
-                    <NavItem icon={<Server size={14} />} label="NODE_TOPOLOGY" />
-                    <div className="my-4 border-t border-[var(--border-color)]" />
-                    <NavItem icon={<Terminal size={14} />} label="SHELL_ACCESS" />
-                    <NavItem icon={<Settings size={14} />} label="OS_CONFIG" />
+                    <p className="label-dim p-2">NAVIGATION</p>
+                    <NavItem
+                        icon={<LayoutDashboard size={14} />}
+                        label="COMMAND_CENTER"
+                        active={!isKeyMasterRoute}
+                        href="/"
+                    />
+                    <NavItem
+                        icon={<Shield size={14} />}
+                        label="KEYMASTER_ADMIN"
+                        active={isKeyMasterRoute}
+                        href="/keymaster"
+                        restricted
+                    />
                 </nav>
 
                 <div className="p-4 border-t border-[var(--border-color)]">
@@ -60,7 +62,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </button>
                     <div className="mt-4 p-2 bg-[var(--text-color)] text-[var(--bg-color)] text-[8px] font-bold overflow-hidden whitespace-nowrap">
                         {/* @ts-ignore */}
-                        <marquee scrollamount="3">SYSTEM STATUS: ALL_SHADOWS_ACTIVE // 6_SIGMA_LOCKED // KEYMASTER_LISTENING...</marquee>
+                        <marquee scrollamount="3">SYSTEM: GENESIS_MODE // ALL_DATA_REAL // NO_MOCKS</marquee>
                     </div>
                 </div>
             </aside>
@@ -73,13 +75,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <span>/</span>
                         <span>AGENTS</span>
                         <span>/</span>
-                        <span className="text-[var(--text-color)]">NEO_PROTO</span>
+                        <span className="text-[var(--text-color)]">PROTOCOL</span>
                     </div>
 
                     <div className="flex items-center gap-6">
                         <div className="flex items-center gap-2">
                             <span className="status-dot bg-green-500 animate-pulse" />
-                            <span className="text-[10px] font-mono text-[var(--dim-color)]">0xFD...8821</span>
+                            <span className="text-[10px] font-mono text-[var(--dim-color)]">GENESIS_NODE</span>
                         </div>
                     </div>
                 </header>
@@ -92,17 +94,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
 }
 
-function NavItem({ icon, label, active = false }: { icon: React.ReactNode, label: string, active?: boolean }) {
+function NavItem({ icon, label, active = false, href = "#", restricted = false }: {
+    icon: React.ReactNode,
+    label: string,
+    active?: boolean,
+    href?: string,
+    restricted?: boolean
+}) {
     return (
-        <button className={`
-            w-full flex items-center gap-3 px-3 py-2 text-[11px] font-bold tracking-tight transition-all
-            ${active
-                ? 'bg-[var(--text-color)] text-[var(--bg-color)]'
-                : 'hover:bg-[var(--border-color)] text-[var(--dim-color)] hover:text-[var(--text-color)]'}
-        `}>
+        <a
+            href={href}
+            className={`
+                w-full flex items-center gap-3 px-3 py-2 text-[11px] font-bold tracking-tight transition-all
+                ${active
+                    ? 'bg-[var(--text-color)] text-[var(--bg-color)]'
+                    : 'hover:bg-[var(--border-color)] text-[var(--dim-color)] hover:text-[var(--text-color)]'}
+            `}
+        >
             {icon}
             <span>{label}</span>
+            {restricted && <span className="ml-auto text-[8px] text-red-500/50">🔒</span>}
             {active && <div className="ml-auto w-1 h-3 bg-[var(--bg-color)]" />}
-        </button>
+        </a>
     );
 }
