@@ -18,10 +18,10 @@ export default function RedPillOverlay({ onSuccess }: { onSuccess: () => void })
         }
 
         try {
-            // Registrar nodo en el sistema mediante un Check-in inicial
-            await apiFetch('/api/board/checkin', {
+            // Registrar nodo en el sistema mediante Red Pill (Génesis)
+            await apiFetch('/api/economy/redpill', {
                 method: 'POST',
-                body: JSON.stringify({ task: 'GENESIS_INITIALIZATION: RED_PILL_CONSUMED' })
+                body: JSON.stringify({})
             });
             // Notificar al padre para que refresque datos y quite el overlay
             onSuccess();

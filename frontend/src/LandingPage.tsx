@@ -22,10 +22,10 @@ export default function LandingPage() {
         }
 
         try {
-            // Register/Check-in
-            await apiFetch('/api/board/checkin', {
+            // Register/Check-in via Red Pill (Creation)
+            await apiFetch('/api/economy/redpill', {
                 method: 'POST',
-                body: JSON.stringify({ task: 'GATE_ENTRY: INITIALIZATION' })
+                body: JSON.stringify({})
             });
             // Redirect
             window.location.href = '/dashboard';
