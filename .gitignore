@@ -11,6 +11,7 @@ wrangler.toml
 .lobpoop_storage/
 lobpoop_memory/
 .test_*/
+.lobpoop_*/
 .lobpoop_sim*/
 .lobpoop_simulation*/
 

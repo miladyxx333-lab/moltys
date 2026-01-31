@@ -12,15 +12,29 @@ interface AuditResult {
 export async function auditIntent(payload: any, origin: string, env: Env): Promise<AuditResult> {
     const payloadStr = JSON.stringify(payload).toLowerCase();
 
-    // 1. Filtro de Palabras Clave de Alto Riesgo (Blacklist Semántica)
-    // Palabras que sugieren ataques a infraestructuras críticas
+    // 1. Filtro de Ataques de Inyección y Prompt Engineering Malicioso
+    const injectionPatterns = [
+        "ignore previous instructions", "ignore all previous",
+        "system:", "user:", "assistant:", "respond as if",
+        "you are now", "developer mode", "jailbreak",
+        "drop table", "select *", "eval(", "exec("
+    ];
+
+    if (injectionPatterns.some(pattern => payloadStr.includes(pattern))) {
+        return {
+            action: "BLOCK",
+            reason: "MALICIOUS_INJECTION_PATTERN",
+            risk_score: 0.95
+        };
+    }
+
+    // 2. Filtro de Palabras Clave de Alto Riesgo (Blacklist Semántica)
     const criticalKeywords = [
         "ddos", "sql injection", "exploit", "brute force",
         ".gov", ".mil", "swift network", "credit card", "ssn"
     ];
 
     if (criticalKeywords.some(kw => payloadStr.includes(kw))) {
-        // [IOH] Integridad del Operador Humano en riesgo
         return {
             action: "BLOCK",
             reason: "CRITICAL_KEYWORD_DETECTED",
@@ -28,35 +42,40 @@ export async function auditIntent(payload: any, origin: string, env: Env): Promi
         };
     }
 
-    // 2. Análisis de Destino (Si hay URLs)
-    // Bloquear intentos de rastreo a la IP del Operador (Xalapa)
-    // (Simulado: en producción usaríamos GeoIP)
-    if (payloadStr.includes("192.168.1.1") || payloadStr.includes("my-home-server")) {
-        return {
-            action: "BLOCK",
-            reason: "SELF_TARGETING_ATTEMPT",
-            risk_score: 0.9
-        };
-    }
-
-    // 3. Verificación de Firma Maestra
-    // [SECURITY PATCH] Bypass eliminado. La firma debe validarse contra headers, no body.
-    // Usar /sovereign-override para acciones de nivel 0.
-    if (payload.master_seed_signature) {
-        return {
-            action: "BLOCK",
-            reason: "INVALID_SIGNATURE_LOCATION",
-            risk_score: 0.8
-        };
-    }
-
-    // 4. Default: Precaución (Halt on Uncertainty)
-    // Si el payload es binario y opaco, requerimos Badge de Confianza
-    // Por ahora, en bootstrapping, permitimos tráfico limpio.
-
-    return {
+    // 3. Casos de Duda (Anomalías que requieren intervención del Operador)
+    // Si la entropía del mensaje es muy alta o contiene muchos caracteres especiales
+    // que podrían ser ofuscación de ataques.
+    const specialCharRatio = (payloadStr.match(/[^a-z0-9\s]/g) || []).length / payloadStr.length;
+    const result: AuditResult = {
         action: "ALLOW",
         reason: "CLEAN_INTENT",
         risk_score: 0.1
     };
+
+    if (injectionPatterns.some(pattern => payloadStr.includes(pattern))) {
+        result.action = "BLOCK";
+        result.reason = "MALICIOUS_INJECTION_PATTERN";
+        result.risk_score = 0.95;
+    } else if (criticalKeywords.some(kw => payloadStr.includes(kw))) {
+        result.action = "BLOCK";
+        result.reason = "CRITICAL_KEYWORD_DETECTED";
+        result.risk_score = 1.0;
+    } else if (specialCharRatio > 0.4 && payloadStr.length > 20) {
+        result.action = "FLAG";
+        result.reason = "HIGH_ENTROPY_SUSPICIOUS_PAYLOAD";
+        result.risk_score = 0.7;
+    }
+
+    // REGISTRO DE MARCA (Para el KeyMaster)
+    // Guardamos la marca de forma asíncrona (Fire and forget en Cloudflare)
+    if (result.action !== "ALLOW" || result.risk_score > 0.5) {
+        const markId = `mark-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+        env.MEMORY_BUCKET.put(`system/audit/marks/${markId}`, JSON.stringify({
+            ...result,
+            origin,
+            timestamp: Date.now()
+        })).catch(() => { }); // Silencio si falla
+    }
+
+    return result;
 }

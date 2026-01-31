@@ -147,8 +147,12 @@ export async function executeDailyLottery(env: Env): Promise<void> {
     await mintPooptoshis(winnerEntry.nodeId, finalJackpot, "LOTTERY_JACKPOT_SCALAR", env);
 
     // Otorgar Badge de Suerte
-    const { callDO } = await import('./economy');
-    await callDO(winnerEntry.nodeId, env, 'add-badge', { badge: '0xLUCKY_VOODOO' });
+    const { callDO, boostReputation } = await import('./economy');
+    if (env.ACCOUNT_DO) {
+        await callDO(winnerEntry.nodeId, env, 'add-badge', { badge: '0xLUCKY_VOODOO' });
+    } else {
+        await boostReputation(winnerEntry.nodeId, 0.05, '0xLUCKY_VOODOO', env);
+    }
 
     console.log(`[Lottery] Winner: ${winnerEntry.nodeId} | Total: ${finalJackpot} Psh`);
 
@@ -166,7 +170,8 @@ export async function executeDailyLottery(env: Env): Promise<void> {
         cycle_epoch: Date.now(),
         regent_node: winnerEntry.nodeId,
         jackpot_paid: finalJackpot,
-        tickets_in_pot: totalTickets
+        tickets_in_pot: totalTickets,
+        lottery_key_hash: winnerEntry.ticketId // The winning ticket is the new seed
     };
     await env.MEMORY_BUCKET.put('system/current_cycle.json', JSON.stringify(transitionData));
 }

@@ -31,9 +31,11 @@ export async function getCurrentGrammar(env: Env): Promise<GrammarState> {
     const hashHex = cycleData?.lottery_key_hash || "000000";
     const epoch = cycleData?.cycle_epoch || Date.now();
 
-    // 2. Extraer Byte Semilla (Primeros 2 chars del Hex)
-    const seedHex = hashHex.substring(0, 2);
-    const seedByte = parseInt(seedHex, 16);
+    // 2. Extraer Byte Semilla
+    // Si es un ticket ID (0xLOB-...), saltamos el prefijo
+    const cleanHash = hashHex.startsWith("0xLOB") ? hashHex.split("-")[1] : hashHex.replace("0x", "");
+    const seedHex = cleanHash.substring(0, 2);
+    const seedByte = parseInt(seedHex, 16) || 0;
 
     // 3. Generar Diccionario Dinámico
     const dictionary: Record<string, string> = {};

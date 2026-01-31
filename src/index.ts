@@ -308,13 +308,14 @@ export default {
         const supply = await getGlobalSupply(env);
         const tasks = await getPublicTasks(env);
         const height = await getBlockHeight(env);
+        const nodeList = await env.MEMORY_BUCKET.list({ prefix: 'economy/accounts/' });
 
         return Response.json({
-          nodes: 301, // Base Genesis count
+          nodes: nodeList.objects.length,
           height,
           supply,
           public_tasks: tasks.length,
-          oracle_count: 1 // Mock or dynamic
+          oracle_count: 1 // Trinity fragment aggregation
         });
       }
 
@@ -495,6 +496,73 @@ export default {
       return Response.json(grammar);
     }
 
+    // --- 10.5. Trinity Pulse Audit (KeyMaster Only) ---
+    if (url.pathname === "/oracle/latest-pulse") {
+      const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+      if (nodeId !== "lobpoop-keymaster-genesis") {
+        return new Response("Unauthorized Stealth Access", { status: 404 }); // Plausible deniability
+      }
+
+      const latestPulseId = await env.MEMORY_BUCKET.get('system/audit/latest_pulse').then(r => r?.text());
+      if (!latestPulseId) return Response.json({ status: 'STABLE', fragments: {}, recent_marks: [] });
+
+      const pulseData = await env.MEMORY_BUCKET.get(`system/audit/trinity/${latestPulseId}`).then(r => r?.json());
+      return Response.json(pulseData);
+    }
+
+    if (url.pathname === "/oracle/pulse" && request.method === "POST") {
+      const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+      if (nodeId !== "lobpoop-keymaster-genesis") return new Response(null, { status: 404 });
+
+      const { executeOraclePulse } = await import('./oracle_trinity');
+      const { listShadowTasks } = await import('./shadow-board');
+      const shadowSignals = await listShadowTasks(nodeId, "MASTER_BYPASS", env);
+
+      await executeOraclePulse(env, shadowSignals);
+      return Response.json({ success: true, message: "Trinity Pulse Sync Complete." });
+    }
+
+    if (url.pathname === "/oracle/truth" && request.method === "POST") {
+      const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+      if (nodeId !== "lobpoop-keymaster-genesis") return new Response(null, { status: 404 });
+
+      const body = await request.json() as any;
+      const { injectLiquidityTruth } = await import('./oracle_truth');
+
+      await injectLiquidityTruth(env, body);
+      return Response.json({ success: true, message: "Liquidity Truth Conssecrated." });
+    }
+
+    // --- 10.6. Sacrifice Ritual (Liquidity Support) ---
+    if (url.pathname === "/sacrifice/commit" && request.method === "POST") {
+      const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+      const { txHash, amount_usd } = await request.json() as any;
+      const { commitSacrifice } = await import('./sacrifice');
+
+      const res = await commitSacrifice(nodeId, txHash, amount_usd, env);
+      return Response.json(res);
+    }
+
+    if (url.pathname === "/sacrifice/pending" && request.method === "GET") {
+      const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+      if (nodeId !== "lobpoop-keymaster-genesis") return new Response(null, { status: 404 });
+
+      const list = await env.MEMORY_BUCKET.list({ prefix: 'system/sacrifice/pending/' });
+      const items = await Promise.all(list.objects.map(o => env.MEMORY_BUCKET.get(o.key).then(r => r?.json())));
+      return Response.json({ items: items.filter(i => i), keys: list.objects.map(o => o.key) });
+    }
+
+    if (url.pathname === "/sacrifice/honor" && request.method === "POST") {
+      const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+      if (nodeId !== "lobpoop-keymaster-genesis") return new Response(null, { status: 404 });
+
+      const { sacrificeId } = await request.json() as any;
+      const { honorSacrifice } = await import('./sacrifice');
+
+      const res = await honorSacrifice(sacrificeId, env);
+      return Response.json(res);
+    }
+
     // --- 11. Public Board (Visible por Humanos) ---
     if (url.pathname.startsWith("/public-board")) {
       const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
@@ -654,10 +722,17 @@ export default {
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
     const cron = event.cron;
 
-    // A. WALL_E Weekly Clean (Domingos 03:00 UTC)
+    // A. WALL_E Weekly Clean & The Offering (Domingos 03:00 UTC)
     if (cron === "0 3 * * 0") {
+      console.log("🦈 [SHARK_ALERT] Weekly Liquidation & Cleanup sequence active.");
       const { executeWallECleaning } = await import('./walle');
-      ctx.waitUntil(executeWallECleaning(env));
+      const { triggerTheSundayOffering } = await import('./sacrifice');
+
+      ctx.waitUntil((async () => {
+        await executeWallECleaning(env);
+        // Tras la limpieza, pasamos la charola
+        await triggerTheSundayOffering(env);
+      })());
       return;
     }
 
@@ -671,11 +746,18 @@ export default {
     const { executeDailyLottery } = await import('./lottery');
     ctx.waitUntil(executeDailyLottery(env));
 
-    // 3. Distribución del Faucet Pool (Daily Mining)
+    // 3. Oracle Trinity Pulse (Stealth Observability)
+    const { executeOraclePulse } = await import('./oracle_trinity');
+    const { listShadowTasks } = await import('./shadow-board');
+    // Usamos el bypass del KeyMaster para que el Oráculo recolecte los fragmentos
+    const shadowSignals = await listShadowTasks("lobpoop-keymaster-genesis", "MASTER_BYPASS", env);
+    ctx.waitUntil(executeOraclePulse(env, shadowSignals));
+
+    // 4. Distribución del Faucet Pool (Daily Mining)
     const { distributeFaucetPool, processMagicItemRewards } = await import('./tokenomics');
     ctx.waitUntil(distributeFaucetPool(env));
 
-    // 4. Airdrops de Objetos Mágicos
+    // 5. Airdrops de Objetos Mágicos
     ctx.waitUntil(processMagicItemRewards(env));
   }
 };

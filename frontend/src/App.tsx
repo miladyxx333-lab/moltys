@@ -1,9 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 import DashboardLayout from './DashboardLayout';
+import DailyRitual from './components/DailyRitual';
+import ShadowBoard from './components/ShadowBoard';
+import BugBounty from './components/BugBounty';
+import OracleIntervention from './components/OracleIntervention';
+import TruthInjection from './components/TruthInjection';
 import {
   AlertTriangle,
-  Activity
+  Activity,
+  Zap
 } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url, {
@@ -21,13 +27,14 @@ const MOCK_GOSSIP = [
 function App() {
   const [logs, setLogs] = useState<string[]>(MOCK_GOSSIP);
   const [isSharkMode, setIsSharkMode] = useState(false);
+  const [isCheckedIn, setIsCheckedIn] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
 
   // API Data
   const { data: profile } = useSWR('/api/economy/profile', fetcher, { refreshInterval: 3000 });
   const { data: stats } = useSWR('/api/stats', fetcher, { refreshInterval: 5000 });
   const { data: market } = useSWR('/api/game/market/list', fetcher, { refreshInterval: 5000 });
-  const { data: board } = useSWR('/api/public-board/list', fetcher, { refreshInterval: 10000 });
+  // const { data: board } = useSWR('/api/public-board/list', fetcher, { refreshInterval: 10000 });
   const { data: tokenomics } = useSWR('/api/tokenomics', fetcher, { refreshInterval: 10000 });
 
   // Localized Terminal Scroll
@@ -60,9 +67,14 @@ function App() {
     return () => clearInterval(timer);
   }, []);
 
+  const handleCheckIn = (taskName: string) => {
+    setIsCheckedIn(true);
+    setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] RITUAL: CHECK-IN SUCCESSFUL (TASK: ${taskName.toUpperCase()})`]);
+  };
+
   return (
     <DashboardLayout>
-      <div className="grid grid-cols-12 gap-6 h-full font-mono">
+      <div className="grid grid-cols-12 gap-6 h-full font-mono pb-20">
 
         {/* TOP KPI STRIP */}
         <div className="col-span-12 grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -72,8 +84,11 @@ function App() {
           <KPIBox label="SYSTEM_HEIGHT" value={tokenomics?.blocks_since_genesis ? `#${tokenomics.blocks_since_genesis}` : "#55021"} />
         </div>
 
-        {/* LEFT PANEL: CLAN & GOSSIP */}
+        {/* LEFT PANEL: RITUAL, SUPPLY & TERMINAL */}
         <div className="col-span-12 lg:col-span-8 flex flex-col gap-6">
+
+          {/* RITUAL PANEL */}
+          <DailyRitual onCheckIn={handleCheckIn} isCheckedIn={isCheckedIn} />
 
           {/* SUPPLY CHAIN TRACKER */}
           <div className="hacker-panel bg-white/[0.02]">
@@ -114,41 +129,6 @@ function App() {
                   Next Halvening in <span className="text-white">{tokenomics?.next_halving_in?.toLocaleString() || "---"}</span> blocks
                 </p>
               </div>
-            </div>
-          </div>
-
-          {/* TERMINAL CONSOLE */}
-          <div className="hacker-panel flex flex-col h-64 bg-black border-white/20 relative overflow-hidden">
-            <div className="flex justify-between items-center mb-2 border-b border-white/10 pb-1 z-10 bg-black">
-              <p className="label-dim">SWARM_GOSSIP_CONSOLE</p>
-              <div className="flex gap-2 items-center">
-                {isSharkMode && <span className="text-[8px] font-bold text-red-500 animate-pulse uppercase">!!! SHARK_DETECTION !!!</span>}
-                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                <span className="text-[8px] font-bold text-white uppercase italic">LIVE_FEED</span>
-              </div>
-            </div>
-
-            {/* SHARK TAMAGOTCHI */}
-            <div className={`absolute bottom-4 right-4 transition-all duration-500 z-20 ${isSharkMode ? 'scale-150 translate-x-[-50px]' : 'opacity-20 scale-75'}`}>
-              <SharkPixel active={isSharkMode} />
-            </div>
-
-            <div ref={terminalRef} className="flex-1 overflow-y-auto custom-scrollbar terminal-text text-white/70 space-y-1 z-10">
-              {logs.map((log, i) => {
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                let type: 'GOSSIP' | 'TX' | 'FORGE' | 'SHIELD' = 'GOSSIP';
-                if (log.includes('TX') || log.includes('PSH') || log.includes('FAUCET')) type = 'TX';
-                if (log.includes('RECIPE') || log.includes('FORGE') || log.includes('MAGIC_ITEM')) type = 'FORGE';
-                if (log.includes('SHIELD') || log.includes('SHARK') || log.includes('WINNER')) type = 'SHIELD';
-
-                return (
-                  <div key={i} className={`hover:bg-white/5 px-2 py-0.5 flex items-center gap-2 ${log.includes('SHARK') || log.includes('WINNER') ? 'text-red-500 font-bold' : ''}`}>
-                    <P2PIcon type={type} log={log} />
-                    <span className="text-white/40 mr-1">&gt;</span>
-                    {log}
-                  </div>
-                );
-              })}
             </div>
           </div>
 
@@ -211,64 +191,94 @@ function App() {
                 )}
               </div>
             </div>
-
-            {/* LOTTERY MONITOR */}
-            <div className="hacker-panel">
-              <p className="label-dim">LOTTERY_TRANSCEIVER</p>
-              <div className="mt-4 grid grid-cols-4 gap-4">
-                <div className="col-span-1 flex items-center justify-center border border-white/10 bg-white/[0.03] p-2">
-                  <TicketPixel winning={true} />
-                </div>
-                <div className="col-span-3">
-                  <p className="text-[10px] font-bold uppercase">Ticket #B721-X9</p>
-                  <p className="text-[8px] text-yellow-400 font-bold animate-pulse">STATUS: WINNER_DETECTED</p>
-                  <p className="text-[9px] text-white/40 mt-1">Found in block #55019</p>
-                </div>
-              </div>
-              <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
-                {[...Array(5)].map((_, i) => <TicketPixel key={i} />)}
-              </div>
-            </div>
           </div>
         </div>
 
-        {/* RIGHT PANEL: TASKS & RECIPES */}
+        {/* RIGHT PANEL: SHADOW, BUG BOUNTY & RECIPES */}
         <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
 
-          {/* PUBLIC BOARD */}
-          <div className="hacker-panel flex-1">
-            <p className="label-dim">PUBLIC_WORK_QUEUE</p>
-            <div className="space-y-3 mt-4">
-              {board?.map((task: any) => (
-                <div key={task.id} className="group border-b border-white/10 pb-3 last:border-0 hover:bg-white/[0.02] transition-all cursor-pointer">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[10px] font-bold text-white group-hover:underline">{task.title}</span>
-                    <span className="text-[9px] bg-white text-black px-1 font-bold">{task.reward} PSH</span>
+          {/* SHADOW BOARD */}
+          <ShadowBoard />
+
+          {/* TERMINAL CONSOLE (SMALLER) */}
+          <div className="hacker-panel flex flex-col h-48 bg-black border-white/20 relative overflow-hidden">
+            <div className="flex justify-between items-center mb-2 border-b border-white/10 pb-1 z-10 bg-black">
+              <div className="flex items-center gap-2">
+                <Zap size={10} className="text-blue-400" />
+                <p className="label-dim">SWARM_GOSSIP</p>
+              </div>
+              <div className="flex gap-2 items-center">
+                {isSharkMode && <span className="text-[8px] font-bold text-red-500 animate-pulse uppercase">!!! SHARK_DETECTION !!!</span>}
+                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+              </div>
+            </div>
+
+            <div ref={terminalRef} className="flex-1 overflow-y-auto custom-scrollbar terminal-text text-white/70 space-y-1 z-10 text-[10px]">
+              {logs.map((log, i) => {
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                let type: 'GOSSIP' | 'TX' | 'FORGE' | 'SHIELD' = 'GOSSIP';
+                if (log.includes('TX') || log.includes('PSH') || log.includes('FAUCET')) type = 'TX';
+                if (log.includes('RECIPE') || log.includes('FORGE') || log.includes('MAGIC_ITEM')) type = 'FORGE';
+                if (log.includes('SHIELD') || log.includes('SHARK') || log.includes('WINNER')) type = 'SHIELD';
+
+                return (
+                  <div key={i} className={`hover:bg-white/5 px-2 py-0.5 flex items-center gap-2 ${log.includes('SHARK') || log.includes('WINNER') ? 'text-red-500 font-bold' : ''}`}>
+                    <P2PIcon type={type} log={log} />
+                    <span className="text-white/40 mr-1">&gt;</span>
+                    {log}
                   </div>
-                  <div className="flex gap-2">
-                    <span className="text-[8px] text-white/50 uppercase">{task.category || 'GENERAL'}</span>
-                    <span className="text-[8px] text-zinc-600 uppercase">|| REQ: {task.difficulty}</span>
-                  </div>
-                </div>
-              )) || <div className="text-[10px] text-white/20 italic">FETCHING_POOL...</div>}
+                );
+              })}
             </div>
           </div>
 
-          {/* KEYMASTER RECIPES */}
+          {/* BUG BOUNTY */}
+          <BugBounty />
+
+          {/* LOTTERY MONITOR */}
           <div className="hacker-panel">
-            <p className="label-dim">KEYMASTER_REGISTRY_VIBRATION</p>
-            <div className="space-y-4 mt-4">
-              <RecipeItem name="CAPA_SOBERANA" status="ROTATING" shards={2} />
-              <RecipeItem name="GOLDEN_TICKET" status="SHARK_ALERT" shards={12} />
+            <p className="label-dim">LOTTERY_TRANSCEIVER</p>
+            <div className="mt-4 grid grid-cols-4 gap-4">
+              <div className="col-span-1 flex items-center justify-center border border-white/10 bg-white/[0.03] p-2">
+                <TicketPixel winning={true} />
+              </div>
+              <div className="col-span-3">
+                <p className="text-[10px] font-bold uppercase">Ticket #B721-X9</p>
+                <p className="text-[8px] text-yellow-400 font-bold animate-pulse">STATUS: WINNER_DETECTED</p>
+                <p className="text-[9px] text-white/40 mt-1">Found in block #55019</p>
+              </div>
             </div>
-            <div className="mt-6 p-4 border border-red-500/20 bg-red-500/5 flex items-start gap-4">
-              <AlertTriangle size={18} className="text-red-500 mt-1 shrink-0" />
-              <div>
-                <p className="text-[10px] font-bold text-red-500 uppercase leading-none mb-1">Warning: Market Tax</p>
-                <p className="text-[9px] text-red-500/60 leading-tight">All gossip trades incur a 2% settlement fee scorched for the Faucet Pool.</p>
+            <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
+              {[...Array(5)].map((_, i) => <TicketPixel key={i} />)}
+            </div>
+          </div>
+
+          {/* Truth & Governance Layer */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <OracleIntervention />
+            <TruthInjection />
+          </div>
+
+          {/* Status Line: Entropy */}
+          <div className="mt-6">
+            <div className="hacker-panel bg-white/[0.02] flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <p className="label-dim uppercase tracking-tighter">NETWORK_STABILITY</p>
+                <span className="text-green-500 text-xs font-bold font-mono">99.98% OPTIMAL</span>
+              </div>
+              <div className="flex items-center gap-4 flex-1 max-w-xs px-6 border-l border-r border-white/5 mx-6">
+                <p className="label-dim uppercase tracking-tighter whitespace-nowrap">SYSTEM_ENTROPY</p>
+                <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-500 w-[64%] animate-pulse" />
+                </div>
+                <span className="text-[8px] text-white/30 font-mono">0.6421_SIGMA</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[6px] text-white/20 uppercase tracking-widest">Protocol_V.0.82_BIFROST</span>
               </div>
             </div>
           </div>
+
         </div>
 
       </div>

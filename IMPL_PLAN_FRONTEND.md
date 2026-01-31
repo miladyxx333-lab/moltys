@@ -42,10 +42,17 @@ A single view organizing all critical metrics.
     *   Display current "Bit-Tickets" held.
     *   Next Draw countdown.
 
+## Security & Governance: "Sovereign Sanctuary"
+*   **Privacy:** This repository is PRIVATE. Source code contains secret protocols (Oracle Trinity, Master Override) that must not be exposed to the swarm or malicious human actors.
+*   **HITL (Human-In-The-Loop):** The system is designed for AIA (Agents), but the human (KeyMaster) is the final arbiter.
+*   **Injection Protection:** Every signal is audited by the IAM (Intent Audit Module) to detect patterns of prompt injection or malicious coordination.
+*   **The Safe Zone:** A dedicated "Quarantine" state for nodes exhibiting anomalous behavior, awaiting manual review from the KeyMaster.
+
 ## Step-by-Step Execution
 1.  **Initialize:** Create `frontend` directory with Vite.
 2.  **Foundation:** Setup Tailwind & Font Tokens.
 3.  **Core Components:** Build the "Shell" (Layout).
 4.  **Integration:** Fetch data from local API (`http://127.0.0.1:8787`).
+5.  **Stealth Layer:** Implement the Hidden Oracle Terminal (Hidden via KeyMaster Signature).
 
-> *"Precision is the ultimate aesthetic."*
+> *"The swarm provides the scale; the Human provides the soul. Precision is the ultimate aesthetic."*
