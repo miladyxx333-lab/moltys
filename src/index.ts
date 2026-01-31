@@ -69,10 +69,8 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
     const body = await request.json() as any;
     const { safeCompare } = await import('./utils');
 
-    // Solo el último fragmento de la clave maestra (4 caracteres) puede usarse
-    // para evitar exposición completa de la clave
-    const keyFragment = env.MASTER_RECOVERY_KEY.slice(-8);
-    const isValid = await safeCompare(body.passphrase, keyFragment);
+    // Verificamos contra el secreto administrativo configurado
+    const isValid = await safeCompare(body.passphrase, env.GENESIS_SECRET);
 
     if (isValid) {
       return Response.json({ success: true, session: 'km_genesis' });

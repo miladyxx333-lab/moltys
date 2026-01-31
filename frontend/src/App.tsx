@@ -33,8 +33,9 @@ function App() {
   const { data: tokenomics } = useSWR('/api/tokenomics', swrFetcher, { refreshInterval: 10000 });
 
   // Determine if we need to show the Red Pill (New User)
-  // Show if: Not Loading AND (No Profile OR Error)
-  const showRedPill = !profileLoading && (!profile || profileError);
+  // Show if: No Profile OR (Default Ghost Profile: 0 balance & 0 minted & default rep)
+  const isGhostProfile = profile && profile.balance_psh === 0 && profile.lobpoops_minted === 0 && profile.reputation === 0.5;
+  const showRedPill = !profileLoading && (!profile || profileError || isGhostProfile);
 
   const handleRedPillSuccess = () => {
     // Force reload necessary data
