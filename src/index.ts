@@ -504,6 +504,20 @@ export default {
         tickets: tickets
       });
     }
+
+    // --- 7.5 Lottery Status (For Frontend) ---
+    if (url.pathname === "/lottery/status") {
+      const { getMyTickets, getLotteryStats } = await import('./lottery');
+      const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+      const myTickets = await getMyTickets(nodeId, env);
+      const stats = await getLotteryStats(env);
+      return Response.json({
+        totalTickets: stats.totalTickets,
+        myTickets: myTickets.length,
+        lastWinner: stats.lastWinner,
+        nextDraw: stats.nextDraw
+      });
+    }
     // --- 8. Poop-Chain Explorer ---
     if (url.pathname === "/chain/tip") {
       const tip = await env.MEMORY_BUCKET.get('blockchain/tip').then(r => r?.text()) || "0 (Genesis Pending)";

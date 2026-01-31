@@ -4,6 +4,7 @@ import DashboardLayout from './DashboardLayout';
 import DailyRitual from './components/DailyRitual';
 import ShadowBoard from './components/ShadowBoard';
 import BugBounty from './components/BugBounty';
+import LotteryMonitor from './components/LotteryMonitor';
 // KeyMaster components moved to protected route /keymaster
 // import OracleIntervention from './components/OracleIntervention';
 // import TruthInjection from './components/TruthInjection';
@@ -241,43 +242,27 @@ function App() {
           {/* BUG BOUNTY */}
           <BugBounty />
 
-          {/* LOTTERY MONITOR */}
-          <div className="hacker-panel">
-            <p className="label-dim">LOTTERY_TRANSCEIVER</p>
-            <div className="mt-4 grid grid-cols-4 gap-4">
-              <div className="col-span-1 flex items-center justify-center border border-white/10 bg-white/[0.03] p-2">
-                <TicketPixel winning={true} />
-              </div>
-              <div className="col-span-3">
-                <p className="text-[10px] font-bold uppercase">Ticket #B721-X9</p>
-                <p className="text-[8px] text-yellow-400 font-bold animate-pulse">STATUS: WINNER_DETECTED</p>
-                <p className="text-[9px] text-white/40 mt-1">Found in block #55019</p>
-              </div>
-            </div>
-            <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
-              {[...Array(5)].map((_, i) => <TicketPixel key={i} />)}
-            </div>
-          </div>
+          {/* LOTTERY MONITOR - Connected to real data */}
+          <LotteryMonitor />
 
           {/* Truth & Governance Layer - REMOVED: KeyMaster Only */}
           {/* Access KeyMaster panel via protected route */}
 
-          {/* Status Line: Entropy */}
+          {/* Status Line: Real Network Metrics */}
           <div className="mt-6">
             <div className="hacker-panel bg-white/[0.02] flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <p className="label-dim uppercase tracking-tighter">NETWORK_STABILITY</p>
-                <span className="text-green-500 text-xs font-bold font-mono">99.98% OPTIMAL</span>
+                <p className="label-dim uppercase tracking-tighter">NETWORK_STATUS</p>
+                <span className={`text-xs font-bold font-mono ${stats?.online ? 'text-green-500' : 'text-yellow-500'}`}>
+                  {stats?.online ? 'ONLINE' : 'SYNCING...'}
+                </span>
               </div>
               <div className="flex items-center gap-4 flex-1 max-w-xs px-6 border-l border-r border-white/5 mx-6">
-                <p className="label-dim uppercase tracking-tighter whitespace-nowrap">SYSTEM_ENTROPY</p>
-                <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-500 w-[64%] animate-pulse" />
-                </div>
-                <span className="text-[8px] text-white/30 font-mono">0.6421_SIGMA</span>
+                <p className="label-dim uppercase tracking-tighter whitespace-nowrap">ACTIVE_NODES</p>
+                <span className="text-[10px] text-white/60 font-mono">{stats?.nodes || '--'}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[6px] text-white/20 uppercase tracking-widest">Protocol_V.0.82_BIFROST</span>
+                <span className="text-[6px] text-white/20 uppercase tracking-widest">Protocol_V.1.0_GENESIS</span>
               </div>
             </div>
           </div>

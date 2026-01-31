@@ -198,3 +198,46 @@ export async function getMyTickets(nodeId: string, env: Env): Promise<BitTicket[
     }
     return tickets;
 }
+
+export interface LotteryStats {
+    totalTickets: number;
+    lastWinner?: {
+        nodeId: string;
+        ticketId: string;
+        prize: string;
+        block: number;
+    };
+    nextDraw?: number;
+}
+
+export async function getLotteryStats(env: Env): Promise<LotteryStats> {
+    const TODAY = new Date().toISOString().split('T')[0];
+    const db = await import('./datastore').then(m => new m.DataStore(env));
+
+    // Count today's tickets
+    const candidates = await db.scanDailyPot(TODAY);
+    const totalTickets = candidates.reduce((sum, c: any) => sum + (c.weight || 1), 0);
+
+    // Get last winner from cycle data
+    let lastWinner;
+    try {
+        const cycleData = await env.MEMORY_BUCKET.get('system/current_cycle.json');
+        if (cycleData) {
+            const cycle = await cycleData.json() as any;
+            if (cycle.regent_node) {
+                lastWinner = {
+                    nodeId: cycle.regent_node,
+                    ticketId: cycle.lottery_key_hash,
+                    prize: `${cycle.jackpot_paid} PSH`,
+                    block: cycle.cycle_epoch
+                };
+            }
+        }
+    } catch (e) { }
+
+    return {
+        totalTickets,
+        lastWinner,
+        nextDraw: undefined // Calculated by cron schedule
+    };
+}
