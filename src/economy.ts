@@ -227,6 +227,15 @@ export async function mintPooptoshis(nodeId: string, amount: number, reason: str
     validateNodeId(nodeId);
     validateReason(reason);
 
+    // --- GENESIS HARD CAP CHECK ---
+    const { MAX_SUPPLY } = await import('./tokenomics');
+    const currentSupply = await getGlobalSupply(env);
+
+    if (currentSupply.circulating + amount > MAX_SUPPLY) {
+        throw new Error(`GENESIS_CAP_REACHED: Cannot mint ${amount} Psh. Max Supply 1B exhausted.`);
+    }
+    // ------------------------------
+
     if (env.ACCOUNT_DO) {
         const result = await callDO(nodeId, env, 'update-balance', { amount, reason });
 

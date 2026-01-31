@@ -100,6 +100,27 @@ export default {
       }
     }
 
+    // --- 4.5 Task Submission System (with Limits & AI QC) ---
+    if (url.pathname === "/tasks/submit" && request.method === "POST") {
+      const { submitTask } = await import('./tasks');
+      const body = await request.json() as any;
+
+      const nodeId = request.headers.get("X-Lob-Peer-ID");
+      if (!nodeId) return new Response("Missing Peer ID", { status: 401 });
+
+      // Default type to SIMPLE if not provided
+      const type = body.type === 'SPECIAL' ? 'SPECIAL' : 'SIMPLE';
+
+      const result = await submitTask(
+        nodeId,
+        type,
+        body.proof || '',
+        env
+      );
+
+      return Response.json(result);
+    }
+
     // --- 5. Tablero de Tareas y Ritual Diario ---
     if (url.pathname.startsWith("/board")) {
       const { registerDailyRitual, listOpenTasks, submitTaskProof } = await import('./board');
