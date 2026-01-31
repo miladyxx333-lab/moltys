@@ -20,13 +20,12 @@ bindings = [
 
 [[migrations]]
 tag = "v1"
-new_classes = ["AccountDurableObject", "ClanDurableObject", "GameMasterDurableObject"]
+new_sqlite_classes = ["AccountDurableObject", "ClanDurableObject", "GameMasterDurableObject"]
 
-# 3. Entorno de Ejecución Aislado (MoltWorker Sandbox)
-# Aquí es donde corren las 'Sovereign Shadows'
-[[unsafe.bindings]]
-name = "LOB_SANDBOX"
-type = "sandbox"
+# 3. Entorno de Ejecución (Standard Worker Environment)
+# [[unsafe.bindings]] (Sandbox no soportado en plan standard)
+# name = "LOB_SANDBOX"
+# type = "sandbox"
 
 # 4. Navegación Autónoma
 [browser]
@@ -47,6 +46,6 @@ ANTHROPIC_BASE_URL = "https://gateway.ai.cloudflare.com/v1/ACCOUNT_TAG/lobpoop-g
 [triggers]
 crons = [
     "0 0 * * *",   # Diario (Lotería y Faucet)
-    "0 3 * * 0",   # Semanal (Domingos - Sacrificio)
+    "0 3 * * SUN", # Semanal (Domingos - Sacrificio)
     "0 * * * *"    # Horario (Items Expirados)
 ]

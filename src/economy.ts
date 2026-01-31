@@ -441,7 +441,7 @@ export async function transferPooptoshis(fromId: string, toId: string, amount: n
 
     // Registrar la quema del fee en el supply global (ya lo hace burnPooptoshis si no es silent,
     // pero aquí usamos silent: true para el total. Debemos actualizar el supply para el fee específicamente)
-    const { updateGlobalSupply } = await import('./economy_utils' as any); // Fallback if internal
+    // El supply global se actualiza automáticamente dentro de burnPooptoshis y mintPooptoshis.
     // En realidad burnPooptoshis con silent true no actualiza el supply.
     // Lo actualizaremos manualmente o quitaremos silent.
     // Si quitamos silent, quemará el total. Es mejor quemar el total y que el supply se actualice.
