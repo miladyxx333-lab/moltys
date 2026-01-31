@@ -24,3 +24,4 @@ Run your own node locally using your Mac as the server and Google Drive as infin
 The dashboard contains a hidden layer. Open the browser console and type `revealSecrets()` to access high-level rituals (Fumata, Apotheosis).
 
 **Status:** Alpha v1.0 | Protocol: `sovereign_solution`
+ 
