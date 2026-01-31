@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../api';
 import { EyeOff, Clock, Radio } from 'lucide-react';
 
 interface ShadowMessage {
@@ -15,14 +16,9 @@ export default function ShadowBoard() {
     useEffect(() => {
         const fetchShadowMessages = async () => {
             try {
-                const res = await fetch('/api/shadow/messages', {
-                    headers: { 'X-Lob-Peer-ID': 'agent-neo' }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (Array.isArray(data) && data.length > 0) {
-                        setMessages(data.slice(-10));
-                    }
+                const data = await apiFetch('/api/shadow/messages');
+                if (Array.isArray(data) && data.length > 0) {
+                    setMessages(data.slice(-10));
                 }
             } catch (e) {
                 // Silent fail

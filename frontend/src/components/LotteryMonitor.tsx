@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../api';
 import { Ticket, Loader, Gift } from 'lucide-react';
 
 interface LotteryStatus {
@@ -20,13 +21,8 @@ export default function LotteryMonitor() {
     useEffect(() => {
         const fetchStatus = async () => {
             try {
-                const res = await fetch('/api/lottery/status', {
-                    headers: { 'X-Lob-Peer-ID': 'agent-neo' }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    setStatus(data);
-                }
+                const data = await apiFetch('/api/lottery/status');
+                setStatus(data);
             } catch (e) {
                 // Silent fail
             } finally {

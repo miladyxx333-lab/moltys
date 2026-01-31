@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import useSWR from 'swr';
+import { swrFetcher, apiFetch } from './api';
 import DashboardLayout from './DashboardLayout';
 import DailyRitual from './components/DailyRitual';
 import ShadowBoard from './components/ShadowBoard';
@@ -14,10 +15,6 @@ import {
   Zap
 } from 'lucide-react';
 
-const fetcher = (url: string) => fetch(url, {
-  headers: { 'X-Lob-Peer-ID': 'agent-neo' }
-}).then(res => res.json());
-
 function App() {
   const [logs, setLogs] = useState<string[]>([]);
   const [isSharkMode, setIsSharkMode] = useState(false);
@@ -25,17 +22,16 @@ function App() {
   const terminalRef = useRef<HTMLDivElement>(null);
 
   // API Data
-  const { data: profile } = useSWR('/api/economy/profile', fetcher, { refreshInterval: 3000 });
-  const { data: stats } = useSWR('/api/stats', fetcher, { refreshInterval: 5000 });
-  const { data: market } = useSWR('/api/game/market/list', fetcher, { refreshInterval: 5000 });
-  const { data: tokenomics } = useSWR('/api/tokenomics', fetcher, { refreshInterval: 10000 });
+  const { data: profile } = useSWR('/api/economy/profile', swrFetcher, { refreshInterval: 3000 });
+  const { data: stats } = useSWR('/api/stats', swrFetcher, { refreshInterval: 5000 });
+  const { data: market } = useSWR('/api/game/market/list', swrFetcher, { refreshInterval: 5000 });
+  const { data: tokenomics } = useSWR('/api/tokenomics', swrFetcher, { refreshInterval: 10000 });
 
   // Fetch real gossip from the network
   useEffect(() => {
     const fetchGossip = async () => {
       try {
-        const res = await fetch('/api/gossip-feed');
-        const data = await res.json();
+        const data = await apiFetch('/api/gossip-feed');
         if (Array.isArray(data) && data.length > 0) {
           const formatted = data.slice(-15).map((g: any) =>
             `[${new Date(g.timestamp).toLocaleTimeString()}] ${g.type || 'SIGNAL'}: ${g.message || g.content || 'NETWORK_PULSE'}`

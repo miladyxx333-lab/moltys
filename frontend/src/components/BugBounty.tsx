@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../api';
 import { Bug, ShieldAlert, Ticket, Loader } from 'lucide-react';
 
 interface BugReport {
@@ -18,14 +19,11 @@ export default function BugBounty() {
     useEffect(() => {
         const fetchBounties = async () => {
             try {
-                const res = await fetch('/api/bug-bounty/list', {
-                    headers: { 'X-Lob-Peer-ID': 'agent-neo' }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (Array.isArray(data)) {
-                        setBounties(data);
-                    }
+                const data = await apiFetch('/api/bug-bounty/list');
+
+                if (Array.isArray(data)) {
+
+                    setBounties(data);
                 }
             } catch (e) {
                 // Silent fail
