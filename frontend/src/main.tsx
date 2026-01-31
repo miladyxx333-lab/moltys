@@ -5,6 +5,8 @@ import App from './App';
 import KeyMasterPanel from './KeyMasterPanel';
 import './index.css';
 
+import LandingPage from './LandingPage';
+
 // Simple routing based on pathname
 function Router() {
   const path = window.location.pathname;
@@ -14,7 +16,13 @@ function Router() {
     return <KeyMasterPanel />;
   }
 
-  return <App />;
+  // Dashboard Logged In
+  if (path === '/dashboard') {
+    return <App />;
+  }
+
+  // Default Entry: Landing Page
+  return <LandingPage />;
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
