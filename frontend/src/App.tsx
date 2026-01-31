@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import useSWR from 'swr';
+import useSWR, { useSWRConfig } from 'swr';
 import { swrFetcher, apiFetch } from './api';
 import DashboardLayout from './DashboardLayout';
 import DailyRitual from './components/DailyRitual';
+import RedPillOverlay from './components/RedPillOverlay';
 import ShadowBoard from './components/ShadowBoard';
 import BugBounty from './components/BugBounty';
 import LotteryMonitor from './components/LotteryMonitor';
@@ -16,16 +17,31 @@ import {
 } from 'lucide-react';
 
 function App() {
+  const { mutate } = useSWRConfig();
   const [logs, setLogs] = useState<string[]>([]);
   const [isSharkMode, setIsSharkMode] = useState(false);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
 
   // API Data
-  const { data: profile } = useSWR('/api/economy/profile', swrFetcher, { refreshInterval: 3000 });
+  const { data: profile, error: profileError, isLoading: profileLoading } = useSWR('/api/economy/profile', swrFetcher, {
+    refreshInterval: 3000,
+    shouldRetryOnError: false
+  });
   const { data: stats } = useSWR('/api/stats', swrFetcher, { refreshInterval: 5000 });
   const { data: market } = useSWR('/api/game/market/list', swrFetcher, { refreshInterval: 5000 });
   const { data: tokenomics } = useSWR('/api/tokenomics', swrFetcher, { refreshInterval: 10000 });
+
+  // Determine if we need to show the Red Pill (New User)
+  // Show if: Not Loading AND (No Profile OR Error)
+  const showRedPill = !profileLoading && (!profile || profileError);
+
+  const handleRedPillSuccess = () => {
+    // Force reload necessary data
+    mutate('/api/economy/profile');
+    mutate('/api/stats');
+    setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] SYSTEM: NEW NODE INITIALIZED.`]);
+  };
 
   // Fetch real gossip from the network
   useEffect(() => {
@@ -62,13 +78,24 @@ function App() {
     }
   }, [logs]);
 
-  const handleCheckIn = (taskName: string) => {
-    setIsCheckedIn(true);
-    setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] RITUAL: CHECK-IN SUCCESSFUL (TASK: ${taskName.toUpperCase()})`]);
+  const handleCheckIn = async (taskName: string) => {
+    try {
+      await apiFetch('/api/board/checkin', {
+        method: 'POST',
+        body: JSON.stringify({ task: taskName })
+      });
+      setIsCheckedIn(true);
+      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] RITUAL: CHECK-IN SUCCESSFUL`]);
+      mutate('/api/economy/profile');
+    } catch (e: any) {
+      console.error(e);
+      setLogs(prev => [...prev, `[ERROR] RITUAL FAILED: ${e.message || e}`]);
+    }
   };
 
   return (
     <DashboardLayout>
+      {showRedPill && <RedPillOverlay onSuccess={handleRedPillSuccess} />}
       <div className="grid grid-cols-12 gap-6 h-full font-mono pb-20">
 
         {/* TOP KPI STRIP */}
