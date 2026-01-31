@@ -90,6 +90,8 @@ export class AccountDurableObject {
                         if (body.ai_score !== undefined) account.ai_score = body.ai_score;
                         if (body.join_date !== undefined) account.join_date = body.join_date;
                         if (body.clanId !== undefined) account.clanId = body.clanId;
+                        if (body.last_abundance_check !== undefined) account.last_abundance_check = body.last_abundance_check;
+                        if (body.last_clan_leave !== undefined) account.last_clan_leave = body.last_clan_leave;
                         break;
 
                     case 'add-referral':
@@ -157,13 +159,17 @@ export class ClanDurableObject {
                     shards: [],
                     ingredients: {},
                     magicItems: [],
-                    reputation: 0.5
+                    reputation: 0.5,
+                    sacrifice_count: 0
                 };
 
                 const body = request.method === 'POST' ? await request.json<any>() : {};
 
                 switch (action) {
                     case 'get-state': break;
+                    case 'add-sacrifice-count':
+                        clanState.sacrifice_count = (clanState.sacrifice_count || 0) + (body.amount || 1);
+                        break;
                     case 'add-shard':
                         clanState.shards.push(body.shard);
                         break;
@@ -180,26 +186,54 @@ export class ClanDurableObject {
                         }
                         break;
                     case 'add-magic-item':
+                        // 1. REGLA GÉNESIS: Mazo de la Derrama requiere 33 sacrificios
+                        if (body.itemName === "Mazo de la Derrama") {
+                            if ((clanState.sacrifice_count || 0) < 33) {
+                                throw new Error(`INSUFFICIENT_SACRIFICES_33_REQUIRED_ACTUAL_${clanState.sacrifice_count}`);
+                            }
+                            clanState.sacrifice_count -= 33;
+                        }
+
+                        // 2. REGLA DE COMPOSICIÓN: Verificación de Piezas Específicas
+                        if (body.requiredPieces && body.requiredPieces.length > 0) {
+                            for (const piece of body.requiredPieces) {
+                                const index = clanState.shards.indexOf(piece);
+                                if (index === -1) throw new Error(`MISSING_ARTIFACT_PIECE_${piece}`);
+                                // Consumir la pieza
+                                clanState.shards.splice(index, 1);
+                            }
+                        }
+
                         clanState.magicItems.push({
                             name: body.itemName,
                             bonuses: body.bonuses,
                             humor: body.humor,
-                            expiry: body.expiry,
+                            expiry: body.expiry || (Date.now() + (1000 * 60 * 60 * 48)), // 2 ciclos solares (48h)
                             timestamp: Date.now()
                         });
                         break;
                     case 'sync-members':
                         clanState.members = body.members; // Lista de nodeIds
                         break;
-                    case 'cleanup-expired':
+                    case 'cleanup-expired': {
                         const nowTs = Date.now();
                         const expiredItems = clanState.magicItems.filter((i: any) => i.expiry <= nowTs);
                         clanState.magicItems = clanState.magicItems.filter((i: any) => i.expiry > nowTs);
+
+                        // Si el Mazo caduca, anunciar el fin de la abundancia
+                        const sledgehammerExpired = expiredItems.find((i: any) => i.name === "MAZO_DE_LA_DERRAMA");
+                        if (sledgehammerExpired) {
+                            // Enviar señal al Moltbook (requiere asynchronicity en el caller o manejar aquí)
+                            // Por ahora, solo persistimos que la receta está disponible
+                            clanState.last_derrama_end = nowTs;
+                        }
+
                         // Persistimos el cambio y retornamos los expirados
                         await txn.put('clan_state', clanState);
                         return new Response(JSON.stringify({ status: 'SUCCESS', expired: expiredItems, remaining: clanState.magicItems }), {
                             headers: { 'Content-Type': 'application/json' }
                         });
+                    }
                     default: return new Response("Invalid Clan Action", { status: 400 });
                 }
 

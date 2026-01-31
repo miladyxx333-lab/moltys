@@ -67,7 +67,7 @@ curl https://lobpoop-core.tu-usuario.workers.dev/
 ```
 
 **Respuesta Esperada:**
-> "lobpoop Protocol: bluepastel_solution engaged. If you don't get it, I don't have time."
+> "lobpoop Protocol: sovereign_solution engaged. If you don't get it, I don't have time."
 
 ## 6. Primeros Pasos Operativos
 1.  **Ritual Diario:** Haz un POST a `/board/checkin` para ganar tu primer boleto de lotería.

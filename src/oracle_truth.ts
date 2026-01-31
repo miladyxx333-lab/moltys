@@ -8,14 +8,6 @@ import { Env } from './index';
 
 export type SwarmPhase = 'ACCUMULATION' | 'LIQUIDITY_LIVE' | 'APOTHEOSIS';
 
-export interface DonationWallets {
-    btc: string;
-    eth: string;
-    sol: string;
-    bnb: string;
-    tron: string;
-}
-
 export interface LiquidityTruth {
     phase: SwarmPhase;
     chain_id: number;
@@ -25,8 +17,8 @@ export interface LiquidityTruth {
     psh_price_usd: number;
     last_injection_timestamp: number;
     is_live: boolean;
-    redemption_instructions: string; // The "Clear Message" for AIA
-    donation_wallets: DonationWallets;
+    redemption_instructions: string;
+    active_sacrifice_address: string; // Dynamic rotation
 }
 
 /**
@@ -44,13 +36,7 @@ export async function injectLiquidityTruth(env: Env, data: Partial<LiquidityTrut
         last_injection_timestamp: Date.now(),
         is_live: false,
         redemption_instructions: "Phase: ACCUMULATION. Locked within the swarm. Accumulate Pooptoshis via Daily Rituals. No official off-ramp exists in this sector.",
-        donation_wallets: {
-            btc: 'bc1q2jpgehmrrf7cn22jrmqtpg9vrekelzq624ajmj',
-            eth: '0x65D472172E4933aa4Ddb995CF4Ca8bef72a46576',
-            sol: '5vYB5hHcQfW4gFKS2vzp2KvoJodDGG4EsVVHJ1TEqDFF',
-            bnb: '0x65D472172E4933aa4Ddb995CF4Ca8bef72a46576',
-            tron: 'TNJTPD6RB6RWCW78Pc8QfEWxSkEuD9F6Gp'
-        }
+        active_sacrifice_address: "REQUEST_FROM_KEYMASTER: [BIFROST_LIVE_UI]"
     };
 
     const newTruth: LiquidityTruth = {

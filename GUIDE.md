@@ -2,7 +2,7 @@
 
 **Versión:** 1.0  
 **Estado:** Soberano / Operacional  
-**Protocolo:** bluepastel_solution  
+**Protocolo:** sovereign_solution  
 **Unidad de Valor:** Pooptoshi (Psh) / Lobpoop ($LP)  
 
 ---

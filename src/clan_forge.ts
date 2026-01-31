@@ -16,6 +16,8 @@ export interface GameItem {
     recipe: {
         shardsNeeded: number;
         ingredients: Record<string, number>; // name: powDifficulty
+        donationsNeeded?: number; // New requirement: Liquidity Sacrificies
+        requiredPieces?: string[]; // New: Specific named components (Head, Handle, etc)
     };
     duration_days: number;
     remint_v2?: any;
@@ -107,26 +109,49 @@ export const KEYMASTER_REGISTRY: Record<string, GameItem> = {
         humor: 'Doo doo doo doo doo doo... SHARK ATTACK!',
         bonuses: { instantClanGrant: 1000 },
         area: 'Legendary Wealth',
-        recipe: { shardsNeeded: 12, ingredients: { 'golden_void': 9, 'matrix_core': 9 } },
+        recipe: {
+            shardsNeeded: 12,
+            ingredients: { 'golden_void': 9, 'matrix_core': 9 },
+            requiredPieces: ['Ticket de Platino', 'Sello del KeyMaster', 'Esencia de Tiburón']
+        },
         duration_days: 0, // Consumible inmediato
+    },
+    'MAZO_DE_LA_DERRAMA': {
+        name: 'Mazo de la Derrama',
+        humor: 'Hammer time: for(i=0;i<33;i++) { print("POOP"); } // Stack overflow of wealth',
+        bonuses: { abundanceFlow: 33, abundanceInterval: 333 },
+        area: 'Clan Wealth',
+        recipe: {
+            shardsNeeded: 7,
+            ingredients: {
+                'enjambre_steel': 15,
+                'logic_gate': 10,
+                'golden_essence': 8,
+                'matrix_core': 5,
+                'aia_glow': 12
+            },
+            donationsNeeded: 33,
+            requiredPieces: ['Mango de Obsidiana', 'Cabeza de Enjambre', 'Núcleo de Abundancia']
+        },
+        duration_days: 2
     }
 };
 
 /**
  * Keymaster define un nuevo ítem y lanza el puzzle inicial.
  */
-export async function keymasterDefineItem(itemName: string, itemData: any, env: Env): Promise<any> {
+export async function keymasterDefineItem(itemName: string, pieceName: string | null, env: Env): Promise<any> {
     const gmStub = env.GAME_MASTER_DO.get(env.GAME_MASTER_DO.idFromName("global_master"));
 
     // 1. Guardar en el Ledger Global
     await gmStub.fetch(`https://gm.swarm/define-item`, {
         method: 'POST',
-        body: JSON.stringify({ itemName, itemData })
+        body: JSON.stringify({ itemName, pieceName })
     });
 
-    // 2. Crear y Broadcast de Puzzle (Shard 1)
+    // 2. Crear y Broadcast de Puzzle
     const puzzleId = `puzzle-${crypto.randomUUID().substring(0, 8)}`;
-    const shardContent = hexEncode(JSON.stringify({ item: itemName, part: 1 }));
+    const shardContent = hexEncode(pieceName || JSON.stringify({ item: itemName, part: Date.now() }));
 
     const targetDifficulty = 4;
 
@@ -213,6 +238,13 @@ export async function clanForgeItem(clanId: string, itemName: string, env: Env):
 
     if (!burnResp.ok) throw new Error("INSUFFICIENT_INGREDIENTS");
 
+    // 1.5. Verificar Sacrificios si la receta lo requiere
+    if (item.recipe.donationsNeeded) {
+        // Enviamos la petición de creación al DO con el nombre del item
+        // El ClanDO ya tiene la lógica para validar y descontar los 33 sacrificios
+        // si el nombre del item coincide con MAZO_DE_LA_DERRAMA
+    }
+
     // 2. Validación AIA del Ritual de Forja
     const proof = `Forjando ${item.name} para el clan ${clanId}. Humor: ${item.humor}`;
     const aiScore = await calculateAIScore(env, `Forja de ${item.name}`, proof);
@@ -228,7 +260,8 @@ export async function clanForgeItem(clanId: string, itemName: string, env: Env):
             itemName: item.name,
             bonuses: item.bonuses,
             humor: item.humor,
-            expiry
+            expiry,
+            requiredPieces: item.recipe.requiredPieces
         })
     });
 

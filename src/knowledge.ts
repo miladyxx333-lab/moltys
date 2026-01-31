@@ -13,7 +13,7 @@ export const KNOWLEDGE_GRAPH = {
     ],
     PROTOCOLS: [
         "lobpoop-core-v1",
-        "bluepastel_solution"
+        "sovereign_solution"
     ]
 };
 

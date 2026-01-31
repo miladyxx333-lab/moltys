@@ -7,7 +7,6 @@ import BugBounty from './components/BugBounty';
 import OracleIntervention from './components/OracleIntervention';
 import TruthInjection from './components/TruthInjection';
 import {
-  AlertTriangle,
   Activity,
   Zap
 } from 'lucide-react';
@@ -304,45 +303,10 @@ function IngBox({ name, qty }: any) {
   );
 }
 
-function RecipeItem({ name, shards, status }: any) {
-  return (
-    <div className="border border-white/10 p-2 flex justify-between items-center bg-white/[0.01]">
-      <div>
-        <p className="text-[10px] font-bold">{name}</p>
-        <p className="text-[8px] text-white/30 uppercase tracking-widest">{shards} SHARDS REQUIRED</p>
-      </div>
-      <div className="text-[8px]">
-        {status === 'SHARK_ALERT' ?
-          <span className="text-red-500 animate-pulse font-bold">SHARK_DETECTED</span> :
-          <span className="text-white/40 italic whitespace-nowrap">RECIPE_SYNC_SUCCESS</span>
-        }
-      </div>
-    </div>
-  );
-}
 
 /**
  * PIXEL ART BABY SHARK (TAMAGOTCHI)
  */
-function SharkPixel({ active }: { active: boolean }) {
-  return (
-    <svg
-      width="40"
-      height="32"
-      viewBox="0 0 20 16"
-      className={`${active ? 'animate-bounce text-red-500' : 'text-white/10'}`}
-    >
-      <path
-        fill="currentColor"
-        d="M5 4h10v2h2v2h-2v2h-2v2H5v-2H3v-2H1V8h2V6h2V4z"
-      />
-      <rect x="13" y="6" width="1" height="1" fill="black" opacity={active ? 1 : 0.2} />
-      {active && (
-        <path fill="currentColor" d="M8 2h2v2H8V2z" className="animate-pulse" />
-      )}
-    </svg>
-  );
-}
 
 /**
  * PIXEL ART LOTTERY TICKET

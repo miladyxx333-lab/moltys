@@ -53,30 +53,78 @@ export interface Account {
     referrals?: string[]; // Nuevo: Para bonos P2P
     ai_score?: number; // Nuevo: Puntuación AIA para evaluación
     publicKeySpki?: string; // Nuevo: Base64 de SPKI bytes para seguridad criptográfica
+    last_abundance_check?: number; // Tracking for Mazo de la Derrama rewards
+    last_clan_leave?: number; // Timestamp of last time leaving a clan
 }
 
 // Helper: Get Account Data (Transactional via Durable Objects)
 export async function getAccount(nodeId: string, env: Env): Promise<Account> {
     if (nodeId) validateNodeId(nodeId);
 
-    // Si no tenemos ACCOUNT_DO bindeado (ej. tests locales viejos), fallback a R2
+    let account: Account;
+
+    // A. Fetch base account
     if (!env.ACCOUNT_DO) {
         const key = `economy/accounts/${nodeId}`;
-        return await env.MEMORY_BUCKET.get(key).then(r => r?.json()) || {
+        account = await env.MEMORY_BUCKET.get(key).then(r => r?.json()) || {
             nodeId, balance_psh: 0, badges: [], reputation: 0.5, lobpoops_minted: 0
         };
+    } else {
+        try {
+            const result = await callDO(nodeId, env, 'get-account');
+            account = result.account;
+        } catch (e) {
+            console.warn(`[Economy] DO read failed for ${nodeId}, falling back to R2.`);
+            const key = `economy/accounts/${nodeId}`;
+            account = await env.MEMORY_BUCKET.get(key).then(r => r?.json()) || {
+                nodeId, balance_psh: 0, badges: [], reputation: 0.5, lobpoops_minted: 0
+            };
+        }
     }
 
-    try {
-        const result = await callDO(nodeId, env, 'get-account');
-        return result.account;
-    } catch (e) {
-        console.warn(`[Economy] DO read failed for ${nodeId}, falling back to R2.`);
-        const key = `economy/accounts/${nodeId}`;
-        return await env.MEMORY_BUCKET.get(key).then(r => r?.json()) || {
-            nodeId, balance_psh: 0, badges: [], reputation: 0.5, lobpoops_minted: 0
-        };
+    // B. ABUNDANCE FLOW: Mazo de la Derrama check
+    if (account.clanId && env.CLAN_DO) {
+        try {
+            const clanStub = env.CLAN_DO.get(env.CLAN_DO.idFromName(account.clanId));
+            const clanResp = await clanStub.fetch(`https://clan.swarm/get-state`);
+            const { state } = await clanResp.json() as any;
+
+            // Buscar cualquier item que tenga flujo de abundancia activo
+            const abundanceItem = state.magicItems.find((i: any) => i.bonuses?.abundanceFlow && i.expiry > Date.now());
+
+            if (abundanceItem) {
+                const now = Date.now();
+                const flowPerInterval = abundanceItem.bonuses.abundanceFlow;
+                const intervalSeconds = abundanceItem.bonuses.abundanceInterval || 33;
+
+                const lastCheck = account.last_abundance_check || abundanceItem.timestamp;
+                const secondsElapsed = Math.floor((now - lastCheck) / 1000);
+                const intervals = Math.floor(secondsElapsed / intervalSeconds);
+
+                if (intervals > 0) {
+                    const reward = intervals * flowPerInterval;
+                    console.log(`[ABUNDANCE] Crediting ${reward} Psh to ${nodeId} from ${abundanceItem.name}.`);
+
+                    account.balance_psh += reward;
+                    account.last_abundance_check = lastCheck + (intervals * intervalSeconds * 1000);
+
+                    // Persistir el pago
+                    await mintPooptoshis(nodeId, reward, `ABUNDANCE_FLOW:${abundanceItem.name}`, env);
+
+                    // Guardar el nuevo timestamp de tracking
+                    if (env.ACCOUNT_DO) {
+                        await callDO(nodeId, env, 'update-metadata', { last_abundance_check: account.last_abundance_check });
+                    } else {
+                        await env.MEMORY_BUCKET.put(`economy/accounts/${nodeId}`, JSON.stringify(account));
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("[Economy] Abundance check failed:", e);
+        }
     }
+
+    return account;
 }
 
 // HELPER PRINCIPAL: Comunicación con Durable Objects
@@ -140,10 +188,17 @@ export async function getActiveClanBoosts(clanId: string | undefined, env: Env):
  */
 export async function applyRewardBoost(nodeId: string, amount: number, category: string, env: Env): Promise<number> {
     const account = await getAccount(nodeId, env);
-    if (!account.clanId) return amount;
+    let finalAmount = amount;
+
+    // A. Global Abundance Check (The Sledgehammer Flow)
+    const activeDerrama = await env.MEMORY_BUCKET.get(`system/economy/derrama_active`).then(r => r?.json()) as any;
+    if (activeDerrama && activeDerrama.status === 'ACTIVE' && activeDerrama.expiry > Date.now()) {
+        finalAmount *= (activeDerrama.multiplier || 50);
+    }
+
+    if (!account.clanId) return Math.ceil(finalAmount);
 
     const boosts = await getActiveClanBoosts(account.clanId, env);
-    let finalAmount = amount;
 
     switch (category) {
         case 'TASK':

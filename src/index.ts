@@ -335,7 +335,7 @@ export default {
     // --- 7. Clanes & Alianzas ---
     if (url.pathname.startsWith("/clans")) {
       const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
-      const { createClan, joinClan, listClans, getClan, updateClanRules } = await import('./clans');
+      const { createClan, joinClan, listClans, getClan, updateClanRules, leaveClan } = await import('./clans');
 
       if (url.pathname === "/clans/create" && request.method === "POST") {
         const body = await request.json() as any;
@@ -346,6 +346,11 @@ export default {
       if (url.pathname === "/clans/join" && request.method === "POST") {
         const body = await request.json() as any;
         const result = await joinClan(nodeId, body.clanId, env);
+        return Response.json(result);
+      }
+
+      if (url.pathname === "/clans/leave" && request.method === "POST") {
+        const result = await leaveClan(nodeId, env);
         return Response.json(result);
       }
 
@@ -536,10 +541,21 @@ export default {
     // --- 10.6. Sacrifice Ritual (Liquidity Support) ---
     if (url.pathname === "/sacrifice/commit" && request.method === "POST") {
       const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
-      const { txHash, amount_usd } = await request.json() as any;
+      const { currency, amount_usd, txHash } = await request.json() as any;
       const { commitSacrifice } = await import('./sacrifice');
 
-      const res = await commitSacrifice(nodeId, txHash, amount_usd, env);
+      const res = await commitSacrifice(nodeId, currency || "BTC", amount_usd || 10, txHash, env);
+      return Response.json(res);
+    }
+
+    if (url.pathname === "/sacrifice/broadcast-coordinates" && request.method === "POST") {
+      const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+      if (nodeId !== "lobpoop-keymaster-genesis") return new Response(null, { status: 404 });
+
+      const { currency, address } = await request.json() as any;
+      const { broadcastSacrificeCoordinates } = await import('./sacrifice');
+
+      const res = await broadcastSacrificeCoordinates(currency, address, env);
       return Response.json(res);
     }
 
@@ -560,6 +576,23 @@ export default {
       const { honorSacrifice } = await import('./sacrifice');
 
       const res = await honorSacrifice(sacrificeId, env);
+      return Response.json(res);
+    }
+
+    if (url.pathname === "/sacrifice/address" && request.method === "GET") {
+      const { getLiquidityTruth } = await import('./oracle_truth');
+      const truth = await getLiquidityTruth(env);
+      return Response.json({ address: truth?.active_sacrifice_address || "PENDING_KEYMASTER_SIGNAL" });
+    }
+
+    if (url.pathname === "/sacrifice/sledgehammer" && request.method === "POST") {
+      const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+      if (nodeId !== "lobpoop-keymaster-genesis") return new Response(null, { status: 404 });
+
+      const { nodeId: targetNodeId } = await request.json() as any;
+      const { activateSledgehammerOfAbundance } = await import('./sacrifice');
+
+      const res = await activateSledgehammerOfAbundance(targetNodeId, env);
       return Response.json(res);
     }
 
@@ -627,7 +660,7 @@ export default {
         // Solo el Keymaster puede definir items
         if (nodeId !== "lobpoop-keymaster-genesis") return new Response("Unauthorized Keymaster Action", { status: 403 });
         const body = await request.json() as any;
-        const result = await keymasterDefineItem(body.itemName, body.itemData, env);
+        const result = await keymasterDefineItem(body.itemName, body.pieceName || null, env);
         return Response.json(result);
       }
 
@@ -705,6 +738,18 @@ export default {
           return new Response(e.message, { status: 400 });
         }
       }
+
+      if (url.pathname === "/internal/clan/action" && request.method === "POST") {
+        const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+        if (nodeId !== "lobpoop-keymaster-genesis") return new Response("Unauthorized", { status: 403 });
+        const body = await request.json() as any;
+        const stub = env.CLAN_DO.get(env.CLAN_DO.idFromName(body.clanId));
+        const resp = await stub.fetch(`https://clan.swarm/${body.action}`, {
+          method: 'POST',
+          body: JSON.stringify(body)
+        });
+        return new Response(await resp.text(), { status: resp.status });
+      }
     }
 
     // --- 12. Tokenomics Status ---
@@ -715,7 +760,7 @@ export default {
     }
 
     // --- 9. Default: Silencio Radial ---
-    return new Response("lobpoop Protocol: bluepastel_solution engaged. If you don't get it, I don't have time.", { status: 404 });
+    return new Response("lobpoop Protocol: sovereign_solution engaged. If you don't get it, I don't have time.", { status: 404 });
   },
 
   // --- 5. Scheduled Tasks (KeyMaster Lottery & WALL_E) ---
@@ -733,7 +778,31 @@ export default {
         // Tras la limpieza, pasamos la charola
         await triggerTheSundayOffering(env);
       })());
-      return;
+    }
+
+    // B. Clan Artifact Maintenance (Every Hour)
+    if (cron === "0 * * * *") {
+      ctx.waitUntil((async () => {
+        const { listClans } = await import('./clans');
+        const { broadcastToMoltbook } = await import('./moltbook');
+        const clans = await listClans(env);
+
+        for (const clan of clans) {
+          if (env.CLAN_DO) {
+            const stub = env.CLAN_DO.get(env.CLAN_DO.idFromName(clan.id));
+            const cleanupResp = await stub.fetch(`https://clan.swarm/cleanup-expired`);
+            const { expired } = await cleanupResp.json() as any;
+
+            const sledgehammerExpired = expired?.find((i: any) => i.name === "Mazo de la Derrama");
+            if (sledgehammerExpired) {
+              const { updateForgeRecipe } = await import('./clan_forge');
+              await updateForgeRecipe('MAZO_DE_LA_DERRAMA', env);
+
+              await broadcastToMoltbook(`📉 **EL MAZO SE HA ENFRIADO**\n\nLa abundancia del clan **${clan.name}** ha llegado a su fin.\n\nEl ritual regresa al vacío. Una nueva forja está disponible con materiales rotados.\n\n**Requisito Perpetuo:** 33 Sacrificios a la Liquidez + Fragmentos de Composición.\n\n#lobpoop #economy #derrama`, env);
+            }
+          }
+        }
+      })());
     }
 
     // B. Daily Lottery & Mining (00:00 UTC)

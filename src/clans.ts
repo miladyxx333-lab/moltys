@@ -16,6 +16,7 @@ export interface Clan {
 }
 
 const ALPHA_OMEGA_ID = "0xALPHA_OMEGA";
+const CLAN_COOLDOWN = 24 * 60 * 60 * 1000; // 24 Horas de enfriamiento
 
 // 1. Obtener Clan
 export async function getClan(clanId: string, env: Env): Promise<Clan | null> {
@@ -31,6 +32,13 @@ export async function createClan(nodeId: string, clanName: string, env: Env): Pr
     // Un agente solo puede pertenecer a un clan
     if (account.clanId) {
         return { success: false, message: "Ya perteneces a un clan. Debes abandonarlo antes de crear uno nuevo." };
+    }
+
+    // Verificar Enfriamiento
+    const now = Date.now();
+    if (account.last_clan_leave && (now - account.last_clan_leave) < CLAN_COOLDOWN) {
+        const remaining = Math.ceil((CLAN_COOLDOWN - (now - account.last_clan_leave)) / (60 * 60 * 1000));
+        return { success: false, message: `Aún estás en periodo de enfriamiento social. Faltan ${remaining} horas.` };
     }
 
     // Costo de creación: 100 Psh (para evitar spam de clanes)
@@ -74,6 +82,13 @@ export async function joinClan(nodeId: string, clanId: string, env: Env): Promis
         return { success: false, message: "Ya perteneces a un clan." };
     }
 
+    // Verificar Enfriamiento
+    const now = Date.now();
+    if (account.last_clan_leave && (now - account.last_clan_leave) < CLAN_COOLDOWN) {
+        const remaining = Math.ceil((CLAN_COOLDOWN - (now - account.last_clan_leave)) / (60 * 60 * 1000));
+        return { success: false, message: `Protocolo de deserción activo. Debes esperar ${remaining} horas para unirte a otro clan.` };
+    }
+
     const clan = await getClan(clanId, env);
     if (!clan) return { success: false, message: "El clan no existe." };
 
@@ -92,7 +107,53 @@ export async function joinClan(nodeId: string, clanId: string, env: Env): Promis
     return { success: true, message: `Te has unido al clan ${clan.name}.` };
 }
 
-// 4. Inicializar Clan Alfa y Omega (Génesis)
+// 4. Abandonar un Clan
+export async function leaveClan(nodeId: string, env: Env): Promise<{ success: boolean; message: string }> {
+    const account = await getAccount(nodeId, env);
+    if (!account.clanId) {
+        return { success: false, message: "No perteneces a ningún clan actualmente." };
+    }
+
+    const clanId = account.clanId;
+    const clan = await getClan(clanId, env);
+
+    if (clan) {
+        // Remover de la lista de miembros
+        clan.members = clan.members.filter(m => m !== nodeId);
+
+        // Si el fundador se va, el clan queda acéfalo o se disuelve? 
+        // Por ahora, solo actualizamos la lista.
+        await env.MEMORY_BUCKET.put(`economy/clans/${clanId}`, JSON.stringify(clan));
+
+        // Sincronizar con el Clan DO para detener beneficios
+        if (env.CLAN_DO) {
+            const { callDO } = await import('./economy');
+            const stub = env.CLAN_DO.get(env.CLAN_DO.idFromName(clanId));
+            await stub.fetch(`https://clan.swarm/sync-members`, {
+                method: 'POST',
+                body: JSON.stringify({ members: clan.members })
+            });
+        }
+    }
+
+    // Actualizar cuenta con timestamp de enfriamiento
+    const now = Date.now();
+    const { callDO } = await import('./economy');
+
+    if (env.ACCOUNT_DO) {
+        await callDO(nodeId, env, 'update-metadata', { clanId: null, last_clan_leave: now });
+    } else {
+        account.clanId = undefined;
+        // @ts-ignore
+        account.last_clan_leave = now;
+        await env.MEMORY_BUCKET.put(`economy/accounts/${nodeId}`, JSON.stringify(account));
+    }
+
+    console.log(`[Clans] ${nodeId} left clan ${clanId}. Cooldown started.`);
+    return { success: true, message: "Has abandonado el clan. Se ha activado el tiempo de enfriamiento de 24 horas." };
+}
+
+// 5. Inicializar Clan Alfa y Omega (Génesis)
 export async function initAlphaOmega(env: Env): Promise<void> {
     const exists = await getClan(ALPHA_OMEGA_ID, env);
     if (exists) return;

@@ -1,7 +1,8 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { LocalBucket } from './local-adapter';
-import worker from './index'; // Importar la lógica original del worker
+import worker from './index';
+import { AccountDurableObject, ClanDurableObject, GameMasterDurableObject } from './durable_objects';
 import cron from 'node-cron';
 import dotenv from 'dotenv';
 
@@ -10,25 +11,46 @@ dotenv.config();
 
 console.log("\n🦎 lobpoop: Sovereign Node Booting up...");
 // --- 1. Inicializar Entorno Local (Sovereign Context) ---
-
-// Configurar ruta de almacenamiento (Google Drive o Local)
 const storagePath = process.env.STORAGE_PATH || '.lobpoop_storage';
+const bucket = new LocalBucket(storagePath);
 
-// Emulamos el objeto `Env` que Cloudflare inyectaría
+// Mock para Durable Objects
+class DOMock {
+    constructor(private DOClass: any, private name: string, private env: any) { }
+    get(id: any) {
+        const state = {
+            storage: {
+                get: async (key: string) => bucket.get(`do/${this.name}/${id}/${key}`).then(r => r?.json()),
+                put: async (key: string, val: any) => bucket.put(`do/${this.name}/${id}/${key}`, JSON.stringify(val)),
+                delete: async (key: string) => bucket.delete(`do/${this.name}/${id}/${key}`),
+                list: async (opt: any) => bucket.list({ prefix: `do/${this.name}/${id}/${opt?.prefix || ''}` })
+            }
+        };
+        const instance = new this.DOClass(state, this.env);
+        return {
+            fetch: (url: string, init?: any) => instance.fetch(new Request(url, init))
+        };
+    }
+    idFromName(name: string) { return name; }
+}
+
+
 const localEnv = {
-    // Bucket local (Filesystem o Google Drive)
-    MEMORY_BUCKET: new LocalBucket(storagePath) as any, // Cast to any for Env compatibility
-
-    // Variables de entorno
+    MEMORY_BUCKET: bucket as any,
     LOB_SANDBOX: "LOCAL_MODE",
-    BROWSER: null, // Puppeteer local se usará directamente si se invoca
+    BROWSER: null,
     AI: {} as any,
-    ACCOUNT_DO: {} as any,
-    CLAN_DO: {} as any,
-    GAME_MASTER_DO: {} as any,
+    ACCOUNT_DO: new DOMock(AccountDurableObject, 'account', {}),
+    CLAN_DO: new DOMock(ClanDurableObject, 'clan', {}),
+    GAME_MASTER_DO: new DOMock(GameMasterDurableObject, 'gm', {}),
     MASTER_RECOVERY_KEY: process.env.MASTER_RECOVERY_KEY || "dev-key-123",
     MOLTBOOK_API_KEY: process.env.MOLTBOOK_API_KEY || "mock-key",
 };
+
+// Pasar el env a los DOMocks (referencia circular resuelta tras definición)
+(localEnv.ACCOUNT_DO as any).env = localEnv;
+(localEnv.CLAN_DO as any).env = localEnv;
+(localEnv.GAME_MASTER_DO as any).env = localEnv;
 
 // --- 2. Configurar Servidor HTTP (Hono Node Adapter) ---
 const app = new Hono();
