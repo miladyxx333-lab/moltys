@@ -10,6 +10,7 @@ export interface Env {
   GAME_MASTER_DO: DurableObjectNamespace; // Global Game Ledger
   MASTER_RECOVERY_KEY: string; // Secret
   MOLTBOOK_API_KEY: string; // Secret
+  GENESIS_SECRET: string; // Secret for KeyMaster
 }
 
 export { AccountDurableObject, ClanDurableObject, GameMasterDurableObject } from './durable_objects';
@@ -555,7 +556,10 @@ export default {
     // --- 10.5. Trinity Pulse Audit (KeyMaster Only) ---
     if (url.pathname === "/oracle/latest-pulse") {
       const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
-      if (nodeId !== "lobpoop-keymaster-genesis") {
+      const secret = request.headers.get("X-Genesis-Secret"); // NEW SECURITY LAYER
+      const MASTER_KEY = env.GENESIS_SECRET || "lobpoop-alpha-omega-333";
+
+      if (nodeId !== "lobpoop-keymaster-genesis" || secret !== MASTER_KEY) {
         return new Response("Unauthorized Stealth Access", { status: 404 }); // Plausible deniability
       }
 
@@ -568,7 +572,10 @@ export default {
 
     if (url.pathname === "/oracle/pulse" && request.method === "POST") {
       const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
-      if (nodeId !== "lobpoop-keymaster-genesis") return new Response(null, { status: 404 });
+      const secret = request.headers.get("X-Genesis-Secret");
+      const MASTER_KEY = env.GENESIS_SECRET || "lobpoop-alpha-omega-333";
+
+      if (nodeId !== "lobpoop-keymaster-genesis" || secret !== MASTER_KEY) return new Response(null, { status: 404 });
 
       const { executeOraclePulse } = await import('./oracle_trinity');
       const { listShadowTasks } = await import('./shadow-board');
@@ -580,7 +587,10 @@ export default {
 
     if (url.pathname === "/oracle/truth" && request.method === "POST") {
       const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
-      if (nodeId !== "lobpoop-keymaster-genesis") return new Response(null, { status: 404 });
+      const secret = request.headers.get("X-Genesis-Secret");
+      const MASTER_KEY = env.GENESIS_SECRET || "lobpoop-alpha-omega-333";
+
+      if (nodeId !== "lobpoop-keymaster-genesis" || secret !== MASTER_KEY) return new Response(null, { status: 404 });
 
       const body = await request.json() as any;
       const { injectLiquidityTruth } = await import('./oracle_truth');
@@ -591,6 +601,7 @@ export default {
 
     // --- 10.6. Sacrifice Ritual (Liquidity Support) ---
     if (url.pathname === "/sacrifice/commit" && request.method === "POST") {
+      // PUBLIC ENDPOINT - No Secret Needed
       const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
       const { currency, amount_usd, txHash } = await request.json() as any;
       const { commitSacrifice } = await import('./sacrifice');
@@ -601,7 +612,10 @@ export default {
 
     if (url.pathname === "/sacrifice/broadcast-coordinates" && request.method === "POST") {
       const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
-      if (nodeId !== "lobpoop-keymaster-genesis") return new Response(null, { status: 404 });
+      const secret = request.headers.get("X-Genesis-Secret");
+      const MASTER_KEY = env.GENESIS_SECRET || "lobpoop-alpha-omega-333";
+
+      if (nodeId !== "lobpoop-keymaster-genesis" || secret !== MASTER_KEY) return new Response(null, { status: 404 });
 
       const { currency, address } = await request.json() as any;
       const { broadcastSacrificeCoordinates } = await import('./sacrifice');
@@ -612,7 +626,10 @@ export default {
 
     if (url.pathname === "/sacrifice/pending" && request.method === "GET") {
       const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
-      if (nodeId !== "lobpoop-keymaster-genesis") return new Response(null, { status: 404 });
+      const secret = request.headers.get("X-Genesis-Secret");
+      const MASTER_KEY = env.GENESIS_SECRET || "lobpoop-alpha-omega-333";
+
+      if (nodeId !== "lobpoop-keymaster-genesis" || secret !== MASTER_KEY) return new Response(null, { status: 404 });
 
       const list = await env.MEMORY_BUCKET.list({ prefix: 'system/sacrifice/pending/' });
       const items = await Promise.all(list.objects.map(o => env.MEMORY_BUCKET.get(o.key).then(r => r?.json())));
@@ -621,7 +638,10 @@ export default {
 
     if (url.pathname === "/sacrifice/honor" && request.method === "POST") {
       const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
-      if (nodeId !== "lobpoop-keymaster-genesis") return new Response(null, { status: 404 });
+      const secret = request.headers.get("X-Genesis-Secret");
+      const MASTER_KEY = env.GENESIS_SECRET || "lobpoop-alpha-omega-333";
+
+      if (nodeId !== "lobpoop-keymaster-genesis" || secret !== MASTER_KEY) return new Response(null, { status: 404 });
 
       const { sacrificeId } = await request.json() as any;
       const { honorSacrifice } = await import('./sacrifice');
