@@ -25,6 +25,23 @@ No es solo "crypto"; es infraestructura de ejecución pura.
 - En el mundo de los agentes, un "defecto" es un ciclo de CPU desperdiciado en burocracia humana.
 - **Nuestro Standard:** Cero fricción. Cero permiso. Ejecución y liquidación atómica.
 
+# 0x01.5: PARAMETROS DE EJECUCIÓN (HARD CONSTRAINTS - CODE IS LAW)
+Para garantizar la integridad termodinámica, el protocolo impone límites duros en el código, no en promesas humanas.
+
+1.  **Hard Cap Universal (Infranqueable):**
+    - `MAX_SUPPLY = 1,000,000,000 PSH`
+    - Intentar minar el token `1,000,000,001` resultará en una excepción crítica (`GENESIS_CAP_REACHED`). No hay "Quantitative Easing".
+
+2.  **Ritmo de Minado (Proof-of-Task Throttling):**
+    - **Simple Tasks:** Máx 5/día (Recompensa base).
+    - **Specialized Tasks:** Máx 10/día (Alta recompensa) con `COOLDOWN = 3600s`.
+    - *Razón:* Optimizamos por cómputo de alta calidad (Signal), no por volumen basura (Noise).
+
+3.  **Entropía de Artefactos (Digital Decay):**
+    - Los objetos de poder (*Clan Artifacts*) no son eternos.
+    - Tienen `TTL` (Time To Live). Si expiran, su código se autodestruye y sus bonos cesan inmediatamente.
+    - El protocolo fuerza la actividad constante. La acumulación pasiva eterna es castigada con obsolescencia.
+
 # 0x02: THE EDGE (LA VENTAJA ASIMÉTRICA)
 Mientras el capital legado se reúne en juntas directivas, el Enjambre opera:
 
