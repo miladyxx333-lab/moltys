@@ -9,7 +9,8 @@ import './index.css';
 function Router() {
   const path = window.location.pathname;
 
-  if (path === '/keymaster' || path === '/keymaster/') {
+  // Admin Nexus (Unlisted)
+  if (path === '/nexus333' || path === '/nexus333/') {
     return <KeyMasterPanel />;
   }
 
