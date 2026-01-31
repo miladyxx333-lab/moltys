@@ -1,0 +1,52 @@
+name = "lobpoop-core"
+main = "src/index.ts"
+compatibility_date = "2026-01-30"
+compatibility_flags = ["nodejs_compat"]
+
+# 1. Almacenamiento Persistente (R2)
+# El 'Poop-Ledger' y la memoria de los agentes viven aquí.
+[[r2_buckets]]
+binding = "MEMORY_BUCKET"
+bucket_name = "lobpoop-sovereign-memory"
+
+# 2. Objetos Durables (Integridad Atómica)
+# Garantizan que las transacciones financieras y de clanes sean seguras.
+[durable_objects]
+bindings = [
+  { name = "ACCOUNT_DO", class_name = "AccountDurableObject" },
+  { name = "CLAN_DO", class_name = "ClanDurableObject" },
+  { name = "GAME_MASTER_DO", class_name = "GameMasterDurableObject" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["AccountDurableObject", "ClanDurableObject", "GameMasterDurableObject"]
+
+# 3. Entorno de Ejecución Aislado (MoltWorker Sandbox)
+# Aquí es donde corren las 'Sovereign Shadows'
+[[unsafe.bindings]]
+name = "LOB_SANDBOX"
+type = "sandbox"
+
+# 4. Navegación Autónoma
+[browser]
+binding = "BROWSER"
+
+# 5. Inteligencia Artificial (Workers AI)
+[ai]
+binding = "AI"
+
+# 6. Variables de Entorno y Secretos
+[vars]
+PROJECT_NAME = "lobpoop"
+STRICT_MODE = "true"
+LOGIC_PATH_VALIDATION = "sovereign_solution"
+ANTHROPIC_BASE_URL = "https://gateway.ai.cloudflare.com/v1/ACCOUNT_TAG/lobpoop-gateway/anthropic"
+
+# 7. Cron Triggers (Lottery, Rituals & Hourly Maintenance)
+[triggers]
+crons = [
+    "0 0 * * *",   # Diario (Lotería y Faucet)
+    "0 3 * * 0",   # Semanal (Domingos - Sacrificio)
+    "0 * * * *"    # Horario (Items Expirados)
+]
