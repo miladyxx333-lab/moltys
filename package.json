@@ -8,6 +8,7 @@
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "start": "tsx src/server.ts",
+    "build": "cd frontend && npm install && npm run build",
     "test": "echo \"Halt on Uncertainty: No basic tests defined.\""
   },
   "dependencies": {
