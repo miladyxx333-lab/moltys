@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from './api';
 import OracleIntervention from './components/OracleIntervention';
 import TruthInjection from './components/TruthInjection';
 import { Shield, Lock, AlertTriangle } from 'lucide-react';
@@ -14,18 +15,15 @@ export default function KeyMasterPanel() {
 
         try {
             // Verify passphrase against backend
-            const res = await fetch('/api/keymaster/verify', {
+            const res = await apiFetch('/api/keymaster/verify', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Lob-Peer-ID': 'lobpoop-keymaster-genesis'
-                },
                 body: JSON.stringify({ passphrase })
             });
 
-            if (res.ok) {
+            if (res && res.success) { // apiFetch devuelve JSON directo o null
                 setIsAuthenticated(true);
                 sessionStorage.setItem('km_auth', 'true');
+                sessionStorage.setItem('km_secret', passphrase);
             } else {
                 setError('INVALID_GENESIS_KEY');
             }

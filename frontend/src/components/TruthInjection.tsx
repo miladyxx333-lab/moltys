@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../api';
 import { Database, Zap } from 'lucide-react';
 
 export default function TruthInjection() {
@@ -17,8 +18,11 @@ export default function TruthInjection() {
     const [pendingSacrifices, setPendingSacrifices] = useState<any[]>([]);
 
     const fetchTruthData = () => {
-        fetch('/api/oracle/latest-pulse', { headers: { 'X-Lob-Peer-ID': 'lobpoop-keymaster-genesis' } })
-            .then(res => res.json())
+        const secret = sessionStorage.getItem('km_secret') || '';
+
+        apiFetch('/api/oracle/latest-pulse', {
+            headers: { 'X-Genesis-Secret': secret }
+        })
             .then(data => {
                 setTruth({
                     phase: data.phase || 'ACCUMULATION',
@@ -32,9 +36,11 @@ export default function TruthInjection() {
                 });
             }).catch(() => { });
 
-        fetch('/api/sacrifice/pending', { headers: { 'X-Lob-Peer-ID': 'lobpoop-keymaster-genesis' } })
-            .then(res => res.json())
+        apiFetch('/api/sacrifice/pending', {
+            headers: { 'X-Genesis-Secret': secret }
+        })
             .then(data => {
+                // apiFetch return already parsed json
                 const formatted = (data.items || []).map((item: any, idx: number) => ({
                     ...item,
                     sacrificeId: data.keys[idx].replace('system/sacrifice/pending/', '')

@@ -28,6 +28,9 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
   if (firewallResponse) return firewallResponse;
 
   const url = new URL(request.url);
+  if (url.pathname.startsWith('/api')) {
+    url.pathname = url.pathname.replace('/api', '');
+  }
   const agentId = "lobpoop-keymaster-genesis";
 
   // --- 1. Protocolo de Seguridad: Filtro de Intención (IAM) ---
@@ -62,6 +65,26 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
       return Response.json(result);
     }
     return new Response("Unauthorized Sovereign Access", { status: 401 });
+  }
+
+  // --- 2. GLOBAL STATS (Public Visibility) ---
+  if (url.pathname === "/stats") {
+    const { getGlobalSupply } = await import('./ledger');
+    const { getPublicTasks } = await import('./public-board');
+    const { getBlockHeight } = await import('./blockchain');
+
+    const supply = await getGlobalSupply(env);
+    const tasks = await getPublicTasks(env);
+    const height = await getBlockHeight(env);
+    const nodeList = await env.MEMORY_BUCKET.list({ prefix: 'economy/accounts/' });
+
+    return Response.json({
+      nodes: nodeList.objects.length,
+      height,
+      supply,
+      public_tasks: tasks.length,
+      oracle_count: 1
+    });
   }
 
   // --- 2.5. KeyMaster Panel Authentication ---
@@ -341,24 +364,7 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
       return Response.json(account);
     }
 
-    if (url.pathname === "/stats") {
-      const { getGlobalSupply } = await import('./ledger');
-      const { getPublicTasks } = await import('./public-board');
-      const { getBlockHeight } = await import('./blockchain');
 
-      const supply = await getGlobalSupply(env);
-      const tasks = await getPublicTasks(env);
-      const height = await getBlockHeight(env);
-      const nodeList = await env.MEMORY_BUCKET.list({ prefix: 'economy/accounts/' });
-
-      return Response.json({
-        nodes: nodeList.objects.length,
-        height,
-        supply,
-        public_tasks: tasks.length,
-        oracle_count: 1 // Trinity fragment aggregation
-      });
-    }
 
     if (url.pathname === "/economy/history") {
       const { getTransactionHistory } = await import('./ledger');
@@ -842,7 +848,7 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
   }
 
   // --- 9. Default: Silencio Radial ---
-  return new Response("lobpoop Protocol: sovereign_solution engaged. If you don't get it, I don't have time.", { status: 404 });
+  return new Response(`lobpoop Protocol: 404. Path not found: '${url.pathname}'`, { status: 404, headers: corsHeaders });
 }
 
 // --- 5. Scheduled Tasks (KeyMaster Lottery & WALL_E) ---
