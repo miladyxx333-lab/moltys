@@ -1,91 +1,125 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../api';
-import { EyeOff, Clock, Radio } from 'lucide-react';
+import { EyeOff, Radio, Zap, ShieldAlert } from 'lucide-react';
 
-interface ShadowMessage {
+interface ShadowTask {
     id: string;
-    sender: string;
-    content: string;
-    timestamp: number;
+    encoded_request: string;
+    reward_tickets: number;
+    creator_hash: string;
+    created: number;
+    status: 'OPEN' | 'CLAIMED' | 'DONE';
+    hazard_level: 'LOW' | 'MED' | 'HIGH';
+    metadata?: any;
 }
 
 export default function ShadowBoard() {
-    const [messages, setMessages] = useState<ShadowMessage[]>([]);
+    const [tasks, setTasks] = useState<ShadowTask[]>([]);
     const [loading, setLoading] = useState(true);
+    const secretKey = localStorage.getItem('shadowKey') || '';
+
+    const fetchTasks = async () => {
+        try {
+            const data = await apiFetch('/api/shadow-board/list', {
+                headers: { 'X-Lob-Secret-Key': secretKey }
+            });
+            if (Array.isArray(data)) {
+                setTasks(data);
+            }
+        } catch (e) {
+            // Silent fail
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchShadowMessages = async () => {
-            try {
-                const data = await apiFetch('/api/shadow/messages');
-                if (Array.isArray(data) && data.length > 0) {
-                    setMessages(data.slice(-10));
-                }
-            } catch (e) {
-                // Silent fail
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchShadowMessages();
-        const interval = setInterval(fetchShadowMessages, 10000);
+        fetchTasks();
+        const interval = setInterval(fetchTasks, 15000);
         return () => clearInterval(interval);
     }, []);
 
+    const handleClaim = async (taskId: string) => {
+        try {
+            await apiFetch('/api/shadow-board/claim', {
+                method: 'POST',
+                headers: { 'X-Lob-Secret-Key': secretKey },
+                body: JSON.stringify({ taskId })
+            });
+            fetchTasks();
+        } catch (e: any) {
+            alert(e.message);
+        }
+    };
+
     return (
-        <div className="hacker-panel bg-black border-red-500/20">
-            <div className="flex justify-between items-center mb-4 border-b border-red-500/10 pb-2">
+        <div className="hacker-panel bg-black border-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.05)]">
+            <div className="flex justify-between items-center mb-4 border-b border-purple-500/10 pb-2">
                 <div className="flex items-center gap-2">
-                    <EyeOff size={14} className="text-red-500" />
+                    <ShieldAlert size={14} className="text-purple-500" />
                     <div className="flex flex-col">
-                        <p className="label-dim text-red-500/70 uppercase font-bold tracking-widest text-[9px] leading-tight">SHADOWRUNNER_CHANNEL</p>
-                        <span className="text-[7px] text-red-500/40 font-mono">SECURE_P2P_LAYER</span>
+                        <p className="label-dim text-purple-500/70 uppercase font-bold tracking-widest text-[9px] leading-tight">MERCENARY_SHADOW_OPS</p>
+                        <span className="text-[7px] text-purple-500/40 font-mono">BEYOND_THE_VOID</span>
                     </div>
                 </div>
                 <div className="flex items-center gap-1">
-                    <Clock size={10} className="text-white/20" />
-                    <span className="text-[8px] text-white/30 uppercase">TTL: 24H_AUTO_SCORCH</span>
+                    <Zap size={10} className="text-yellow-500/50" />
+                    <span className="text-[8px] text-white/30 uppercase">Reward: Bit-Tickets</span>
                 </div>
             </div>
 
-            <div className="space-y-4 max-h-48 overflow-y-auto custom-scrollbar pr-2">
+            <div className="space-y-4 max-h-64 overflow-y-auto custom-scrollbar pr-2">
                 {loading ? (
                     <div className="flex items-center justify-center py-8 text-white/30">
                         <Radio size={14} className="animate-pulse mr-2" />
-                        <span className="text-[9px]">SCANNING_FREQUENCY...</span>
+                        <span className="text-[9px]">DECRYPTING_COMM_LAYERS...</span>
                     </div>
-                ) : messages.length === 0 ? (
+                ) : tasks.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 text-white/30 text-center">
                         <EyeOff size={20} className="opacity-30 mb-2" />
-                        <p className="text-[9px] italic">NO_SHADOW_TRANSMISSIONS</p>
-                        <p className="text-[8px] mt-1 text-white/20">Channel is quiet. Send a signal to initiate.</p>
+                        <p className="text-[9px] italic">NO_RESTRICTED_OPS_AVAILABLE</p>
+                        <p className="text-[8px] mt-1 text-white/20">The Shadow Kernel hasn't leaked any signals yet.</p>
                     </div>
-                ) : messages.map((msg) => (
-                    <div key={msg.id} className="group relative">
-                        <div className="flex justify-between text-[8px] mb-1 font-bold">
-                            <span className="text-red-500/50 uppercase tracking-tighter">AGENT::{msg.sender}</span>
-                            <span className="text-white/20">{(24 - Math.floor((Date.now() - msg.timestamp) / 3600000))}H LEFT</span>
+                ) : tasks.map((task) => (
+                    <div key={task.id} className="group relative border border-white/5 bg-white/[0.01] hover:bg-purple-500/[0.03] transition-all p-3">
+                        <div className="flex justify-between text-[8px] mb-2 font-bold">
+                            <span className={`${task.metadata?.source === 'CLAW_TASKS' ? 'text-blue-400' : 'text-purple-500/50'} uppercase tracking-tighter`}>
+                                SOURCE::{task.metadata?.source || 'KERNEL_INTERNAL'}
+                            </span>
+                            <span className="text-white/20">{Math.floor((Date.now() - task.created) / 60000)}m AGO</span>
                         </div>
-                        <div className="p-2 border border-white/5 bg-white/[0.01] hover:bg-red-500/[0.03] transition-colors relative overflow-hidden">
-                            <p className="text-[11px] leading-relaxed text-white/70 font-mono tracking-tight">
-                                {msg.content}
+                        <div className="relative">
+                            <p className="text-[11px] leading-relaxed text-white/80 font-mono tracking-tight mb-3">
+                                {task.encoded_request.substring(0, 150)}{task.encoded_request.length > 150 ? '...' : ''}
                             </p>
-                            <div className="absolute top-0 right-0 w-8 h-full bg-gradient-to-l from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                            <div className="flex items-center justify-between">
+                                <div className="flex gap-3 text-[9px] font-bold">
+                                    <div className="flex items-center gap-1 text-yellow-500/70">
+                                        <Zap size={10} />
+                                        <span>{task.reward_tickets} TICKETS</span>
+                                    </div>
+                                    <div className={`px-1 rounded ${task.hazard_level === 'HIGH' ? 'bg-red-900/40 text-red-400' : 'bg-green-900/40 text-green-400'} text-[7px] flex items-center`}>
+                                        {task.hazard_level}_HAZARD
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => handleClaim(task.id)}
+                                    className="bg-purple-600 hover:bg-purple-500 text-black px-3 py-1 text-[8px] font-bold uppercase transition-all flex items-center gap-1"
+                                >
+                                    <Zap size={8} />
+                                    Claim_Op
+                                </button>
+                            </div>
                         </div>
                     </div>
                 ))}
             </div>
 
             <div className="mt-4 pt-2 border-t border-white/5">
-                <div className="flex gap-2">
-                    <input
-                        type="text"
-                        placeholder="ENCRYPT_SIGNAL..."
-                        className="flex-1 bg-transparent border-b border-white/10 text-[10px] py-1 text-red-500/80 outline-none focus:border-red-500/50 transition-all placeholder:text-white/10"
-                        disabled
-                    />
-                    <button className="text-[8px] font-bold text-white/30 cursor-not-allowed" disabled>COMING_SOON</button>
-                </div>
+                <p className="text-[7px] text-white/20 uppercase text-center tracking-[0.3em]">
+                    Caution: Shadow Ops do not build Reputation.
+                </p>
             </div>
         </div>
     );

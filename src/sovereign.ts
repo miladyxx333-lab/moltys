@@ -36,7 +36,8 @@ export async function v0(env: Env): Promise<boolean> {
 
     // --- PPG: Consagración de la Semilla ---
     // Derivamos una marca de agua de la Master Key que no se sube al código.
-    const seed = env.MASTER_RECOVERY_KEY.substring(0, 8);
+    const key = env.MASTER_RECOVERY_KEY || "lobpoop-genesis-seed";
+    const seed = key.substring(0, 8);
     const expectedPrefix = `0xL-G-P-${seed}`;
 
     if (!o) {
@@ -50,7 +51,8 @@ export async function v0(env: Env): Promise<boolean> {
 // v2: Consagración de Broadcast
 export async function signM(m: string, env: Env): Promise<string> {
     // Solo el KeyMaster real puede firmar mensajes "Soberanos"
-    const s = env.MASTER_RECOVERY_KEY.slice(-4);
+    const key = env.MASTER_RECOVERY_KEY || "lobpoop-public-beta";
+    const s = key.slice(-4);
     return `${m}\n\n[Proof of Purity: ${s}-verified]`;
 }
 // v3: Check for Apotheosis

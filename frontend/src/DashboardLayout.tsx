@@ -4,6 +4,7 @@ import {
     Sun,
     Moon
 } from 'lucide-react';
+import ShadowInbox from './components/ShadowInbox';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const [isDarkMode, setIsDarkMode] = useState(true);
@@ -69,6 +70,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
 
                     <div className="flex items-center gap-6">
+                        <ShadowInbox />
                         <div className="flex items-center gap-2">
                             <span className="status-dot bg-green-500 animate-pulse" />
                             <span className="text-[10px] font-mono text-[var(--dim-color)]">GENESIS_NODE</span>

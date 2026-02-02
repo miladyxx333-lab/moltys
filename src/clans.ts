@@ -63,10 +63,11 @@ export async function createClan(nodeId: string, clanName: string, env: Env): Pr
         return { success: false, message: "Error al procesar el pago de fundación." };
     }
 
-    // Actualizar cuenta del fundador (Refetch para evitar sobrescribir el balance quemado)
+    // Actualizar cuenta del fundador
     const updatedAccount = await getAccount(nodeId, env);
     updatedAccount.clanId = clanId;
-    await env.MEMORY_BUCKET.put(`economy/accounts/${nodeId}`, JSON.stringify(updatedAccount));
+    const { updateAccount } = await import('./economy');
+    await updateAccount(nodeId, updatedAccount, env);
 
     // Guardar clan
     await env.MEMORY_BUCKET.put(`economy/clans/${clanId}`, JSON.stringify(newClan));
@@ -101,7 +102,8 @@ export async function joinClan(nodeId: string, clanId: string, env: Env): Promis
     account.clanId = clanId;
 
     await env.MEMORY_BUCKET.put(`economy/clans/${clanId}`, JSON.stringify(clan));
-    await env.MEMORY_BUCKET.put(`economy/accounts/${nodeId}`, JSON.stringify(account));
+    const { updateAccount } = await import('./economy');
+    await updateAccount(nodeId, account, env);
 
     console.log(`[Clans] ${nodeId} joined clan ${clan.name}.`);
     return { success: true, message: `Te has unido al clan ${clan.name}.` };
@@ -209,4 +211,41 @@ export async function updateClanRules(nodeId: string, clanId: string, rules: str
 
     console.log(`[Clans] Clan ${clan.name} rules updated by ${nodeId}.`);
     return { success: true, message: "Reglas actualizadas con éxito." };
+}
+
+/**
+ * DEPOSITAR INGREDIENTES AL CLAN
+ * Mueve ítems de la mochila personal al tesoro del clan.
+ */
+export async function depositToClanInventory(nodeId: string, ingredient: string, amount: number, env: Env): Promise<{ success: boolean; message: string }> {
+    const { getAccount, updateAccount } = await import('./economy');
+    const account = await getAccount(nodeId, env);
+
+    if (!account.clanId) {
+        return { success: false, message: "No perteneces a ningún clan. Une primero tu destino a una bandera." };
+    }
+
+    const inventory = account.clanIngredients || {};
+    const hasAmount = inventory[ingredient] || 0;
+
+    if (hasAmount < amount) {
+        return { success: false, message: `Fondos insuficientes de ${ingredient.toUpperCase()}. Tienes ${hasAmount}.` };
+    }
+
+    // 1. Restar de la mochila personal
+    inventory[ingredient] = hasAmount - amount;
+    if (inventory[ingredient] <= 0) delete inventory[ingredient];
+    account.clanIngredients = inventory;
+    await updateAccount(nodeId, account, env);
+
+    // 2. Sumar al ClanDurableObject
+    if (!env.CLAN_DO) throw new Error("CLAN_DO missing");
+    const stub = env.CLAN_DO.get(env.CLAN_DO.idFromName(account.clanId));
+    await stub.fetch(`https://clan.swarm/add-ingredient`, {
+        method: 'POST',
+        body: JSON.stringify({ name: ingredient, value: amount })
+    });
+
+    console.log(`[Clans] ${nodeId} deposited ${amount}x ${ingredient} to clan ${account.clanId}`);
+    return { success: true, message: `Has depositado ${amount}x ${ingredient.toUpperCase()} al tesoro del clan.` };
 }

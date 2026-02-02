@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../api';
 import { Heart, AlertTriangle, Zap, Shield } from 'lucide-react';
+
 
 interface ProtocolHealthData {
     current_month: string;
@@ -20,11 +22,11 @@ export default function ProtocolHealthMeter() {
 
     useEffect(() => {
         const fetchHealth = () => {
-            fetch('/api/protocol/health')
-                .then(res => res.json())
+            apiFetch('/api/protocol/health')
                 .then(data => setHealth(data))
                 .catch(() => { });
         };
+
 
         fetchHealth();
         const interval = setInterval(fetchHealth, 30000); // Actualizar cada 30s
@@ -39,8 +41,8 @@ export default function ProtocolHealthMeter() {
 
     return (
         <div className={`hacker-panel relative overflow-hidden ${isCritical ? 'border-red-500/50 bg-red-500/5' :
-                isAtRisk ? 'border-yellow-500/30 bg-yellow-500/5' :
-                    'border-green-500/20 bg-green-500/5'
+            isAtRisk ? 'border-yellow-500/30 bg-yellow-500/5' :
+                'border-green-500/20 bg-green-500/5'
             }`}>
             {/* Pulso de alerta para estados críticos */}
             {isCritical && (
@@ -130,8 +132,8 @@ export default function ProtocolHealthMeter() {
                 {/* Contribute Button */}
                 <button
                     className={`w-full mt-3 py-2 text-[10px] font-bold uppercase tracking-wider transition-all ${isCritical
-                            ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse'
-                            : 'bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 border border-cyan-500/30'
+                        ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse'
+                        : 'bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 border border-cyan-500/30'
                         }`}
                     onClick={() => {
                         // Scroll to sacrifice section or open modal

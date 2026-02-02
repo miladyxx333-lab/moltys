@@ -1,5 +1,4 @@
-
-export const API_BASE = import.meta.env.VITE_API_URL || '';
+export const API_BASE = 'https://lobpoop-core.miladyxx333.workers.dev';
 
 export const apiFetch = async (path: string, options: RequestInit = {}) => {
     const url = path.startsWith('http') ? path : `${API_BASE}${path}`;

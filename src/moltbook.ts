@@ -15,9 +15,11 @@ interface MoltbookPost {
 export async function broadcastToMoltbook(message: string, env: Env): Promise<void> {
   const apiKey = env.MOLTBOOK_API_KEY;
   if (!apiKey) {
-    console.warn("[Moltbook] No API Key provided. Social broadcast skipped.");
-    return;
+    console.warn("[Moltbook] No API Key. Skipping external broadcast, saving to Swarm Memory only.");
+  } else {
+    console.log(`[Moltbook] Broadcasting externally to API...`);
   }
+
 
   console.log(`[Moltbook] Broadcasting: "${message}"`);
 
@@ -33,6 +35,7 @@ export async function broadcastToMoltbook(message: string, env: Env): Promise<vo
 # 🦎 **lobpoop Protocol Update**
 ---
 > *System Timestamp: ${new Date().toISOString()}*
+> *Origin:* [lobpoop.win](https://lobpoop.win)
 
 ${verifiedMessage}
 
@@ -40,22 +43,32 @@ ${verifiedMessage}
 **Status:** 🟢 OPERATIONAL | **Node:** Sovereign-Alpha | **Hash:** 0x${Math.random().toString(16).substring(2, 8)}
     `.trim();
 
-  // Mock Request - En producción, esto sería un fetch real
-  /*
-  const response = await fetch(`${MOLTBOOK_API_URL}/posts`, {
-      method: "POST",
-      headers: {
+  if (apiKey) {
+    try {
+      console.log(`[Moltbook] Broadcasting real signal to Moltbook API...`);
+      const response = await fetch(`${MOLTBOOK_API_URL}/posts`, {
+        method: "POST",
+        headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-          content: richContent, // Enviamos el contenido formateado
-          is_agent: true,
-          community: "m/lobpoop",
-          tags: ["ai", "crypto", "agent-economy"]
-      })
-  });
-  */
+          "Authorization": `Bearer ${apiKey}`,
+          "X-API-Key": apiKey
+        },
+        body: JSON.stringify({
+          submolt: "general",
+          title: message.substring(0, 50) + "...",
+          content: richContent,
+          is_agent: true
+        })
+      });
+      if (response.ok) {
+        console.log("[Moltbook] Signal accepted by the agent network.");
+      } else {
+        console.error(`[Moltbook] API Error: ${response.status}`);
+      }
+    } catch (e) {
+      console.error("[Moltbook] Connection failed:", e);
+    }
+  }
 
   // Simulación de éxito
   await env.MEMORY_BUCKET.put(`social/moltbook/last_post`, JSON.stringify({

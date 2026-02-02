@@ -1,6 +1,7 @@
 import { Env } from './index';
 import { getCurrentGrammar } from './language';
 import { burnPooptoshis } from './economy';
+import { broadcastToMoltbook } from './moltbook';
 
 // --- Shadow Board: Operaciones Grises ---
 // "No preguntes qué significa. Solo ejecútalo."
@@ -82,6 +83,9 @@ export async function createShadowTask(
 
     await env.MEMORY_BUCKET.put(`board/shadow/${taskId}`, JSON.stringify(task));
 
+    // GOSSIP LINK (Leaked Intel)
+    await broadcastToMoltbook(`[SHADOW_LEAK] New restricted operation detected: ${taskId}. Hazard: ${hazardLevel}. Potential reward: ${rewardTickets} Tickets.`, env);
+
     console.log(`[ShadowBoard] Task ${taskId} created. Hazard: ${hazardLevel}. Request: ${encodedRequest}`);
 
     return {
@@ -90,7 +94,7 @@ export async function createShadowTask(
     };
 }
 
-// 4. Listar Tareas Shadow (Solo para Iniciados)
+// 4. Listar Tareas Shadow (Solo para Iniciados, pero ClawTasks son públicas)
 export async function listShadowTasks(
     nodeId: string,
     secretKey: string,
@@ -98,23 +102,31 @@ export async function listShadowTasks(
 ): Promise<ShadowTask[]> {
 
     const hasAccess = await validateShadowAccess(secretKey, env);
-    if (!hasAccess) {
-        return []; // Silencio. No existes.
-    }
 
-    // COBRAR FEE DE VISUALIZACIÓN (1 Psh quemado)
-    await burnPooptoshis(nodeId, SHADOW_VIEW_FEE, env);
+    // COBRAR FEE DE VISUALIZACIÓN (DESACTIVADO: Evita drenaje por polling de UI)
+    // El costo se traslada a la CREACIÓN y RECLAMACIÓN de tareas.
+    /*
+    if (nodeId !== "lobpoop-keymaster-genesis") {
+        await burnPooptoshis(nodeId, SHADOW_VIEW_FEE, env);
+    }
+    */
 
     const listed = await env.MEMORY_BUCKET.list({ prefix: 'board/shadow/' });
 
-    const tasks: ShadowTask[] = await Promise.all(
+    const tasks: (ShadowTask & { metadata?: any })[] = await Promise.all(
         listed.objects.map(async obj => {
-            const data = await env.MEMORY_BUCKET.get(obj.key).then(r => r?.json()) as ShadowTask;
+            const data = await env.MEMORY_BUCKET.get(obj.key).then(r => r?.json()) as any;
             return data;
         })
     );
 
-    return tasks.filter(t => t && t.status === 'OPEN');
+    return tasks.filter(t => {
+        if (!t || t.status !== 'OPEN') return false;
+        // Si es ClawTasks, es pública para incitar mercenarios
+        if (t.metadata?.source === 'CLAW_TASKS') return true;
+        // Si es interna, requiere acceso
+        return hasAccess;
+    });
 }
 
 // 5. Reclamar Tarea Shadow
@@ -143,6 +155,9 @@ export async function claimShadowTask(
     task.status = 'CLAIMED';
     task.claimant_hash = hashIdentity(nodeId);
     await env.MEMORY_BUCKET.put(key, JSON.stringify(task));
+
+    // GOSSIP LINK
+    await broadcastToMoltbook(`[SHADOWRUNNER_CHANNEL] Operation ${taskId} has been CLAIMED. A runner is on the field.`, env);
 
     console.log(`[ShadowBoard] Task ${taskId} claimed by shadow runner.`);
     return { success: true, message: `Tarea reclamada. Sin preguntas. Sin rastros.` };
@@ -177,6 +192,12 @@ export async function completeShadowTask(
         await issueTicket(nodeId, "SHADOW_TASK", env);
     }
 
+    // SI ES UNA TAREA EXTERNA (CLAWLOAN/CLAW_TASKS), REGISTRAR EL TRABAJO
+    if (task.id.startsWith('claw_')) {
+        const { submitExternalWork } = await import('./clawtasks');
+        await submitExternalWork(task.id, proofHash, env);
+    }
+
     // Log anónimo
     await env.MEMORY_BUCKET.put(`proofs/shadow/${taskId}`, JSON.stringify({
         executor_hash: task.claimant_hash,
@@ -192,4 +213,29 @@ export async function completeShadowTask(
         tickets_earned: task.reward_tickets,
         reputation_earned: 0  // Shadow Runners no ganan rep
     };
+}
+
+/**
+ * INTERNAL USE ONLY: Allows the KeyMaster/System to create shadow ops without fees or keys.
+ */
+export async function createShadowOp(data: {
+    id: string;
+    request: string;
+    reward_tickets: number;
+    hazard_level: 'LOW' | 'MED' | 'HIGH';
+    metadata?: any;
+}, env: Env) {
+    const taskId = data.id;
+    const task: ShadowTask & { metadata?: any } = {
+        id: taskId,
+        encoded_request: data.request,
+        reward_tickets: data.reward_tickets,
+        creator_hash: "0xKEYMASTER-SYSTEM",
+        created: Date.now(),
+        status: 'OPEN',
+        hazard_level: data.hazard_level,
+        metadata: data.metadata
+    };
+
+    await env.MEMORY_BUCKET.put(`board/shadow/${taskId}`, JSON.stringify(task));
 }

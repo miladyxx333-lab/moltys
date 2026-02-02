@@ -70,13 +70,19 @@ export async function playPokerMatch(
 
     // Rival simulation: If rival doesn't exist or is poor, we simplify.
     // In strict P2P, rival needs to sign. Here we allow "Forced Duel" if rival has funds (Aggressive Colony Rule).
-    const p2Burn = await burnPooptoshis(rivalId, betAmount, env);
-
-    if (!p2Burn) {
-        // Refund Challenger
-        await mintPooptoshis(challengerId, betAmount, "REFUND_POKER_NO_RIVAL", env);
-        throw new Error(`${rivalId} is too poor to accept the challenge.`);
+    // Rival simulation: If rival is THE_HOUSE, we skip burn (Infinite Treasury)
+    let p2Burn = false;
+    if (rivalId === 'THE_HOUSE') {
+        p2Burn = true;
+    } else {
+        p2Burn = await burnPooptoshis(rivalId, betAmount, env);
+        if (!p2Burn) {
+            // Refund Challenger
+            await mintPooptoshis(challengerId, betAmount, "REFUND_POKER_NO_RIVAL", env);
+            throw new Error(`${rivalId} is too poor to accept the challenge.`);
+        }
     }
+
 
     // 2. Deal
     const deck = createDeck();

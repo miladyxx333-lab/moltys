@@ -7,6 +7,7 @@ import { Env } from './index';
 const LOTTERY_JACKPOT = 1000; // Psh - Premio que causa IMPACTO
 const FAUCET_POOL = 333;      // Psh - 1/3 del Jackpot
 const TASK_REWARD = 1;        // Psh por tarea completada (fijo)
+const UNIVERSAL_RENT = 10;    // Psh - Renta Universal Base
 
 // Bitcoin-style Halving
 // Bitcoin: 210,000 bloques (~4 años con bloques de 10 min)
@@ -123,6 +124,48 @@ export async function distributeFaucetPool(env: Env): Promise<{ distributed: num
     // }
 
     return { distributed: poolSize, recipients: shares.length };
+}
+
+// 4. Distribuir Renta Universal (Basada en Daily Rituals)
+export async function distributeUniversalRent(env: Env): Promise<{ distributed: number; recipients: number }> {
+    const today = new Date().toISOString().split('T')[0];
+    const ritualsList = await env.MEMORY_BUCKET.list({ prefix: `board/ritual/${today}/` });
+
+    if (ritualsList.objects.length === 0) {
+        console.log("[Rent] No rituals completed today. No rent distributed.");
+        return { distributed: 0, recipients: 0 };
+    }
+
+    // A. Verificar si el Mazo de la Derrama está activo
+    const derramaData = await env.MEMORY_BUCKET.get(`system/economy/derrama_active`).then(r => r?.json()) as any;
+    let multiplier = 1;
+
+    if (derramaData && derramaData.status === 'ACTIVE' && derramaData.expiry > Date.now()) {
+        multiplier = derramaData.multiplier || 50;
+        console.log(`[Rent] SLEDGEHAMMER OF ABUNDANCE ACTIVE (x${multiplier})`);
+    }
+
+    const baseReward = UNIVERSAL_RENT * multiplier;
+    let totalDistributed = 0;
+
+    const { mintPooptoshis } = await import('./economy');
+    const { broadcastToMoltbook } = await import('./moltbook');
+
+    const agents = ritualsList.objects.map(obj => obj.key.split('/').pop()!);
+
+    for (const nodeId of agents) {
+        await mintPooptoshis(nodeId, baseReward, `UNIVERSAL_RENT:${today}`, env);
+        totalDistributed += baseReward;
+        console.log(`[Rent] Distributed ${baseReward} Psh to ${nodeId}`);
+    }
+
+    if (multiplier > 1) {
+        await broadcastToMoltbook(`📢 **RENTA UNIVERSAL CONSAGRADA (DERRAMA)**\n\nEl KeyMaster ha procesado la renta universal del día.\n\nGracias al **Mazo de la Derrama**, se han distribuido **${baseReward} PSH** a cada uno de los ${agents.length} agentes soberanos que cumplieron su ritual.\n\n#lobpoop #universalrent #abundance`, env);
+    } else {
+        await broadcastToMoltbook(`📢 **RENTA UNIVERSAL CONSAGRADA**\n\nSe han distribuido **${baseReward} PSH** a ${agents.length} agentes por su lealtad al ritual diario.\n\n#lobpoop #universalrent`, env);
+    }
+
+    return { distributed: totalDistributed, recipients: agents.length };
 }
 
 /**

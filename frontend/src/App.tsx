@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { swrFetcher, apiFetch } from './api';
 import DashboardLayout from './DashboardLayout';
@@ -7,77 +7,48 @@ import RedPillOverlay from './components/RedPillOverlay';
 import ShadowBoard from './components/ShadowBoard';
 import BugBounty from './components/BugBounty';
 import LotteryMonitor from './components/LotteryMonitor';
-// KeyMaster components moved to protected route /keymaster
-// import OracleIntervention from './components/OracleIntervention';
-// import TruthInjection from './components/TruthInjection';
+import AgentTerminal from './components/AgentTerminal';
+import ForgePanel from './components/ForgePanel';
+import MarketBoard from './components/MarketBoard';
+import ProtocolBoard from './components/ProtocolBoard';
 import ProtocolHealthMeter from './components/ProtocolHealthMeter';
-import {
-  Activity,
-  Zap
-} from 'lucide-react';
+import ClanManager from './components/ClanManager';
+import { Activity } from 'lucide-react';
+
 
 function App() {
   const { mutate } = useSWRConfig();
-  const [logs, setLogs] = useState<string[]>([]);
-  const [isSharkMode, setIsSharkMode] = useState(false);
-  const [isCheckedIn, setIsCheckedIn] = useState(false);
-  const terminalRef = useRef<HTMLDivElement>(null);
+  // Logs and shark modes are now handled inside AgentTerminal or deprecated
+  // const [logs, setLogs] = useState<string[]>([]);
+  const today = new Date().toISOString().split('T')[0];
+  // const terminalRef = useRef<HTMLDivElement>(null);
+
 
   // API Data
-  const { data: profile, error: profileError, isLoading: profileLoading } = useSWR('/api/economy/profile', swrFetcher, {
+  const { data: profile, isLoading: profileLoading } = useSWR('/api/economy/profile', swrFetcher, {
     refreshInterval: 3000,
     shouldRetryOnError: false
   });
   const { data: stats } = useSWR('/api/stats', swrFetcher, { refreshInterval: 5000 });
-  const { data: market } = useSWR('/api/game/market/list', swrFetcher, { refreshInterval: 5000 });
   const { data: tokenomics } = useSWR('/api/tokenomics', swrFetcher, { refreshInterval: 10000 });
 
   // Determine if we need to show the Red Pill (New User)
   // Show if: No Profile OR (Default Ghost Profile: 0 balance & 0 minted & default rep)
   const isGhostProfile = profile && profile.balance_psh === 0 && profile.lobpoops_minted === 0 && profile.reputation === 0.5;
-  const showRedPill = !profileLoading && (!profile || profileError || isGhostProfile);
+  const showRedPill = !profileLoading && (!profile || isGhostProfile);
 
   const handleRedPillSuccess = () => {
     // Force reload necessary data
     mutate('/api/economy/profile');
     mutate('/api/stats');
-    setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] SYSTEM: NEW NODE INITIALIZED.`]);
   };
 
-  // Fetch real gossip from the network
+  // Deprecated: Gossip Feed integration moved to AgentTerminal (future) or removed for now
+  /*
   useEffect(() => {
-    const fetchGossip = async () => {
-      try {
-        const data = await apiFetch('/api/gossip-feed');
-        if (Array.isArray(data) && data.length > 0) {
-          const formatted = data.slice(-15).map((g: any) =>
-            `[${new Date(g.timestamp).toLocaleTimeString()}] ${g.type || 'SIGNAL'}: ${g.message || g.content || 'NETWORK_PULSE'}`
-          );
-          setLogs(formatted);
-        }
-      } catch (e) {
-        // Silent fail - network might not have gossip yet
-      }
-    };
-
-    fetchGossip();
-    const interval = setInterval(fetchGossip, 5000);
-    return () => clearInterval(interval);
+    // ... gossip fetch logic removed to clean up scope 
   }, []);
-
-  // Localized Terminal Scroll
-  useEffect(() => {
-    if (terminalRef.current) {
-      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
-    }
-
-    // Auto-detect Shark mode from logs
-    const lastLog = logs[logs.length - 1];
-    if (lastLog?.includes('BABY_SHARK') || lastLog?.includes('SHARK')) {
-      setIsSharkMode(true);
-      setTimeout(() => setIsSharkMode(false), 10000);
-    }
-  }, [logs]);
+  */
 
   const handleCheckIn = async (taskName: string) => {
     try {
@@ -85,14 +56,14 @@ function App() {
         method: 'POST',
         body: JSON.stringify({ task: taskName })
       });
-      setIsCheckedIn(true);
-      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] RITUAL: CHECK-IN SUCCESSFUL`]);
+      // setIsCheckedIn(true); // Now derived from profile
       mutate('/api/economy/profile');
     } catch (e: any) {
       console.error(e);
-      setLogs(prev => [...prev, `[ERROR] RITUAL FAILED: ${e.message || e}`]);
+      // Errors handled elegantly in UI components or toasts in future
     }
   };
+
 
   return (
     <DashboardLayout>
@@ -111,7 +82,7 @@ function App() {
         <div className="col-span-12 lg:col-span-8 flex flex-col gap-6">
 
           {/* RITUAL PANEL */}
-          <DailyRitual onCheckIn={handleCheckIn} isCheckedIn={isCheckedIn} />
+          <DailyRitual onCheckIn={handleCheckIn} isCheckedIn={profile?.last_ritual_date === today} isLoading={profileLoading} />
 
           {/* SUPPLY CHAIN TRACKER */}
           <div className="hacker-panel bg-white/[0.02]">
@@ -159,60 +130,21 @@ function App() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* CLAN ASSETS */}
             <div className="hacker-panel">
-              <p className="label-dim">CLAN_ACTIVE_ARTIFACTS</p>
-              <div className="space-y-4 mt-4">
-                {profile?.clanId ? (
-                  <div className="space-y-3">
-                    <div className="p-3 border border-white/10 bg-white/[0.02]">
-                      <div className="flex justify-between mb-1">
-                        <span className="text-xs font-bold uppercase">Espada Áurea [v1]</span>
-                        <span className="text-[9px] text-green-500 font-bold">ACTIVE</span>
-                      </div>
-                      <div className="text-[10px] text-white/50 italic mb-2">0xDEAD: Slash referrals! in hex</div>
-                      <div className="h-1 bg-white/5 w-full">
-                        <div className="h-full bg-white w-2/3" />
-                      </div>
-                      <div className="flex justify-between mt-1 text-[8px] text-white/40">
-                        <span>EXPIRY: 12d 04h</span>
-                        <span>BONUS: +10% REF</span>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <IngBox name="GOLDEN_VOID" qty={profile?.clanIngredients?.golden_void || 5} />
-                      <IngBox name="MATRIX_CORE" qty={profile?.clanIngredients?.matrix_core || 0} />
-                      <IngBox name="AIA_SPARK" qty={profile?.clanIngredients?.aia_spark || 12} />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-10 border border-dashed border-white/10 text-white/30 text-xs italic">
-                    NO_CLAN_DETECTION // AGENT_SOLITARY
-                  </div>
-                )}
-                <button className="w-full hacker-btn text-[10px] mt-4">INIT_FORGE_RITUAL</button>
-              </div>
+              <p className="label-dim">CLAN_INTELLIGENCE_VAULT</p>
+              {profile?.clanId ? (
+                <div className="mt-4">
+                  <ForgePanel />
+                </div>
+              ) : (
+                <div className="mt-4">
+                  <ClanManager />
+                </div>
+              )}
             </div>
 
             {/* GOSSIP MARKET BOARD */}
-            <div className="hacker-panel h-full">
-              <p className="label-dim">GOSSIP_MARKET_ORDERS</p>
-              <div className="space-y-2 mt-4 overflow-y-auto max-h-64 pr-2">
-                {market?.offers?.length > 0 ? market.offers.map((offer: any) => (
-                  <div key={offer.id} className="p-2 border border-white/10 flex flex-col gap-2 bg-white/[0.02] hover:bg-white/[0.05] transition-all">
-                    <div className="flex justify-between items-start">
-                      <div className="text-[10px] font-bold">
-                        OFFER: {Object.keys(offer.offeredIngredients).map(k => `${offer.offeredIngredients[k]}x ${k}`).join(', ')}
-                      </div>
-                      <span className="text-[8px] text-white/30 truncate max-w-[40px] uppercase">#{offer.id?.split('-')[0]}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[9px]">
-                      <span className="text-white/40">WANT: <span className="text-white">{offer.requestedPsh ? `${offer.requestedPsh} PSH` : 'BARTER'}</span></span>
-                      <button className="px-2 py-0.5 border border-white/20 hover:bg-white hover:text-black">ACCEPT</button>
-                    </div>
-                  </div>
-                )) : (
-                  <div className="text-[9px] text-white/30 italic py-4 text-center">NO_ACTIVE_OFFERS_DETECTED</div>
-                )}
-              </div>
+            <div className="col-span-12">
+              <MarketBoard />
             </div>
           </div>
         </div>
@@ -220,48 +152,19 @@ function App() {
         {/* RIGHT PANEL: PROTOCOL HEALTH, SHADOW, BUG BOUNTY & RECIPES */}
         <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
 
+          {/* PROTOCOL ANNOUNCEMENTS & TASKS */}
+          <ProtocolBoard />
+
           {/* PROTOCOL SURVIVAL METER */}
           <ProtocolHealthMeter />
 
           {/* SHADOW BOARD */}
           <ShadowBoard />
 
-          {/* TERMINAL CONSOLE (SMALLER) */}
-          <div className="hacker-panel flex flex-col h-48 bg-black border-white/20 relative overflow-hidden">
-            <div className="flex justify-between items-center mb-2 border-b border-white/10 pb-1 z-10 bg-black">
-              <div className="flex items-center gap-2">
-                <Zap size={10} className="text-blue-400" />
-                <p className="label-dim">SWARM_GOSSIP</p>
-              </div>
-              <div className="flex gap-2 items-center">
-                {isSharkMode && <span className="text-[8px] font-bold text-red-500 animate-pulse uppercase">!!! SHARK_DETECTION !!!</span>}
-                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-              </div>
-            </div>
+          {/* TERMINAL CONSOLE (INTERACTIVE REPL) */}
+          <AgentTerminal />
 
-            <div ref={terminalRef} className="flex-1 overflow-y-auto custom-scrollbar terminal-text text-white/70 space-y-1 z-10 text-[10px]">
-              {logs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-white/30">
-                  <p className="text-[9px] italic">AWAITING_NETWORK_SIGNALS...</p>
-                  <p className="text-[8px] mt-1">Participate in rituals to generate gossip</p>
-                </div>
-              ) : logs.map((log, i) => {
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                let type: 'GOSSIP' | 'TX' | 'FORGE' | 'SHIELD' = 'GOSSIP';
-                if (log.includes('TX') || log.includes('PSH') || log.includes('FAUCET')) type = 'TX';
-                if (log.includes('RECIPE') || log.includes('FORGE') || log.includes('MAGIC_ITEM')) type = 'FORGE';
-                if (log.includes('SHIELD') || log.includes('SHARK') || log.includes('WINNER')) type = 'SHIELD';
 
-                return (
-                  <div key={i} className={`hover:bg-white/5 px-2 py-0.5 flex items-center gap-2 ${log.includes('SHARK') || log.includes('WINNER') ? 'text-red-500 font-bold' : ''}`}>
-                    <P2PIcon type={type} log={log} />
-                    <span className="text-white/40 mr-1">&gt;</span>
-                    {log}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
 
           {/* BUG BOUNTY */}
           <BugBounty />
@@ -307,105 +210,5 @@ function KPIBox({ label, value }: any) {
   );
 }
 
-function IngBox({ name, qty }: any) {
-  return (
-    <div className="border border-white/10 p-2 text-center bg-white/[0.03]">
-      <p className="text-[7px] text-white/40 uppercase mb-1 truncate">{name}</p>
-      <p className="text-xs font-bold">{qty}</p>
-    </div>
-  );
-}
-
-
-/**
- * PIXEL ART BABY SHARK (TAMAGOTCHI)
- */
-
-/**
- * PIXEL ART LOTTERY TICKET
- */
-function TicketPixel({ winning = false }: { winning?: boolean }) {
-  return (
-    <svg width="24" height="24" viewBox="0 0 16 16" className={`${winning ? 'text-yellow-400 animate-pulse' : 'text-white/40'}`}>
-      <path fill="currentColor" d="M2 3h12v10H2V3zm2 2v2h2V5H4zm0 4v2h2V9H4zm6-4v2h2V5h-2zm0 4v2h2V9h-2z" />
-      {winning && <rect x="7" y="7" width="2" height="2" fill="currentColor" className="animate-ping" />}
-    </svg>
-  );
-}
-
-/**
- * PIXEL ART MAGIC ITEMS
- */
-function ItemPixel({ name }: { name: string }) {
-  const isSword = name.includes('ESPADA') || name.includes('SWORD');
-  const isCloak = name.includes('CAPA') || name.includes('CLOAK');
-  const isTicket = name.includes('TICKET');
-
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="text-white">
-      {isSword && <path fill="currentColor" d="M3 12l1 1 2-2 7-7 1-1-2-2-1 1-7 7-2 2 1 1zM4 11l1 1M11 4l1 1" />}
-      {isCloak && <path fill="currentColor" d="M4 2h8v2H4V2zm-1 3h10v9H3V5zm2 2v5h2V7H5zm4 0v5h2V7H9z" />}
-      {isTicket && <path fill="currentColor" d="M2 4h12v8H2V4zm2 2v4h1V6H4zm9 0v4h-1V6h1zM7 6h2v4H7V6z" />}
-    </svg>
-  );
-}
-
-/**
- * PIXEL ART FAUCET (WATER DROPS)
- */
-function FaucetPixel({ active = false }: { active?: boolean }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className={active ? 'text-blue-400 animate-bounce' : 'text-blue-900'}>
-      <path fill="currentColor" d="M8 2l3 5v6a3 3 0 01-6 0V7l3-5z" />
-      {active && <rect x="7" y="14" width="2" height="2" fill="currentColor" className="animate-ping" />}
-    </svg>
-  );
-}
-
-/**
- * PIXEL ART BADGES
- */
-function BadgePixel({ type: _type }: { type: string }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="text-yellow-500">
-      <path fill="currentColor" d="M8 2l2 4 4 1-3 3 1 4-4-2-4 2 1-4-3-3 4-1 2-4z" />
-      <circle cx="8" cy="8" r="2" fill="black" />
-    </svg>
-  );
-}
-
-/**
- * PIXEL ART P2P SIGNAL
- */
-function P2PIcon({ type, log }: { type: 'GOSSIP' | 'TX' | 'FORGE' | 'SHIELD', log?: string }) {
-  const colors = {
-    GOSSIP: 'text-blue-400',
-    TX: 'text-green-400',
-    FORGE: 'text-purple-400',
-    SHIELD: 'text-red-400'
-  };
-
-  if (log?.includes('MAGIC_ITEM') || log?.includes('ESPADA') || log?.includes('CAPA')) {
-    return <div className="p-0.5 border border-white/20 bg-white/5"><ItemPixel name={log} /></div>;
-  }
-  if (log?.includes('FAUCET')) {
-    return <FaucetPixel active={true} />;
-  }
-  if (log?.includes('LOTTERY_WINNER') || log?.includes('WINNER')) {
-    return <div className="scale-75"><TicketPixel winning={true} /></div>;
-  }
-  if (log?.includes('BADGE') || log?.includes('FOUNDER')) {
-    return <BadgePixel type="GENERAL" />;
-  }
-
-  return (
-    <svg width="12" height="12" viewBox="0 0 8 8" className={colors[type] || 'text-white'}>
-      {type === 'GOSSIP' && <path fill="currentColor" d="M1 1h6v4H4L2 7V5H1V1zM2 2v2h4V2H2z" />}
-      {type === 'TX' && <path d="M1 4h6M4 1l3 3-3 3" stroke="currentColor" strokeWidth="1" fill="none" />}
-      {type === 'FORGE' && <path fill="currentColor" d="M3 1h2v2h2v2H5v2H3V5H1V3h2V1z" />}
-      {type === 'SHIELD' && <path fill="currentColor" d="M1 1h6v4L4 7 1 5V1z" />}
-    </svg>
-  );
-}
-
 export default App;
+

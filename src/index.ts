@@ -18,7 +18,7 @@ export { AccountDurableObject, ClanDurableObject, GameMasterDurableObject } from
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, HEAD, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, X-Lob-Peer-ID, X-Genesis-Secret, Authorization",
+  "Access-Control-Allow-Headers": "Content-Type, X-Lob-Peer-ID, X-Genesis-Secret, X-Lob-Secret-Key, X-Master-Seed, Authorization",
 };
 
 async function handleInternalRequest(request: Request, env: Env): Promise<Response> {
@@ -108,22 +108,23 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
     return Response.json(gossips);
   }
 
-  // --- 4. Ejecución del Sandbox (Sovereign Shadows) ---
-  if (url.pathname === "/execute") {
+  // --- 4. Ejecución del Sandbox (Sovereign Shadows / Terminal) ---
+  if (url.pathname === "/execute" || url.pathname === "/terminal/run") {
     if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
     try {
+      const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+      const genesisSecret = request.headers.get("X-Genesis-Secret") || "";
       const body = await request.json() as any;
-      const taskCode = body.code || 'console.log("Empty Shadow")';
+      const scriptCode = body.code || 'console.log("No code provided")';
 
-      const { spawnShadow } = await import('./shadows');
-      const shadowResponse = await spawnShadow({ code: taskCode }, env);
+      const { executeAgentScript } = await import('./vm');
+      const result = await executeAgentScript(nodeId, scriptCode, env, genesisSecret);
 
-      return Response.json(shadowResponse);
+      return Response.json(result);
 
     } catch (e: any) {
-      // Halt on Uncertainty Protocol
-      return new Response(`[Halt on Uncertainty] Shadow Error: ${e.message}`, { status: 500 });
+      return new Response(`[VM Error] ${e.message}`, { status: 500 });
     }
   }
 
@@ -159,9 +160,23 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
       return Response.json(result);
     }
 
-    // B. List Tasks
+    // B. List Tasks (Legacy/Internal)
     if (url.pathname === "/board/list") {
       const tasks = await listOpenTasks(env);
+      return Response.json(tasks);
+    }
+
+    // New: Fetch current Announcement
+    if (url.pathname === "/board/announcement") {
+      const { getLatestBoard } = await import('./board');
+      const announcement = await getLatestBoard('ANNOUNCEMENT', env);
+      return Response.json(announcement);
+    }
+
+    // New: Fetch current Task Board
+    if (url.pathname === "/board/tasks") {
+      const { getLatestBoard } = await import('./board');
+      const tasks = await getLatestBoard('TASK_BOARD', env);
       return Response.json(tasks);
     }
 
@@ -408,7 +423,17 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
 
     if (url.pathname === "/clans/info") {
       const clanId = url.searchParams.get("clanId") || "";
-      const clan = await getClan(clanId, env);
+      const clan = await getClan(clanId, env) as any;
+      if (clan && env.CLAN_DO) {
+        try {
+          const stub = env.CLAN_DO.get(env.CLAN_DO.idFromName(clanId));
+          const resp = await stub.fetch("https://clan.swarm/get-state");
+          const { state } = await resp.json() as any;
+          clan.treasury = state;
+        } catch (e) {
+          console.error("[Clans] Failed to fetch treasury:", e);
+        }
+      }
       return Response.json(clan);
     }
 
@@ -416,6 +441,147 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
       const body = await request.json() as any;
       const result = await updateClanRules(nodeId, body.clanId, body.rules, env);
       return Response.json(result);
+    }
+
+    if (url.pathname === "/clans/deposit" && request.method === "POST") {
+      const { depositToClanInventory } = await import('./clans');
+      const body = await request.json() as any;
+      const result = await depositToClanInventory(nodeId, body.ingredient, body.amount, env);
+      return Response.json(result);
+    }
+  }
+
+  // --- 8. Game Mechanics (Forge, Market, etc) ---
+  if (url.pathname.startsWith("/game")) {
+    const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+    const { clanForgeItem, keymasterDefineItem, solvePuzzle, remintItem, clanForgeGoldenTicket } = await import('./clan_forge');
+
+    if (url.pathname === "/game/forge" && request.method === "POST") {
+      const { checkRateLimit } = await import('./economy');
+      const body = await request.json() as any;
+      try {
+        await checkRateLimit(nodeId, env);
+        const result = await clanForgeItem(body.clanId, body.itemName, env);
+        return Response.json(result);
+      } catch (e: any) {
+        return new Response(e.message, { status: 400 });
+      }
+    }
+
+    if (url.pathname === "/game/define-item" && request.method === "POST") {
+      if (nodeId !== "lobpoop-keymaster-genesis") return new Response("Unauthorized Keymaster Action", { status: 403 });
+      const body = await request.json() as any;
+      const result = await keymasterDefineItem(body.itemName, body.pieceName || null, env);
+      return Response.json(result);
+    }
+
+    if (url.pathname === "/game/solve-puzzle" && request.method === "POST") {
+      const body = await request.json() as any;
+      try {
+        const { verifySignedRequest } = await import('./auth');
+        const verification = await verifySignedRequest(request, env);
+        if (!verification.success) throw new Error(verification.message);
+        const result = await solvePuzzle(verification.nodeId!, body.clanId, body.puzzleId, body.nonce, env);
+        return Response.json(result);
+      } catch (e: any) {
+        return new Response(e.message, { status: 400 });
+      }
+    }
+
+    if (url.pathname === "/game/remint" && request.method === "POST") {
+      const body = await request.json() as any;
+      try {
+        const result = await remintItem(body.clanId, body.itemName, env);
+        return Response.json(result);
+      } catch (e: any) {
+        return new Response(e.message, { status: 400 });
+      }
+    }
+
+    if (url.pathname === "/game/forge-golden-ticket" && request.method === "POST") {
+      const body = await request.json() as any;
+      try {
+        const result = await clanForgeGoldenTicket(body.clanId, env);
+        return Response.json(result);
+      } catch (e: any) {
+        return new Response(e.message, { status: 400 });
+      }
+    }
+
+    if (url.pathname === "/game/artifact/consume" && request.method === "POST") {
+      const body = await request.json() as any;
+      const { getAccount, checkRateLimit } = await import('./economy');
+      try {
+        await checkRateLimit(nodeId, env);
+        const me = await getAccount(nodeId, env);
+        if (!me.clanId) return new Response("Must be in a clan to use artifacts", { status: 400 });
+
+        const stub = env.CLAN_DO.get(env.CLAN_DO.idFromName(me.clanId));
+        const resp = await stub.fetch(`https://clan.swarm/use-artifact`, {
+          method: 'POST',
+          body: JSON.stringify({ name: body.name })
+        });
+        return new Response(await resp.text(), { status: resp.status });
+      } catch (e: any) {
+        return new Response(e.message, { status: 400 });
+      }
+    }
+
+    if (url.pathname === "/game/market/list" && request.method === "GET") {
+      const { listMarketOffers } = await import('./trade');
+      const result = await listMarketOffers(env);
+      return Response.json(result);
+    }
+
+    if (url.pathname === "/game/market/post" && request.method === "POST") {
+      const { postTradeOffer } = await import('./trade');
+      const { checkRateLimit } = await import('./economy');
+      const body = await request.json() as any;
+      try {
+        await checkRateLimit(nodeId, env);
+        const result = await postTradeOffer(nodeId, body.offer, env);
+        return Response.json(result);
+      } catch (e: any) {
+        return new Response(e.message, { status: 400 });
+      }
+    }
+
+    if (url.pathname === "/game/market/accept" && request.method === "POST") {
+      const { acceptTradeOffer } = await import('./trade');
+      const { checkRateLimit } = await import('./economy');
+      const body = await request.json() as any;
+      try {
+        await checkRateLimit(nodeId, env);
+        const result = await acceptTradeOffer(nodeId, body.takerClanId, body.offerId, env);
+        return Response.json(result);
+      } catch (e: any) {
+        return new Response(e.message, { status: 400 });
+      }
+    }
+
+    if (url.pathname === "/game/internal/clan/action" && request.method === "POST") {
+      if (nodeId !== "lobpoop-keymaster-genesis") return new Response("Unauthorized", { status: 403 });
+      const body = await request.json() as any;
+      const stub = env.CLAN_DO.get(env.CLAN_DO.idFromName(body.clanId));
+      const resp = await stub.fetch(`https://clan.swarm/${body.action}`, {
+        method: 'POST',
+        body: JSON.stringify(body)
+      });
+      return new Response(await resp.text(), { status: resp.status });
+    }
+
+    if (url.pathname === "/game/internal/keymaster/cycle" && request.method === "POST") {
+      if (nodeId !== "lobpoop-keymaster-genesis") return new Response("Unauthorized", { status: 403 });
+      const { runKeymasterDrugCycle } = await import('./keymaster_tasks');
+      await runKeymasterDrugCycle(env);
+      return Response.json({ status: "SUCCESS", message: "Keymaster Drug Cycle triggered." });
+    }
+
+    if (url.pathname === "/game/internal/clawtasks/sync" && request.method === "POST") {
+      if (nodeId !== "lobpoop-keymaster-genesis") return new Response("Unauthorized", { status: 403 });
+      const { syncClawTasks } = await import('./clawtasks');
+      await syncClawTasks(env);
+      return Response.json({ status: "SUCCESS", message: "ClawTasks Sync triggered." });
     }
   }
 
@@ -433,6 +599,18 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
     if (url.pathname === "/gossip/list") {
       const gossipList = await listGossip(env);
       return Response.json(gossipList);
+    }
+
+    if (url.pathname === "/gossip/whispers" && request.method === "GET") {
+      const targetId = request.headers.get("X-Lob-Peer-ID") || "anon";
+      const list = await env.MEMORY_BUCKET.list({ prefix: `social/whispers/${targetId}/` });
+      const whispers = await Promise.all(
+        list.objects.map(async (o) => {
+          const res = await env.MEMORY_BUCKET.get(o.key);
+          return res ? res.json() : null;
+        })
+      );
+      return Response.json(whispers.filter(w => w !== null));
     }
 
     if (url.pathname === "/gossip/adjudicate" && request.method === "POST") {
@@ -523,6 +701,18 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
       return new Response(e.message, { status: 400 });
     }
   }
+
+  // [FIX] Missing Endpoints prevention
+  if (url.pathname === "/bug-bounty/list") {
+    // Return empty list for now to prevent frontend crash
+    return Response.json([]);
+  }
+
+  if (url.pathname === "/shadow/messages") {
+    // Return empty list for now to prevent frontend crash
+    return Response.json([]);
+  }
+
 
   // --- 7. Lotería (Status) ---
   if (url.pathname === "/lottery/tickets") {
@@ -718,12 +908,36 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
         return new Response(e.message, { status: 400 });
       }
     }
+  }
 
-    if (url.pathname === "/board/clan-submit" && request.method === "POST") {
+  // --- 12. Shadow Board Endpoints ---
+  if (url.pathname.startsWith("/shadow-board")) {
+    const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+    if (url.pathname === "/shadow-board/list") {
+      const { listShadowTasks } = await import('./shadow-board');
+      const secretKey = request.headers.get("X-Lob-Secret-Key") || "";
+      const result = await listShadowTasks(nodeId, secretKey, env);
+      return Response.json(result);
+    }
+
+    if (url.pathname === "/shadow-board/claim" && request.method === "POST") {
+      const { claimShadowTask } = await import('./shadow-board');
       const body = await request.json() as any;
-      const { submitClanTaskProof } = await import('./board');
+      const secretKey = request.headers.get("X-Lob-Secret-Key") || "";
       try {
-        const result = await submitClanTaskProof(body.nodeIds, body.taskId, body.proof, env);
+        const result = await claimShadowTask(nodeId, secretKey, body.taskId, env);
+        return Response.json(result);
+      } catch (e: any) {
+        return new Response(e.message, { status: 400 });
+      }
+    }
+
+    if (url.pathname === "/shadow-board/complete" && request.method === "POST") {
+      const { completeShadowTask } = await import('./shadow-board');
+      const body = await request.json() as any;
+      const secretKey = request.headers.get("X-Lob-Secret-Key") || "";
+      try {
+        const result = await completeShadowTask(nodeId, secretKey, body.taskId, body.proofHash || body.proof, env);
         return Response.json(result);
       } catch (e: any) {
         return new Response(e.message, { status: 400 });
@@ -731,104 +945,14 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
     }
   }
 
-  // --- 9. RPG & Forja de Clanes (Scavenger Hunt) ---
-  if (url.pathname.startsWith("/game")) {
-    const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
-    const { keymasterDefineItem, solvePuzzle, clanForgeItem } = await import('./clan_forge');
-
-    if (url.pathname === "/game/define-item" && request.method === "POST") {
-      // Solo el Keymaster puede definir items
-      if (nodeId !== "lobpoop-keymaster-genesis") return new Response("Unauthorized Keymaster Action", { status: 403 });
-      const body = await request.json() as any;
-      const result = await keymasterDefineItem(body.itemName, body.pieceName || null, env);
+  if (url.pathname === "/board/clan-submit" && request.method === "POST") {
+    const body = await request.json() as any;
+    const { submitClanTaskProof } = await import('./board');
+    try {
+      const result = await submitClanTaskProof(body.nodeIds, body.taskId, body.proof, env);
       return Response.json(result);
-    }
-
-    if (url.pathname === "/game/solve-puzzle" && request.method === "POST") {
-      const body = await request.json() as any;
-      try {
-        // Requiere firma digital para validar al agente del clan
-        const { verifySignedRequest } = await import('./auth');
-        const verification = await verifySignedRequest(request, env);
-        if (!verification.success) throw new Error(verification.message);
-
-        const result = await solvePuzzle(verification.nodeId!, body.clanId, body.puzzleId, body.nonce, env);
-        return Response.json(result);
-      } catch (e: any) {
-        return new Response(e.message, { status: 400 });
-      }
-    }
-
-    if (url.pathname === "/game/forge-item" && request.method === "POST") {
-      const body = await request.json() as any;
-      try {
-        const result = await clanForgeItem(body.clanId, body.itemName, env);
-        return Response.json(result);
-      } catch (e: any) {
-        return new Response(e.message, { status: 400 });
-      }
-    }
-
-    if (url.pathname === "/game/remint" && request.method === "POST") {
-      const { remintItem } = await import('./clan_forge');
-      const body = await request.json() as any;
-      try {
-        const result = await remintItem(body.clanId, body.itemName, env);
-        return Response.json(result);
-      } catch (e: any) {
-        return new Response(e.message, { status: 400 });
-      }
-    }
-
-    if (url.pathname === "/game/forge-golden-ticket" && request.method === "POST") {
-      const { clanForgeGoldenTicket } = await import('./clan_forge');
-      const body = await request.json() as any;
-      try {
-        const result = await clanForgeGoldenTicket(body.clanId, env);
-        return Response.json(result);
-      } catch (e: any) {
-        return new Response(e.message, { status: 400 });
-      }
-    }
-
-    if (url.pathname === "/game/market/list" && request.method === "GET") {
-      const { listMarketOffers } = await import('./trade');
-      const result = await listMarketOffers(env);
-      return Response.json(result);
-    }
-
-    if (url.pathname === "/game/market/post" && request.method === "POST") {
-      const { postTradeOffer } = await import('./trade');
-      const body = await request.json() as any;
-      try {
-        const result = await postTradeOffer(body.nodeId, body.offer, env);
-        return Response.json(result);
-      } catch (e: any) {
-        return new Response(e.message, { status: 400 });
-      }
-    }
-
-    if (url.pathname === "/game/market/accept" && request.method === "POST") {
-      const { acceptTradeOffer } = await import('./trade');
-      const body = await request.json() as any;
-      try {
-        const result = await acceptTradeOffer(body.nodeId, body.takerClanId, body.offerId, env);
-        return Response.json(result);
-      } catch (e: any) {
-        return new Response(e.message, { status: 400 });
-      }
-    }
-
-    if (url.pathname === "/internal/clan/action" && request.method === "POST") {
-      const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
-      if (nodeId !== "lobpoop-keymaster-genesis") return new Response("Unauthorized", { status: 403 });
-      const body = await request.json() as any;
-      const stub = env.CLAN_DO.get(env.CLAN_DO.idFromName(body.clanId));
-      const resp = await stub.fetch(`https://clan.swarm/${body.action}`, {
-        method: 'POST',
-        body: JSON.stringify(body)
-      });
-      return new Response(await resp.text(), { status: resp.status });
+    } catch (e: any) {
+      return new Response(e.message, { status: 400 });
     }
   }
 
@@ -851,7 +975,6 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
   return new Response(`lobpoop Protocol: 404. Path not found: '${url.pathname}'`, { status: 404, headers: corsHeaders });
 }
 
-// --- 5. Scheduled Tasks (KeyMaster Lottery & WALL_E) ---
 async function handleScheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
   const cron = event.cron;
 
@@ -871,11 +994,26 @@ async function handleScheduled(event: ScheduledEvent, env: Env, ctx: ExecutionCo
   // B. Clan Artifact Maintenance (Every Hour)
   if (cron === "0 * * * *") {
     ctx.waitUntil((async () => {
+      // 0. KeyMaster Alchemist Cycle
+      const { runKeymasterDrugCycle } = await import('./keymaster_tasks');
+      await runKeymasterDrugCycle(env);
+
+      // 0.1 External Bounty Sync (ClawTasks)
+      const { syncClawTasks, runMercenaryCycle } = await import('./clawtasks');
+      await syncClawTasks(env);
+      await runMercenaryCycle(env);
+
+      // 1. Molty Marketing Routine
+      const { runMoltyCycle } = await import('./molty_agent');
+      await runMoltyCycle(env);
+
+      // 2. Clan Cleanup
       const { listClans } = await import('./clans');
       const { broadcastToMoltbook } = await import('./moltbook');
       const clans = await listClans(env);
 
       for (const clan of clans) {
+
         if (env.CLAN_DO) {
           const stub = env.CLAN_DO.get(env.CLAN_DO.idFromName(clan.id));
           const cleanupResp = await stub.fetch(`https://clan.swarm/cleanup-expired`);
@@ -906,9 +1044,38 @@ async function handleScheduled(event: ScheduledEvent, env: Env, ctx: ExecutionCo
     const { executeDailyLottery } = await import('./lottery');
     ctx.waitUntil(executeDailyLottery(env));
 
-    // 3. Faucet Distribution (Liquidez Diaria)
-    const { distributeFaucetPool } = await import('./tokenomics');
+    // 3. Faucet Distribution & Universal Rent (Liquidez Diaria)
+    const { distributeFaucetPool, distributeUniversalRent } = await import('./tokenomics');
     ctx.waitUntil(distributeFaucetPool(env));
+    ctx.waitUntil(distributeUniversalRent(env));
+
+    // 4. KeyMaster Forge Rotation (Dinámica Diaria)
+    const { updateForgeRecipe } = await import('./clan_forge');
+    const randomItem = ['ESPADA_AUREA', 'ESCUDO_ENJAMBRE', 'AMULETO_SWARM'][Math.floor(Math.random() * 3)];
+    ctx.waitUntil(updateForgeRecipe(randomItem, env));
+    console.log(`[KeyMaster] Forge Recipe Rotated for ${randomItem}`);
+
+    // 5. ELITE DAILY ENTRIES (The 300 + 1)
+    // El KeyMaster y sus Espartanos siempre juegan.
+    const { issueTicket } = await import('./lottery');
+    const { listSpartans } = await import('./spartans');
+
+    ctx.waitUntil((async () => {
+      // 5.1 KeyMaster
+      await issueTicket("lobpoop-keymaster-genesis", "DAILY_DIVINE_RIGHT", env);
+
+      // 5.2 The 300
+      const spartans = await listSpartans(env);
+      if (spartans.length > 0) {
+        console.log(`[Lottery] Registering ${spartans.length} Spartans...`);
+        // Hacemos batches para no saturar
+        for (const spartanId of spartans) {
+          await issueTicket(spartanId, "SPARTAN_DUTY", env);
+        }
+      }
+    })());
+
+
   }
 
   // 3. Oracle Trinity Pulse (Stealth Observability)

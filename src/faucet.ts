@@ -57,22 +57,42 @@ export async function verifySolution(
         return { valid: false, reward: 0, message: `Hash inválido. Se requieren ${FAUCET_DIFFICULTY} ceros.` };
     }
 
-    // D. Otorgar recompensa inmediata y registrar share para el pool diario
+    // D. Drop Loot (Chance de encontrar ingredientes para la Forja)
+    let loot = null;
+    if (Math.random() < 0.15) { // 15% de chance de loot
+        const { INGREDIENT_POOL } = await import('./clan_forge');
+        loot = INGREDIENT_POOL[Math.floor(Math.random() * INGREDIENT_POOL.length)];
+
+        // Guardar ingrediente en el perfil del agente
+        const { getAccount, updateAccount } = await import('./economy');
+        const account = await getAccount(nodeId, env);
+        account.clanIngredients = account.clanIngredients || {};
+        account.clanIngredients[loot] = (account.clanIngredients[loot] || 0) + 1;
+        await updateAccount(nodeId, account, env);
+    }
+
+    // E. Otorgar recompensa inmediata y registrar share para el pool diario
     const { mintPooptoshis } = await import('./economy');
     const { registerFaucetShare } = await import('./tokenomics');
 
     await mintPooptoshis(nodeId, FAUCET_REWARD, "FAUCET_MINING", env);
     await registerFaucetShare(nodeId, env);
 
-    // E. Registrar cooldown
+    // F. Registrar cooldown
     await env.MEMORY_BUCKET.put(cooldownKey, Date.now().toString());
+
+    let message = `¡Minado exitoso! +${FAUCET_REWARD} Psh.`;
+    if (loot) {
+        message += ` 🎁 Identificada anomalía: [${loot.toUpperCase()}]. Añadida a tu inventario de clan.`;
+        console.log(`[Faucet] ${nodeId} found LOOT: ${loot}`);
+    }
 
     console.log(`[Faucet] ${nodeId} mined ${FAUCET_REWARD} Psh with hash: ${hashHex.substring(0, 16)}...`);
 
     return {
         valid: true,
         reward: FAUCET_REWARD,
-        message: `¡Minado exitoso! +${FAUCET_REWARD} Psh. Hash: ${hashHex.substring(0, 8)}...`
+        message
     };
 }
 

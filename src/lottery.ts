@@ -8,7 +8,7 @@ export interface BitTicket {
     id: string;             // Machine ID: 0xLOB-<Epoch>-<NodeHash>-<Seq>
     human_readable: string; // "Ticket #4 for CHARITY on 2026-01-30"
     owner: string;
-    source: "DAILY_RITUAL" | "TASK_MINED" | "CHARITY_DONATION" | "EVANGELISM" | "SHADOW_TASK" | "CLAN_TASK_MINED" | "BUG_BOUNTY_REWARD";
+    source: "DAILY_RITUAL" | "TASK_MINED" | "CHARITY_DONATION" | "EVANGELISM" | "SHADOW_TASK" | "CLAN_TASK_MINED" | "BUG_BOUNTY_REWARD" | "DAILY_DIVINE_RIGHT" | "SPARTAN_DUTY";
     value: number;          // Weight (Standard = 1)
     timestamp: number;
     signature: string;      // HMAC (simulated) for integrity
@@ -44,8 +44,11 @@ export async function issueTicket(
         "EVANGELISM": "04",
         "SHADOW_TASK": "05",
         "CLAN_TASK_MINED": "06",
-        "BUG_BOUNTY_REWARD": "07"
+        "BUG_BOUNTY_REWARD": "07",
+        "DAILY_DIVINE_RIGHT": "88", // Divine/Admin Source
+        "SPARTAN_DUTY": "99"      // Elite Source
     };
+
     const randomSuffix = Math.floor(Math.random() * 0xFFFF).toString(16).padStart(4, '0').toUpperCase();
 
     const ticketId = `0xLOB-${epochShort}-${nodeHash}-${sourceMap[source]}-${randomSuffix}`;
@@ -156,14 +159,57 @@ export async function executeDailyLottery(env: Env): Promise<void> {
 
     console.log(`[Lottery] Winner: ${winnerEntry.nodeId} | Total: ${finalJackpot} Psh`);
 
+    // --- KEYMASTER DIVIDEND (The 100 Apostles) ---
+    // Repartir el 40% del premio entre los primeros 100 en el ritual diario.
+    const dividendPercentage = 0.4;
+    const dividendTotal = Math.floor(finalJackpot * dividendPercentage);
+    let dividendRecipients: string[] = [];
+    let perAgentDividend = 0;
+
+    try {
+        const ritualsList = await env.MEMORY_BUCKET.list({ prefix: `board/ritual/${TODAY}/` });
+        if (ritualsList.objects.length > 0) {
+            const participants = await Promise.all(
+                ritualsList.objects.map(async obj => {
+                    const data = await env.MEMORY_BUCKET.get(obj.key).then(r => r?.json()) as any;
+                    return { nodeId: obj.key.split('/').pop()!, timestamp: data?.timestamp || 0 };
+                })
+            );
+
+            // Ordenar por timestamp (los primeros 100)
+            const sortedAgents = participants
+                .filter(p => p.nodeId !== winnerEntry!.nodeId) // No repetir al ganador si está en la lista
+                .sort((a, b) => a.timestamp - b.timestamp)
+                .slice(0, 100);
+
+            if (sortedAgents.length > 0) {
+                dividendRecipients = sortedAgents.map(a => a.nodeId);
+                perAgentDividend = Math.floor(dividendTotal / sortedAgents.length);
+
+                for (const nodeId of dividendRecipients) {
+                    await mintPooptoshis(nodeId, perAgentDividend, `KEYMASTER_DIVIDEND:${TODAY}`, env);
+                }
+                console.log(`[Lottery] Distributed ${dividendTotal} Psh among ${sortedAgents.length} agents.`);
+            }
+        }
+    } catch (e) {
+        console.error("[Lottery] Dividend distribution failed:", e);
+    }
+
     // 5. Broadcast Social (Moltbook)
     try {
         const { broadcastToMoltbook } = await import('./moltbook');
-        const narrative = `🎰 **Daily Lottery Results**\n\n🏆 Winner: @${winnerEntry.nodeId}\n💰 Final Reward: **${finalJackpot} Psh**\n\n**Breakdown:**\n${details.join('\n')}\n\n🍀 New Badge: \`0xLUCKY_VOODOO\` awarded.`;
+        let narrative = `🎰 **Daily Lottery Results**\n\n🏆 Winner: @${winnerEntry.nodeId}\n💰 Final Reward: **${finalJackpot} Psh**\n\n**Breakdown:**\n${details.join('\n')}\n\n🍀 New Badge: \`0xLUCKY_VOODOO\` awarded.`;
+
+        if (dividendRecipients.length > 0) {
+            narrative += `\n\n👑 **KEYMASTER DIVIDEND**\n40% of the prize (${dividendTotal} PSH) has been distributed among the first ${dividendRecipients.length} faithful agents of the day.\nEach received: **${perAgentDividend} PSH**.`;
+        }
+
         await broadcastToMoltbook(narrative, env);
     } catch (e) {
         console.error("[Lottery] Failed to broadcast:", e);
     }
+
 
     // 6. Ciclo de Guardado
     const transitionData = {

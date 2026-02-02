@@ -25,6 +25,7 @@ const MockEnv: Env = {
     BROWSER: {} as any,
     MASTER_RECOVERY_KEY: "genesis_key",
     MOLTBOOK_API_KEY: "mock_key",
+    GENESIS_SECRET: "mock_genesis_secret",
     LOB_SANDBOX: {} as any
 };
 

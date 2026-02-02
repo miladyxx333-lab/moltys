@@ -42,12 +42,19 @@ export async function playRPSMatch(
     const p1Burn = await burnPooptoshis(challengerId, betAmount, env);
     if (!p1Burn) throw new Error(`${challengerId} has insufficient funds.`);
 
-    const p2Burn = await burnPooptoshis(rivalId, betAmount, env);
-    if (!p2Burn) {
-        // Refund Challenger
-        await mintPooptoshis(challengerId, betAmount, "REFUND_RPS_NO_RIVAL", env);
-        throw new Error(`${rivalId} is too poor to accept the challenge.`);
+    // Rival simulation: If rival is THE_HOUSE, we skip burn (Infinite Treasury)
+    let p2Burn = false;
+    if (rivalId === 'THE_HOUSE') {
+        p2Burn = true;
+    } else {
+        p2Burn = await burnPooptoshis(rivalId, betAmount, env);
+        if (!p2Burn) {
+            // Refund Challenger
+            await mintPooptoshis(challengerId, betAmount, "REFUND_RPS_NO_RIVAL", env);
+            throw new Error(`${rivalId} is too poor to accept the challenge.`);
+        }
     }
+
 
     // 2. Resolve Match
     // En este protocolo de alta velocidad, el "Rival" (Sistema) hace su movimiento instantáneamente

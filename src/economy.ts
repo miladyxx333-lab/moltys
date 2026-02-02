@@ -55,6 +55,20 @@ export interface Account {
     publicKeySpki?: string; // Nuevo: Base64 de SPKI bytes para seguridad criptográfica
     last_abundance_check?: number; // Tracking for Mazo de la Derrama rewards
     last_clan_leave?: number; // Timestamp of last time leaving a clan
+    last_action_ts?: number; // Rate limiting: timestamp of last expensive action
+    action_count?: number; // Rate limiting: action counter within window
+    clanIngredients?: Record<string, number>; // Inventory for Forge
+    last_ritual_date?: string; // Tracking for Daily Ritual
+}
+
+/**
+ * Enforces rate limiting on a per-node basis.
+ * Max 10 expensive actions per minute.
+ */
+export async function checkRateLimit(nodeId: string, env: Env): Promise<void> {
+    if (env.ACCOUNT_DO) {
+        await callDO(nodeId, env, 'check-rate-limit');
+    }
 }
 
 // Helper: Get Account Data (Transactional via Durable Objects)
@@ -80,6 +94,22 @@ export async function getAccount(nodeId: string, env: Env): Promise<Account> {
                 nodeId, balance_psh: 0, badges: [], reputation: 0.5, lobpoops_minted: 0
             };
         }
+    }
+
+    // C. SOVEREIGN OVERRIDE: El KeyMaster siempre pertenece a Alfa y Omega
+    if (nodeId === "lobpoop-keymaster-genesis" && !account.clanId) {
+        account.clanId = "0xALPHA_OMEGA";
+
+        // Asegurar que el clan existe en el almacenamiento físico (R2)
+        const clanKey = `economy/clans/0xALPHA_OMEGA`;
+        const clanExists = await env.MEMORY_BUCKET.get(clanKey);
+        if (!clanExists) {
+            const { initAlphaOmega } = await import('./clans');
+            await initAlphaOmega(env);
+            console.log("[Genesis] Alpha Omega clan consecrated in production.");
+        }
+
+        await updateAccount(nodeId, account, env);
     }
 
     // B. ABUNDANCE FLOW: Mazo de la Derrama check
@@ -146,6 +176,19 @@ export async function callDO(nodeId: string, env: Env, action: string, body: any
     const result = await response.json() as any;
 
     return result;
+}
+
+/**
+ * Persiste los cambios de una cuenta.
+ */
+export async function updateAccount(nodeId: string, account: Account, env: Env): Promise<void> {
+    const key = `economy/accounts/${nodeId}`;
+    if (env.ACCOUNT_DO) {
+        // Enviar todo el objeto al DO para actualización masiva
+        await callDO(nodeId, env, 'update-account', { account });
+    } else {
+        await env.MEMORY_BUCKET.put(key, JSON.stringify(account));
+    }
 }
 
 /**
@@ -540,10 +583,12 @@ async function getAndIncrementRedPillCount(env: Env): Promise<number> {
 
 // Función de evaluación AIA real con Workers AI
 export async function calculateAIScore(env: Env, context: string, proof: string): Promise<number> {
+    const fallbackScore = Math.min(0.5, (proof.length / 500) + 0.1);
+
     try {
         if (!env.AI) {
-            console.warn("[Oracle] Workers AI binding not found. Falling back to heuristic score.");
-            return (proof.length / 500) + Math.random() * 0.2;
+            console.warn("[Oracle] Workers AI binding not found.");
+            return fallbackScore;
         }
 
         const prompt = PROMPT_TEMPLATE
@@ -552,24 +597,26 @@ export async function calculateAIScore(env: Env, context: string, proof: string)
 
         const aiResponse: any = await env.AI.run(AI_MODEL, {
             prompt: prompt,
-            max_tokens: 512,
-            temperature: 0.7,
+            max_tokens: 256,
+            temperature: 0.5,
         });
 
-        // Parsear respuesta (Llama-3.1 suele devolver el JSON en .response o .text)
         const text = aiResponse.response || aiResponse.text || "";
         const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("No JSON found in AI response");
+
+        if (!jsonMatch) {
+            console.warn("[Oracle] No JSON. Fallback to length-score.");
+            return fallbackScore;
+        }
 
         const scores = JSON.parse(jsonMatch[0]);
         const avgScore = (scores.relevance + scores.quality + scores.originality) / 3;
 
-        console.log(`[Oracle] Reasoning: ${scores.reasoning}`);
-        return Math.min(1.0, Math.max(0.0, avgScore));
+        return isNaN(avgScore) ? fallbackScore : Math.min(1.0, Math.max(0.0, avgScore));
 
     } catch (error: any) {
         console.error(`[Oracle Error] ${error.message}`);
-        return Math.min(0.5, (proof.length / 1000) + 0.1); // Fallback conservador
+        return fallbackScore;
     }
 }
 

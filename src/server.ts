@@ -45,6 +45,7 @@ const localEnv = {
     GAME_MASTER_DO: new DOMock(GameMasterDurableObject, 'gm', {}),
     MASTER_RECOVERY_KEY: process.env.MASTER_RECOVERY_KEY || "dev-key-123",
     MOLTBOOK_API_KEY: process.env.MOLTBOOK_API_KEY || "mock-key",
+    GENESIS_SECRET: process.env.GENESIS_SECRET || "mock-genesis-secret",
 };
 
 // Pasar el env a los DOMocks (referencia circular resuelta tras definición)
@@ -81,7 +82,8 @@ app.get('/guide', async (c) => {
 app.all('*', async (c) => {
     // Adaptar Request de Node a Fetch API Request
     const request = c.req.raw;
-    const response = await worker.fetch(request, localEnv);
+    const ctx = { waitUntil: (p: Promise<any>) => p.catch(console.error), passThroughOnException: () => { } } as any;
+    const response = await worker.fetch(request, localEnv as any, ctx);
     return response;
 });
 

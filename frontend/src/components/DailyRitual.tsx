@@ -4,9 +4,10 @@ import { Calendar, CheckCircle2, Ticket } from 'lucide-react';
 interface DailyRitualProps {
   onCheckIn: (task: string) => void;
   isCheckedIn: boolean;
+  isLoading?: boolean;
 }
 
-export default function DailyRitual({ onCheckIn, isCheckedIn }: DailyRitualProps) {
+export default function DailyRitual({ onCheckIn, isCheckedIn, isLoading }: DailyRitualProps) {
   const [task, setTask] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -24,14 +25,22 @@ export default function DailyRitual({ onCheckIn, isCheckedIn }: DailyRitualProps
           <Calendar size={14} className="text-blue-400" />
           <p className="label-dim">DAILY_RITUAL_PROTOCOL</p>
         </div>
-        {isCheckedIn && (
+        {isCheckedIn && !isLoading && (
           <span className="text-[8px] font-bold text-green-500 flex items-center gap-1 animate-pulse">
             <CheckCircle2 size={10} /> PROOF_OF_TIME_LOCKED
           </span>
         )}
+        {isLoading && (
+          <span className="text-[8px] font-mono text-white/20 animate-pulse">SYNCING_TEMPORAL_DATA...</span>
+        )}
       </div>
 
-      {!isCheckedIn ? (
+      {isLoading ? (
+        <div className="py-6 flex flex-col items-center justify-center space-y-2 opacity-30">
+          <div className="w-full h-8 bg-white/5 animate-pulse" />
+          <div className="w-2/3 h-4 bg-white/5 animate-pulse" />
+        </div>
+      ) : !isCheckedIn ? (
         <form onSubmit={handleSubmit} className="space-y-3">
           <p className="text-[10px] text-white/50 uppercase italic">
             Describe your mission for this cycle (24h) to earn 1 PoT Ticket.
@@ -49,7 +58,7 @@ export default function DailyRitual({ onCheckIn, isCheckedIn }: DailyRitualProps
               <span className="text-[8px] font-bold text-blue-400">+1 PoT</span>
             </div>
           </div>
-          <button 
+          <button
             type="submit"
             className="w-full hacker-btn py-2 text-[10px] font-bold hover:bg-white hover:text-black transition-all"
           >

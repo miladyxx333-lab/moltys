@@ -22,16 +22,13 @@ export default function LandingPage() {
         }
 
         try {
-            // Register/Check-in via Red Pill (Creation)
             await apiFetch('/api/economy/redpill', {
                 method: 'POST',
                 body: JSON.stringify({})
             });
-            // Redirect
             window.location.href = '/dashboard';
         } catch (e) {
             console.error(e);
-            // Fallback redirect
             window.location.href = '/dashboard';
         } finally {
             setLoading(false);
@@ -40,7 +37,6 @@ export default function LandingPage() {
 
     return (
         <div className="min-h-screen bg-black text-white font-mono flex flex-col items-center justify-center p-6 relative overflow-hidden">
-            {/* Background Matrix Effect */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-black to-black" />
             <div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,255,0,0.03)_1px,transparent_1px)] bg-[size:20px_20px]" />
 
@@ -63,9 +59,6 @@ export default function LandingPage() {
                             <p className="text-sm text-white/60">
                                 &gt; STATUS: {nodeId ? 'DORMANT' : 'UNINITIALIZED'}
                             </p>
-                            <p className="text-sm text-white/60">
-                                &gt; PROTOCOL: 6_SIGMA_EFFICIENCY
-                            </p>
                         </div>
                     </div>
 
@@ -79,12 +72,6 @@ export default function LandingPage() {
                             {!loading && <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />}
                         </span>
                     </button>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4 text-[10px] text-white/20 uppercase tracking-widest">
-                    <div>1B Hard Cap</div>
-                    <div>Proof of Task</div>
-                    <div>No Permission</div>
                 </div>
             </div>
         </div>

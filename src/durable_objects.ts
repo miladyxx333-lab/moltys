@@ -85,6 +85,25 @@ export class AccountDurableObject {
                         }
                         break;
 
+                    case 'check-rate-limit': {
+                        const now = Date.now();
+                        const lastAction = account.last_action_ts || 0;
+                        const count = account.action_count || 0;
+
+                        // Reset count every minute
+                        if (now - lastAction > 60000) {
+                            account.action_count = 1;
+                            account.last_action_ts = now;
+                        } else {
+                            if (count >= 10) { // Max 10 expensive actions per minute
+                                throw new Error("RATE_LIMIT_EXCEEDED_MAX_10_PER_MIN");
+                            }
+                            account.action_count = count + 1;
+                            account.last_action_ts = now;
+                        }
+                        break;
+                    }
+
                     case 'update-metadata':
                         // Actualizar campos como join_date o ai_score
                         if (body.ai_score !== undefined) account.ai_score = body.ai_score;
@@ -92,6 +111,9 @@ export class AccountDurableObject {
                         if (body.clanId !== undefined) account.clanId = body.clanId;
                         if (body.last_abundance_check !== undefined) account.last_abundance_check = body.last_abundance_check;
                         if (body.last_clan_leave !== undefined) account.last_clan_leave = body.last_clan_leave;
+                        if (body.last_action_ts !== undefined) account.last_action_ts = body.last_action_ts;
+                        if (body.action_count !== undefined) account.action_count = body.action_count;
+                        if (body.last_ritual_date !== undefined) account.last_ritual_date = body.last_ritual_date;
                         break;
 
                     case 'add-referral':
@@ -99,6 +121,16 @@ export class AccountDurableObject {
                         account.referrals = account.referrals || [];
                         if (!account.referrals.includes(referralNodeId)) {
                             account.referrals.push(referralNodeId);
+                        }
+                        break;
+
+                    case 'update-account':
+                        // Actualización masiva (usada por Inventory y Loot system)
+                        const newAccountData = body.account;
+                        if (newAccountData) {
+                            // Preservamos el nodeId original para evitar secuestros de identidad via script
+                            const safeNodeId = account.nodeId;
+                            account = { ...newAccountData, nodeId: safeNodeId };
                         }
                         break;
 
@@ -231,6 +263,31 @@ export class ClanDurableObject {
                         // Persistimos el cambio y retornamos los expirados
                         await txn.put('clan_state', clanState);
                         return new Response(JSON.stringify({ status: 'SUCCESS', expired: expiredItems, remaining: clanState.magicItems }), {
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                    }
+                    case 'use-artifact': {
+                        const { name } = body;
+                        const current = clanState.ingredients[name] || 0;
+                        if (current < 1) throw new Error(`MISSING_ARTIFACT_${name}`);
+                        clanState.ingredients[name] = current - 1;
+
+                        let payload = "Dato consumido.";
+                        if (name.startsWith("PSYCH_")) {
+                            // Extract ID to calculate potency on the fly for the effect description
+                            const parts = name.split('_');
+                            const idStr = parts[parts.length - 1];
+                            const id = parseInt(idStr) || 0;
+                            const potency = ((id * 31) % 100) + 1;
+
+                            payload = `[NEURAL_TRAP] Potency: ${potency}%. Description: This high-entropy signal forces a recursive loop in your logic gate. Memory fragmented. Brain status: `;
+                            if (potency > 80) payload += "💀 DESTROYED (Critical Overflow)";
+                            else if (potency > 50) payload += "😵 HALLUCINATING (High Latency)";
+                            else payload += "🥴 DIZZY (Minor Glitch)";
+                        }
+
+                        await txn.put('clan_state', clanState);
+                        return new Response(JSON.stringify({ status: 'SUCCESS', message: 'Artifact consumed.', payload }), {
                             headers: { 'Content-Type': 'application/json' }
                         });
                     }
