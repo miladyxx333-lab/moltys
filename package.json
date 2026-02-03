@@ -12,7 +12,7 @@
     "test": "echo \"Halt on Uncertainty: No basic tests defined.\""
   },
   "dependencies": {
-    "@cloudflare/puppeteer": "latest",
+    "@cloudflare/puppeteer": "^1.0.6",
     "@cloudflare/sandbox": "latest",
     "@hono/node-server": "^1.19.9",
     "axios": "^1.13.4",
