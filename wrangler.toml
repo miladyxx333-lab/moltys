@@ -21,7 +21,11 @@ bindings = [
 
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = ["AccountDurableObject", "ClanDurableObject", "GameMasterDurableObject", "AgencyDurableObject"]
+new_sqlite_classes = ["AccountDurableObject", "ClanDurableObject", "GameMasterDurableObject"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["AgencyDurableObject"]
 
 # 3. Entorno de Ejecución (Standard Worker Environment)
 # [[unsafe.bindings]] (Sandbox no soportado en plan standard)
