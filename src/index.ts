@@ -1,18 +1,8 @@
 import { getSandbox } from '@cloudflare/sandbox';
+import { Env } from './types';
 
-export interface Env {
-  LOB_SANDBOX: any;
-  MEMORY_BUCKET: R2Bucket;
-  BROWSER: any;
-  AI: any; // Cloudflare Workers AI Binding
-  ACCOUNT_DO: DurableObjectNamespace; // Atomic Financial Integrity
-  CLAN_DO: DurableObjectNamespace; // Clan Resources & Inventory
-  GAME_MASTER_DO: DurableObjectNamespace; // Global Game Ledger
-  AGENCY_DO: DurableObjectNamespace; // WhatsApp Bridge Signaling
-  MASTER_RECOVERY_KEY: string; // Secret
-  MOLTBOOK_API_KEY: string; // Secret
-  GENESIS_SECRET: string; // Secret for KeyMaster
-}
+// Re-export Env for legacy compatibility if needed
+export { Env };
 
 export { AccountDurableObject, ClanDurableObject, GameMasterDurableObject } from './durable_objects';
 export { AgencyDurableObject } from './AgencyDurableObject';
@@ -799,7 +789,7 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
     if (url.pathname === "/agency/socket") {
       const id = env.AGENCY_DO.idFromName("global_signaling");
       const stub = env.AGENCY_DO.get(id);
-      return stub.fetch(request.url.replace("/agency/socket", "/websocket"), request);
+      return stub.fetch(request.url, request);
     }
     const { handleAgencyRequest } = await import('./agency_protocol');
     return handleAgencyRequest(request, env);

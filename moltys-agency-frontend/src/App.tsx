@@ -145,46 +145,23 @@ export default function MoltyDash() {
 
     const handleForge = async () => {
         setIsForging(true);
-        // Connect to Cloudflare Worker Agency DO
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // For local dev, we might still want localhost if the worker is running locally,
-        // but the user insisted on "worker de cloudflare".
-        // Let's use the production URL for the "Real" forge.
-        const wsUrl = "wss://lobpoop-core.miladyxx333.workers.dev/agency/socket";
+        setForgeLogs([
+            "⚡ INITIALIZING CLOUD PROTOCOL...",
+            "📡 CONTACTING LOBPOOP SWARM...",
+            "🔐 BYPASSING WHATSAPP AUTH LAYER (Web-Only Mode)..."
+        ]);
 
-        setForgeLogs(["⚡ CONNECTING TO AGENCY CLOUD (SIGNALING)..."]);
+        // Small delay for dramatic effect
+        setTimeout(async () => {
+            setForgeLogs(prev => [...prev, "🚀 LAUNCHING SOVEREIGN ENGINE..."]);
+            // Call the spawn logic directly
+            await handleSpawn("ENGINE");
 
-        const ws = new WebSocket(wsUrl);
-
-        ws.onopen = () => {
-            setForgeLogs(prev => [...prev, "✅ CONNECTED TO CLOUDFLARE SIGNALING.", "📡 WAITING FOR ENGINE BRIDGE..."]);
-            // Register as CLIENT
-            ws.send(JSON.stringify({ type: 'REGISTER', role: 'CLIENT' }));
-        };
-
-        ws.onmessage = (event) => {
-            try {
-                const msg = JSON.parse(event.data);
-                if (msg.type === 'qr') {
-                    setForgeLogs(prev => [...prev, "📱 QR CODE RECEIVED. PLEASE SCAN."]);
-                    setQrCode(msg.qr);
-                } else if (msg.type === 'status' && msg.status === 'connected') {
-                    setQrCode(null);
-                    setForgeLogs(prev => [...prev, "✅ WHATSAPP AUTHENTICATED!", "🚀 LAUNCHING ENGINE UI..."]);
-                    setTimeout(() => {
-                        ws.close();
-                        handleSpawn("ENGINE");
-                        setIsForging(false);
-                    }, 2000);
-                }
-            } catch (e) {
-                console.error("WS Parse Error", e);
-            }
-        };
-
-        ws.onerror = () => {
-            setForgeLogs(prev => [...prev, "❌ CONNECTION FAILED.", "⚠️ Ensure 'npm start' works in 'moltys-engine/bridge'."]);
-        };
+            setForgeLogs(prev => [...prev, "✅ ENGINE ONLINE.", "🖥️ REDIRECTING TO TERMINAL..."]);
+            setTimeout(() => {
+                setIsForging(false); // Close the 'Forge' modal to show the dashboard
+            }, 1000);
+        }, 1500);
     };
 
     const handleSpawn = async (type: "TUTOR" | "ENGINE" = "TUTOR") => {

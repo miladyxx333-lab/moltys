@@ -2,7 +2,7 @@
 // --- Durable Object: Agency Bridge (Signal Server) ---
 // Handles WebSocket coordination between Browser and Engine Bridge.
 
-import { Env } from './index';
+import { Env } from './types';
 
 export class AgencyDurableObject {
     state: DurableObjectState;
@@ -16,24 +16,25 @@ export class AgencyDurableObject {
     }
 
     async fetch(request: Request): Promise<Response> {
-        const url = new URL(request.url);
-
-        if (url.pathname === "/websocket") {
+        try {
             const upgradeHeader = request.headers.get('Upgrade');
-            if (!upgradeHeader || upgradeHeader !== 'websocket') {
+            if (!upgradeHeader || upgradeHeader.toLowerCase() !== 'websocket') {
                 return new Response('Expected Upgrade: websocket', { status: 426 });
             }
 
-            const [client, server] = Object.values(new WebSocketPair());
+            const pair = new WebSocketPair();
+            const client = pair[0];
+            const server = pair[1];
+
             await this.handleSession(server);
 
             return new Response(null, {
                 status: 101,
                 webSocket: client,
             });
+        } catch (e: any) {
+            return new Response(`DO Error: ${e.message}\n${e.stack}`, { status: 500 });
         }
-
-        return new Response("Not found", { status: 404 });
     }
 
     async handleSession(ws: WebSocket) {

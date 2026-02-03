@@ -1,5 +1,5 @@
 
-import { Env } from './index';
+import { Env } from './types';
 import { Account } from './economy';
 
 // --- Durable Object: Account Security & Integrity ---
