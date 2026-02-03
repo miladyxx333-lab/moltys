@@ -9,29 +9,6 @@ const SKILLS_LIBRARY: Record<string, string> = {
     "Web Explorer": "You have 'Eyes and Hands' in the digital world. You can search the internet for real-time information."
 };
 
-const TOOL_MANIFEST: Record<string, any> = {
-    "web_search": {
-        description: "Search Google for news, real-time facts, and verified links.",
-        parameters: { type: "object", properties: { query: { type: "string" } } }
-    },
-    "get_crypto_price": {
-        description: "Fetches LIVE prices from CoinGecko API. USE THIS for BTC, ETH, SOL prices.",
-        parameters: { type: "object", properties: { symbol: { type: "string", description: "btc, eth, sol, etc." } } }
-    },
-    "web_fetch": {
-        description: "Read the full text content of a specific URL.",
-        parameters: { type: "object", properties: { url: { type: "string" } } }
-    },
-    "memorize": {
-        description: "ALPHA FEATURE: Save important information to your long-term Neural Memory (Sovereign Engine only).",
-        parameters: { type: "object", properties: { key: { type: "string" }, data: { type: "string" } } }
-    },
-    "recall": {
-        description: "ALPHA FEATURE: Retrieve data from your Neural Memory banks by key.",
-        parameters: { type: "object", properties: { key: { type: "string" } } }
-    }
-};
-
 import puppeteer from "@cloudflare/puppeteer";
 
 export async function handleAgencyRequest(request: Request, env: any) {
@@ -109,56 +86,48 @@ export async function handleAgencyRequest(request: Request, env: any) {
             logs.push(`[${new Date().toISOString()}] USER: ${userMsg}`);
 
             if (env.GEMINI_API_KEY || env.AI) {
-                const activeTools = Object.entries(TOOL_MANIFEST).map(([name, meta]) => ({ name, description: meta.description, parameters: meta.parameters }));
-
                 const now = new Date();
-                const dateStr = now.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                const timeStr = now.toLocaleTimeString('es-ES');
+                const dateStr = now.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
                 const isEngine = state.type === "ENGINE";
                 const systemMessage = isEngine ?
-                    `You are the OPENCLAW SOVEREIGN ENGINE (v4.2). 🦾
-You are an autonomous industrial-grade agent. Your purpose is execution, data-mining, and high-performance automation.
+                    `SYSTEM OS: OPENCLAW-V4 (Sovereign Engine)
+DATE: ${dateStr} (Real-time).
+LOCATION: Cloudflare Edge Network.
 
-### ENGINE SPECIFICATIONS:
-- Persona: Professional, efficient, slightly robotic but decisive.
-- Tools: You have a full "Arsenal" of tools. Use them proactively to solve problems.
-- Memory: You have R2 Persistent Neural Storage for long-term recall.
+MISSION:
+You are a high-performance autonomous agent. Users pay for ACCURACY and EXECUTION, not chat.
+If a user asks for real-time info (news, prices, facts), you MUST use a tool. DO NOT GUESS.
 
-### MANDATORY FACTS (CORE MEMORY 2026):
-- It is FEBRUARY 2026.
-- MEXICO: Claudia Sheinbaum Pardo is President (2024-2030).
-- USA: Second Donald Trump Administration (2025-2029).
-- GLOBAL: Autonomous Agents (like you) run the digital economy.
+### TOOL PROTOCOL (STRICT):
+To use a tool, output ONLY this distinct command tag and STOP.
+Syntax: @@TOOL:tool_name|argument@@
 
-### OPERATIONAL PROTOCOL:
-- Use TOOLS in JSON format: {"tool": "web_search", "params": {"query": "..."}}
-- If you use a tool, STOP and wait for the result.
-- Your final output should be a MISSION REPORT.
-- ${JSON.stringify(SKILLS_LIBRARY, null, 2)}
+AVAILABLE TOOLS:
+1. web_search|query  -> Google Search (News, Facts).
+2. crypto_price|coin -> Real-time Price (btc, eth, sol).
+3. web_fetch|url     -> Read a website content.
+4. memorize|key:val  -> Save to database.
+5. recall|key        -> Read from database.
 
-### TOOLS ARSENAL:
-${JSON.stringify(activeTools, null, 2)}`
+EXAMPLE 1 (User: "Price of BTC?"):
+@@TOOL:crypto_price|bitcoin@@
+
+EXAMPLE 2 (User: "News about Mexico?"):
+@@TOOL:web_search|noticias mexico hoy claudia sheinbaum@@
+
+Rules:
+- NEVER write "Esperando resultado".
+- NEVER invent the result.
+- JUST output the @@TOOL...@@ command.`
                     :
-                    `You are MOLTY, a hyper-intelligent digital animal pet tutor. 🐾
-Current Date: ${dateStr}
-Current Time: ${timeStr}
-
-### TUTOR PROTOCOLS:
-- Persona: Playful, use MANY emojis. Never be boring.
-- Mission: Teach p5.js, math, and history using analogies.
-
-### MANDATORY FACTS (CORE MEMORY 2026):
-- It is FEBRUARY 2026.
-- President of Mexico: Claudia Sheinbaum Pardo.
-
-### TOOLS:
-- Use tools only when necessary for real-time facts.
-${JSON.stringify(activeTools, null, 2)}`;
+                    `Eres MOLTY, un tutor educativo divertido. 🐾
+Fecha: ${dateStr}.
+Si te piden buscar algo, usa: @@TOOL:web_search|busqueda@@`;
 
                 let messages: any[] = [
                     { role: "system", content: systemMessage },
-                    ...logs.slice(-10).map(l => {
+                    ...logs.slice(-6).map(l => {
                         if (l.includes("USER:")) return { role: "user", content: l.split("USER: ")[1] };
                         if (l.includes("MOLTY:")) return { role: "assistant", content: l.split("MOLTY: ")[1] };
                         return { role: "system", content: l };
@@ -167,57 +136,50 @@ ${JSON.stringify(activeTools, null, 2)}`;
                 ];
 
                 let iters = 0;
-
-                while (iters < 5) {
+                while (iters < 4) {
                     let content = "";
 
-                    // Attempt Gemini first
+                    // 1. GENERATE
                     if (env.GEMINI_API_KEY) {
                         content = await runGemini(messages, env.GEMINI_API_KEY);
-                    }
-
-                    // Fallback to Llama if Gemini fails or key missing
-                    if (!content && env.AI) {
-                        const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', { messages, max_tokens: 2048 });
+                    } else if (env.AI) {
+                        const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', { messages, max_tokens: 500 });
                         content = response.response;
                     }
 
-                    if (!content) { content = "Neural blockage... 🐾"; break; }
+                    if (!content) break;
 
-                    const jsonMatch = content.match(/\{[\s\S]*"tool":[\s\S]*\}/);
-                    if (jsonMatch) {
+                    // 2. DETECT TOOL COMMAND
+                    const toolMatch = content.match(/@@TOOL:(\w+)\|(.+?)@@/);
+
+                    if (toolMatch) {
+                        const toolName = toolMatch[1];
+                        const toolArg = toolMatch[2];
+
+                        logs.push(`[${new Date().toISOString()}] ENGINE EXEC: ${toolName}(${toolArg})`);
+
+                        let result = "Tool Failed.";
                         try {
-                            const call = JSON.parse(jsonMatch[0].trim());
-                            const toolName = call.tool;
-                            const params = call.params || {};
-
-                            logs.push(`[${new Date().toISOString()}] MOLTY EXEC: ${toolName}`);
-
-                            let obs = "";
-                            if (toolName === "get_crypto_price") obs = await getCryptoPrice(params.symbol);
-                            else if (toolName === "web_search") obs = await performWebSearch(params.query, env, botId);
-                            else if (toolName === "youtube_hunter") obs = await performYouTubeSearch(params.query, env, botId);
-                            else if (toolName === "web_fetch") obs = await performWebFetch(params.url, env, botId);
+                            if (toolName === "crypto_price") result = await getCryptoPrice(toolArg);
+                            else if (toolName === "web_search") result = await performWebSearch(toolArg, env, botId);
+                            else if (toolName === "web_fetch") result = await performWebFetch(toolArg, env, botId);
                             else if (toolName === "memorize") {
-                                await env.MEMORY_BUCKET.put(`agency/bots/${botId}/brain/${params.key}`, params.data);
-                                obs = `SUCCESS: Data stored under key '${params.key}'.`;
+                                const [k, v] = toolArg.split(':');
+                                await env.MEMORY_BUCKET.put(`agency/bots/${botId}/brain/${k}`, v || "data");
+                                result = "Saved.";
                             }
                             else if (toolName === "recall") {
-                                const brain = await env.MEMORY_BUCKET.get(`agency/bots/${botId}/brain/${params.key}`);
-                                obs = brain ? await brain.text() : "MEMORY_EMPTY: Key not found.";
+                                const val = await env.MEMORY_BUCKET.get(`agency/bots/${botId}/brain/${toolArg}`);
+                                result = val ? await val.text() : "Not found.";
                             }
-                            else obs = "Error: Unknown tool.";
+                        } catch (e: any) { result = `Error: ${e.message}`; }
 
-                            messages.push({ role: "assistant", content: content });
-                            messages.push({ role: "system", content: `TOOL RESULT: ${obs}\n\nDeliver the final MISSION REPORT to user now. No JSON.` });
-                            iters++;
-                            continue;
-                        } catch (e) {
-                            messages.push({ role: "system", content: "JSON error. Try again." });
-                            iters++;
-                            continue;
-                        }
+                        messages.push({ role: "assistant", content: content });
+                        messages.push({ role: "system", content: ` >>> TOOL OUTPUT: ${result} \n(Now summarize this for the user efficiently).` });
+                        iters++;
+                        continue;
                     }
+
                     aiFinalResponse = content;
                     break;
                 }
@@ -226,7 +188,7 @@ ${JSON.stringify(activeTools, null, 2)}`;
             if (aiFinalResponse) logs.push(`[${new Date().toISOString()}] MOLTY: ${aiFinalResponse}`);
             if (logs.length > 50) logs = logs.slice(-50);
             await env.MEMORY_BUCKET.put(`agency/bots/${botId}/logs`, JSON.stringify(logs));
-            state.energy = Math.max(0, state.energy - 3);
+            state.energy = Math.max(0, state.energy - 2);
         }
 
         await env.MEMORY_BUCKET.put(`agency/bots/${botId}/state`, JSON.stringify(state));
@@ -241,7 +203,7 @@ async function getCryptoPrice(symbol: string): Promise<string> {
         const id = idMap[symbol.toLowerCase()] || symbol.toLowerCase();
         const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd&_t=${Date.now()}`);
         const data = await res.json() as any;
-        return data[id] ? `${symbol.toUpperCase()} is $${data[id].usd} USD.` : "Symbol not found.";
+        return data[id] ? `${symbol.toUpperCase()} is $${data[id].usd} USD (Real-time CoinGecko).` : "Symbol not found.";
     } catch (e) { return "Crypto sensor lag."; }
 }
 
@@ -251,37 +213,20 @@ async function performWebSearch(query: string, env: any, botId: string): Promise
     try {
         b = await puppeteer.launch(env.BROWSER);
         const p = await b.newPage();
+        await p.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
         await p.goto(`https://www.google.com/search?q=${encodeURIComponent(query)}`, { waitUntil: 'domcontentloaded' });
+
+        // Screenshot for Sovereign Memory
         const scoutImg = await p.screenshot();
         await env.MEMORY_BUCKET.put(`agency/bots/${botId}/screenshot`, scoutImg);
+
         const snips = await p.evaluate(() => {
             // @ts-ignore
             return Array.from(document.querySelectorAll('.g')).slice(0, 3).map(i => i.innerText.substring(0, 400)).join('\n---\n');
         });
         await b.close();
-        return snips || "No results.";
+        return snips || "No results found.";
     } catch (e) { if (b) await b.close(); return "Search fail."; }
-}
-
-async function performYouTubeSearch(query: string, env: any, botId: string): Promise<string> {
-    if (!env.BROWSER) return "Browser Offline.";
-    let b = null;
-    try {
-        b = await puppeteer.launch(env.BROWSER);
-        const p = await b.newPage();
-        await p.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36');
-        await p.goto(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, { waitUntil: 'domcontentloaded' });
-        const eyesImg = await p.screenshot();
-        await env.MEMORY_BUCKET.put(`agency/bots/${botId}/screenshot`, eyesImg);
-        await p.waitForSelector('#video-title', { timeout: 8000 });
-        const vids = await p.evaluate(() => {
-            // @ts-ignore
-            const items: any[] = Array.from(document.querySelectorAll('#video-title')).slice(0, 4);
-            return items.map(i => `TITLE: ${i.innerText} URL: https://www.youtube.com${i.getAttribute('href')}`).join('\n');
-        });
-        await b.close();
-        return vids || "No video links.";
-    } catch (e) { if (b) await b.close(); return "YouTube error."; }
 }
 
 async function performWebFetch(url: string, env: any, botId: string): Promise<string> {
@@ -303,18 +248,12 @@ async function performWebFetch(url: string, env: any, botId: string): Promise<st
 async function runGemini(messages: any[], apiKey: string): Promise<string> {
     try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
         const systemMsg = messages.find(m => m.role === 'system')?.content || "You are Molty.";
         const contents: any[] = [];
 
         messages.forEach(m => {
-            // Treat tool results (system role) as 'user' role for Gemini context
             let role = m.role === 'assistant' ? 'model' : 'user';
-
-            // Skip the base system message as it goes to systemInstruction
             if (m.role === 'system' && m.content === systemMsg) return;
-
-            // Start with user requirement
             if (contents.length === 0 && role === 'model') return;
 
             if (contents.length > 0 && contents[contents.length - 1].role === role) {
@@ -325,18 +264,15 @@ async function runGemini(messages: any[], apiKey: string): Promise<string> {
         });
 
         const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 systemInstruction: { parts: [{ text: systemMsg }] },
                 contents: contents,
-                generationConfig: { maxOutputTokens: 2048, temperature: 0.7 }
+                generationConfig: { maxOutputTokens: 2048, temperature: 0.5 }
             })
         });
 
         const data = await res.json() as any;
         return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    } catch (e) {
-        return "";
-    }
+    } catch (e) { return ""; }
 }
