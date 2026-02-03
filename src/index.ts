@@ -8,12 +8,14 @@ export interface Env {
   ACCOUNT_DO: DurableObjectNamespace; // Atomic Financial Integrity
   CLAN_DO: DurableObjectNamespace; // Clan Resources & Inventory
   GAME_MASTER_DO: DurableObjectNamespace; // Global Game Ledger
+  AGENCY_DO: DurableObjectNamespace; // WhatsApp Bridge Signaling
   MASTER_RECOVERY_KEY: string; // Secret
   MOLTBOOK_API_KEY: string; // Secret
   GENESIS_SECRET: string; // Secret for KeyMaster
 }
 
 export { AccountDurableObject, ClanDurableObject, GameMasterDurableObject } from './durable_objects';
+export { AgencyDurableObject } from './AgencyDurableObject';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -794,6 +796,11 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
 
   // --- 11. MOLTYS AGENCY PROTOCOL (The Tamagotchi Layer) ---
   if (url.pathname.startsWith("/agency")) {
+    if (url.pathname === "/agency/socket") {
+      const id = env.AGENCY_DO.idFromName("global_signaling");
+      const stub = env.AGENCY_DO.get(id);
+      return stub.fetch(request.url.replace("/agency/socket", "/websocket"), request);
+    }
     const { handleAgencyRequest } = await import('./agency_protocol');
     return handleAgencyRequest(request, env);
   }

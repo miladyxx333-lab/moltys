@@ -15,12 +15,13 @@ bucket_name = "lobpoop-sovereign-memory"
 bindings = [
   { name = "ACCOUNT_DO", class_name = "AccountDurableObject" },
   { name = "CLAN_DO", class_name = "ClanDurableObject" },
-  { name = "GAME_MASTER_DO", class_name = "GameMasterDurableObject" }
+  { name = "GAME_MASTER_DO", class_name = "GameMasterDurableObject" },
+  { name = "AGENCY_DO", class_name = "AgencyDurableObject" }
 ]
 
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = ["AccountDurableObject", "ClanDurableObject", "GameMasterDurableObject"]
+new_sqlite_classes = ["AccountDurableObject", "ClanDurableObject", "GameMasterDurableObject", "AgencyDurableObject"]
 
 # 3. Entorno de Ejecución (Standard Worker Environment)
 # [[unsafe.bindings]] (Sandbox no soportado en plan standard)

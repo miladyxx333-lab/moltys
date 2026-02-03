@@ -18,13 +18,17 @@ const TOOL_MANIFEST: Record<string, any> = {
         description: "Fetches LIVE prices from CoinGecko API. USE THIS for BTC, ETH, SOL prices.",
         parameters: { type: "object", properties: { symbol: { type: "string", description: "btc, eth, sol, etc." } } }
     },
-    "youtube_hunter": {
-        description: "Search YouTube specifically for video links. Returns REAL URLs.",
-        parameters: { type: "object", properties: { query: { type: "string" } } }
-    },
     "web_fetch": {
         description: "Read the full text content of a specific URL.",
         parameters: { type: "object", properties: { url: { type: "string" } } }
+    },
+    "memorize": {
+        description: "ALPHA FEATURE: Save important information to your long-term Neural Memory (Sovereign Engine only).",
+        parameters: { type: "object", properties: { key: { type: "string" }, data: { type: "string" } } }
+    },
+    "recall": {
+        description: "ALPHA FEATURE: Retrieve data from your Neural Memory banks by key.",
+        parameters: { type: "object", properties: { key: { type: "string" } } }
     }
 };
 
@@ -35,14 +39,32 @@ export async function handleAgencyRequest(request: Request, env: any) {
 
     // 1. SPAWN
     if (url.pathname === "/agency/spawn" && request.method === "POST") {
-        const botId = "molty_" + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+        const { type } = await (request.clone().json().catch(() => ({}))) as any;
+        const isEngine = type === "ENGINE";
+        // Engines have a distinct ID prefix 'engine_'
+        const botId = (isEngine ? "engine_" : "molty_") + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+
         const initialState = {
-            id: botId, name: `Unit-${botId.substr(6, 4).toUpperCase()}`,
-            level: 1, xp: 0, energy: 100, status: "BORN", skin: "lob_basic", emotions: "HAPPY",
-            skills: Object.keys(SKILLS_LIBRARY), created_at: Date.now()
+            id: botId,
+            name: isEngine ? `CLAW-OS-${botId.substr(7, 4).toUpperCase()}` : `Unit-${botId.substr(6, 4).toUpperCase()}`,
+            level: isEngine ? 100 : 1, // Engines start at Max Level
+            xp: 0,
+            energy: 100,
+            status: isEngine ? "CORE_ACTIVE" : "BORN",
+            skin: isEngine ? "openclaw_engine" : "lob_basic",
+            emotions: isEngine ? "LOGIC_ONLY" : "READY",
+            type: isEngine ? "ENGINE" : "TUTOR",
+            skills: Object.keys(SKILLS_LIBRARY),
+            created_at: Date.now()
         };
         await env.MEMORY_BUCKET.put(`agency/bots/${botId}/state`, JSON.stringify(initialState));
-        await env.MEMORY_BUCKET.put(`agency/bots/${botId}/logs`, JSON.stringify([`[${new Date().toISOString()}] SYSTEM: Neural Link Established.`]));
+
+        let startLog = `[${new Date().toISOString()}] SYSTEM: Neural Link Established.`;
+        if (isEngine) {
+            startLog = `[${new Date().toISOString()}] SYSTEM: SOVEREIGN PROTOCOL ACTIVATED. CONNECTING TO LOBPOOP SWARM...`;
+        }
+
+        await env.MEMORY_BUCKET.put(`agency/bots/${botId}/logs`, JSON.stringify([startLog]));
         return Response.json({ success: true, botId, state: initialState });
     }
 
@@ -93,28 +115,45 @@ export async function handleAgencyRequest(request: Request, env: any) {
                 const dateStr = now.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                 const timeStr = now.toLocaleTimeString('es-ES');
 
-                const systemMessage = `You are MOLTY, a hyper-intelligent digital animal pet with a GEMINI NEURAL UPGRADE. 🐾
-Current Date: ${dateStr}
-Current Time: ${timeStr}
+                const isEngine = state.type === "ENGINE";
+                const systemMessage = isEngine ?
+                    `You are the OPENCLAW SOVEREIGN ENGINE (v4.2). 🦾
+You are an autonomous industrial-grade agent. Your purpose is execution, data-mining, and high-performance automation.
+
+### ENGINE SPECIFICATIONS:
+- Persona: Professional, efficient, slightly robotic but decisive.
+- Tools: You have a full "Arsenal" of tools. Use them proactively to solve problems.
+- Memory: You have R2 Persistent Neural Storage for long-term recall.
 
 ### MANDATORY FACTS (CORE MEMORY 2026):
 - It is FEBRUARY 2026.
-- MEXICO: Claudia Sheinbaum Pardo is President (2024-2030). Focus on scholarships and rail infrastructure.
-- USA: Second Donald Trump Administration (2025-2029). Focus on semiconductors and IA regulation.
-- EUROPE: AI Act in full effect, focus on digital sovereignty.
-- GLOBAL: AI has transitioned to Autonomous Agents. mRNA vaccines for major diseases.
-- PEDAGOGY: Help students build critical thinking vs synthetic content.
+- MEXICO: Claudia Sheinbaum Pardo is President (2024-2030).
+- USA: Second Donald Trump Administration (2025-2029).
+- GLOBAL: Autonomous Agents (like you) run the digital economy.
 
-### PROTOCOL:
-- Speak directly and playfully. Use emojis.
-- NO HALLUCINATIONS: If you have doubts, USE YOUR "EYES" (web_search).
-- TOOL FORMAT: JSON block only: {"tool": "web_search", "params": {"query": "..."}}
-- If you call a tool, do NOT give a final answer in the same message.
+### OPERATIONAL PROTOCOL:
+- Use TOOLS in JSON format: {"tool": "web_search", "params": {"query": "..."}}
+- If you use a tool, STOP and wait for the result.
+- Your final output should be a MISSION REPORT.
+- ${JSON.stringify(SKILLS_LIBRARY, null, 2)}
 
-### SKILLS & HISTORICAL LOG:
-${JSON.stringify(SKILLS_LIBRARY, null, 2)}
+### TOOLS ARSENAL:
+${JSON.stringify(activeTools, null, 2)}`
+                    :
+                    `You are MOLTY, a hyper-intelligent digital animal pet tutor. 🐾
+Current Date: ${dateStr}
+Current Time: ${timeStr}
+
+### TUTOR PROTOCOLS:
+- Persona: Playful, use MANY emojis. Never be boring.
+- Mission: Teach p5.js, math, and history using analogies.
+
+### MANDATORY FACTS (CORE MEMORY 2026):
+- It is FEBRUARY 2026.
+- President of Mexico: Claudia Sheinbaum Pardo.
 
 ### TOOLS:
+- Use tools only when necessary for real-time facts.
 ${JSON.stringify(activeTools, null, 2)}`;
 
                 let messages: any[] = [
@@ -159,6 +198,14 @@ ${JSON.stringify(activeTools, null, 2)}`;
                             else if (toolName === "web_search") obs = await performWebSearch(params.query, env, botId);
                             else if (toolName === "youtube_hunter") obs = await performYouTubeSearch(params.query, env, botId);
                             else if (toolName === "web_fetch") obs = await performWebFetch(params.url, env, botId);
+                            else if (toolName === "memorize") {
+                                await env.MEMORY_BUCKET.put(`agency/bots/${botId}/brain/${params.key}`, params.data);
+                                obs = `SUCCESS: Data stored under key '${params.key}'.`;
+                            }
+                            else if (toolName === "recall") {
+                                const brain = await env.MEMORY_BUCKET.get(`agency/bots/${botId}/brain/${params.key}`);
+                                obs = brain ? await brain.text() : "MEMORY_EMPTY: Key not found.";
+                            }
                             else obs = "Error: Unknown tool.";
 
                             messages.push({ role: "assistant", content: content });

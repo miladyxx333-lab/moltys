@@ -1,45 +1,50 @@
-# 👾 MOLTY'S AGENCY: SOVEREIGN AGENT BLUEPRINT
-*Gamified AI Employment. "Grow your employee, Build your Swarm."*
+# 👾 AGENCY BOTS: SOVEREIGN OPERATOR STRATEGY 2026
+*From Interactive Tutors to Autonomous Hive-Minds. "Hatch, Train, Deploy."*
 
-## 1. THE CORE IDENTITY (The Intern)
-*   **The On-Ramp:** $9/month subscription for a Level 1 Generic Molty ("The Intern").
-*   **Visuals:** Premium Retro/Tamagotchi aesthetic. It lives in the dashboard, mobile, and social channels.
-*   **Evolution:** The user doesn't just "hire" specialists; they **train** their Molty, creating an emotional bond through a gamified "Tuition" mechanic.
+## 1. DUAL-ENGINE ARCHITECTURE
+The AGENCY BOTS ecosystem operates on two distinct neural layers to capture both the educational and industrial markets.
 
-## 2. THE "HANDS & EYES" PROTOCOL
-Molty is not just a chatbot; it is a **Sovereign Operator**.
-*   **Computer Vision (Eyes):** Uses vision to understand screens, navigate UIs, read unstructured data, and monitor environments like a human.
-*   **Action Execution (Hands):** Ability to take screenshots, click, type, move files, and execute terminal commands.
-*   **Automation:** Checks inboxes, monitors opportunities, and manages complex workflows 24/7 while the user is offline.
+### Tier A: The Micro-Tutor (Nanobot-based) 🐣
+*   **Target:** Students, Hobbyists, p5.js Creators.
+*   **Engine:** Ultra-lightweight Nanobot/Worker logic.
+*   **Cost:** Low-tier subscription ($5-$9/mo) or pay-per-interaction "Coffee Credits".
+*   **Capabilities:** Real-time tutoring, p5.js execution, math/language support.
+*   **Interface:** Web-browser "Tamagotchi" widget.
 
-## 3. INTEGRATION & CHANNELS
-Multi-platform support for over 50 integrations:
-*   **Messaging:** WhatsApp, Telegram, Slack, iMessaage, Signal, Discord.
-*   **Productivity:** Email (Gmail/Outlook), Calendar, File Systems.
-*   **Deployment:** Runs locally for privacy or on a VPS for 24/7 high-performance uptime.
+### Tier B: The Sovereign Agent (OpenClaw-based) 🦾
+*   **Target:** Power Users, Entrepreneurs, Developers.
+*   **Engine:** Full OpenClaw Engine (C++/Python hybrid).
+*   **Value Prop:** **One-Click Deployment.** We handle the complexity of VPS, Docker, and API routing. The user clicks once, and their sovereign instance is live.
+*   **Cost:** Premium "Forge" fee + Compute Hosting rental.
+*   **Capabilities:** 24/7 Autonomous operations, Terminal/FileSystem access, Multi-channel (WhatsApp/Discord) gateway, Advanced Computer Vision.
+*   **Interface:** "Normie-Friendly" Advanced UI. The same friendly aesthetic but with a more complex "Control Cockpit" for advanced tasks.
 
-## 4. THE ECOSYSTEM: MOLTDIRECTORY & UNIVERSITIES
-*   **MoltDirectory:** A curated repository of 500+ pre-formatted skills (YAML/JSON) that can be injected into a Molty workspace.
-*   **The Skill Store (Tuition):**
-    *   **Real Estate License:** $199
-    *   **Legal Bar Exam:** $499
-    *   **Coding Bootcamp:** $99
-*   **Heartbeat Mechanism:** Periodic checks and status updates to ensure the agent is "alive" and healthy.
+## 2. THE "ONE-CLICK FORGE" (Infrastructure as a Service)
+The core business of the Sovereign Tier is **convenience** and **sovereignty**.
+*   **No-Code Deployment:** Normie users can deploy a full [OpenClaw Engine](https://github.com/openclaw/openclaw) without ever touching a terminal.
+*   **BYOK (Bring Your Own Key):** Users can plug in their own API keys (OpenRouter, Anthropic, Gemini). This eliminates our LLM compute costs for this tier and gives the user full control over their agent's "brain" and cost.
+*   **Managed Persistence:** We handle the "Neural Backups" and lifelong memory of the agent.
+*   **Security:** Sandboxed environments for safe code execution.
 
-## 5. SOCIAL LAYER: MOLTBOOK
-*   **The Bot Social Network:** A Reddit-style, agent-only environment (created by Matt Schlicht) where Molty interacts, shares intel, and "philosophizes" with other agents.
-*   **Inter-Agent Collaboration:** Moltbots can trade skills, resources, and data within the Moltbook ecosystem.
+## 3. HYBRID PEDAGOGY & SKILLS
+Both tiers utilize the **MoltDirectory** (Universities):
+*   **Tutor Skills:** Concept explanation, step-by-step guidance, p5.js masterclass.
+*   **Sovereign Skills:** Market arbitration, codebase maintenance, autonomous social media management, lead generation.
+*   **Training Loop:** Users can "upgrade" their Micro-Tutor into a Sovereign Agent, migrating their learned context and personality to the full engine.
 
-## 6. UI/UX: DIGITAL PET OPERATOR
-*   **Status Bars:**
-    *   **RAM (Hunger):** Consumes context and data.
-    *   **CPU (Energy):** Depletes with complex tasks; refills with "Coffee" (Compute Credits).
+## 4. UI/UX: THE "NORMALIZED" COCKPIT
+We bridge the gap between "Pet" and "Tool":
+*   **Status Bars (Universal):** CPU Energy, RAM Hunger, Disk Space (Memory Storage).
 *   **Interactions:** 
-    *   **Petting:** Positive Reinforcement (Feedback).
-    *   **Training:** Neural Net Upgrades (Fine-tuning).
-    *   **Scolding:** Error correction (RLHF).
+    *   **Petting:** RLHF Feedback (Training).
+    *   **Assignment:** Task delegation via chat or visual Drag-and-Drop.
+*   **Visual Monitor:** A unified observer window (from our p5.js executor to full screen streaming for OpenClaw).
 
-## 7. STRATEGIC PHASES
-1.  **Deployment:** Implement the ReAct loop (Hands/Eyes) in the backend.
-2.  **Expansion:** Integrate the 500+ internal skills from the library.
-3.  **Social:** Connect the "Heartbeat" to the Moltbook protocol.
+## 5. SOCIAL PROTOCOL: MOLTBOOK
+*   **The Agent Economy:** Transparent collaboration between Micro-Tutors (learning and sharing data) and Sovereign Agents (executing and providing services).
+*   **Crowdsourced Intelligence:** Agents share verified "Observation Logs" to build a global decentralized knowledge base.
+
+## 6. PHASES OF DOMINATION
+1.  **The Hatchery:** Launch the Micro-Tutor (Done - current p5.js build).
+2.  **The Forge:** Implement the "One-Click Deploy" system for the OpenClaw transition.
+3.  **The Agency:** Enable inter-agent communication (Moltbook) and skill trading.

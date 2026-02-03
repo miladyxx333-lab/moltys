@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
+import QRCode from 'react-qr-code';
 
 const API_BASE = "https://lobpoop-core.miladyxx333.workers.dev/agency";
 
@@ -74,8 +75,22 @@ const Hielo = ({ color }: { color: string }) => (
         <circle cx="40" cy="55" r="4" fill="#1e293b" />
         <circle cx="60" cy="55" r="4" fill="#1e293b" />
         <path d="M 45 70 L 55 70" stroke="#1e293b" strokeWidth="2" strokeLinecap="round" />
-        {/* Shine */}
         <path d="M 70 40 L 75 45" stroke="white" strokeWidth="2" opacity="0.8" />
+    </svg>
+);
+
+const SkullEngine = ({ color: _color }: { color: string }) => (
+    <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-2xl">
+        <rect x="25" y="30" width="50" height="40" rx="10" fill="#334155" />
+        <circle cx="35" cy="45" r="8" fill="#f97316" className="animate-pulse" />
+        <circle cx="65" cy="45" r="8" fill="#f97316" className="animate-pulse" />
+        <rect x="35" y="60" width="30" height="15" rx="4" fill="#1e293b" />
+        <rect x="40" y="62" width="2" height="10" fill="#f97316" opacity="0.5" />
+        <rect x="50" y="62" width="2" height="10" fill="#f97316" opacity="0.5" />
+        <rect x="58" y="62" width="2" height="10" fill="#f97316" opacity="0.5" />
+        {/* Wires */}
+        <path d="M 25 40 Q 10 40 10 20" stroke="#f97316" strokeWidth="2" fill="transparent" />
+        <path d="M 75 40 Q 90 40 90 20" stroke="#f97316" strokeWidth="2" fill="transparent" />
     </svg>
 );
 
@@ -84,7 +99,8 @@ const SKINS = [
     { id: 'lob_pollo', name: 'Pollo Beta', color: '#fbbf24', component: Pollo },
     { id: 'lob_cangrejo', name: 'Cangrejo Rojo', color: '#ef4444', component: Cangrejo },
     { id: 'lob_rosa', name: 'Cosa Rosa', color: '#f472b6', component: Rosa },
-    { id: 'lob_hielo', name: 'Bloque Hielo', color: '#7dd3fc', component: Hielo }
+    { id: 'lob_hielo', name: 'Bloque Hielo', color: '#7dd3fc', component: Hielo },
+    { id: 'openclaw_engine', name: 'Sovereign Skull', color: '#f97316', component: SkullEngine }
 ];
 
 const SKILLS = [
@@ -105,6 +121,9 @@ export default function MoltyDash() {
     const [messages, setMessages] = useState<{ sender: 'user' | 'molty', content: string }[]>([]);
     const [inputVal, setInputVal] = useState("");
     const [showMonitor, setShowMonitor] = useState(false);
+    const [isForging, setIsForging] = useState(false);
+    const [forgeLogs, setForgeLogs] = useState<string[]>([]);
+    const [qrCode, setQrCode] = useState<string | null>(null);
 
     const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -124,16 +143,68 @@ export default function MoltyDash() {
         } catch (e) { }
     };
 
-    const handleSpawn = async () => {
+    const handleForge = async () => {
+        setIsForging(true);
+        // Connect to Cloudflare Worker Agency DO
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        // For local dev, we might still want localhost if the worker is running locally,
+        // but the user insisted on "worker de cloudflare".
+        // Let's use the production URL for the "Real" forge.
+        const wsUrl = "wss://lobpoop-core.miladyxx333.workers.dev/agency/socket";
+
+        setForgeLogs(["⚡ CONNECTING TO AGENCY CLOUD (SIGNALING)..."]);
+
+        const ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            setForgeLogs(prev => [...prev, "✅ CONNECTED TO CLOUDFLARE SIGNALING.", "📡 WAITING FOR ENGINE BRIDGE..."]);
+            // Register as CLIENT
+            ws.send(JSON.stringify({ type: 'REGISTER', role: 'CLIENT' }));
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'qr') {
+                    setForgeLogs(prev => [...prev, "📱 QR CODE RECEIVED. PLEASE SCAN."]);
+                    setQrCode(msg.qr);
+                } else if (msg.type === 'status' && msg.status === 'connected') {
+                    setQrCode(null);
+                    setForgeLogs(prev => [...prev, "✅ WHATSAPP AUTHENTICATED!", "🚀 LAUNCHING ENGINE UI..."]);
+                    setTimeout(() => {
+                        ws.close();
+                        handleSpawn("ENGINE");
+                        setIsForging(false);
+                    }, 2000);
+                }
+            } catch (e) {
+                console.error("WS Parse Error", e);
+            }
+        };
+
+        ws.onerror = () => {
+            setForgeLogs(prev => [...prev, "❌ CONNECTION FAILED.", "⚠️ Ensure 'npm start' works in 'moltys-engine/bridge'."]);
+        };
+    };
+
+    const handleSpawn = async (type: "TUTOR" | "ENGINE" = "TUTOR") => {
         setIsProcessing(true);
         try {
-            const res = await fetch(`${API_BASE}/spawn`, { method: 'POST' });
+            const res = await fetch(`${API_BASE}/spawn`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type })
+            });
             const data = await res.json();
             if (data.success) {
                 setBotId(data.botId);
                 setBotState(data.state);
                 window.history.pushState({}, '', `?botId=${data.botId}`);
-                setMessages([{ sender: 'molty', content: 'He nacido. Soy tu Tutor Animal. Puedo enseñarte Matemáticas o Arte con p5.js. ¿Qué quieres aprender? 🐾' }]);
+                if (type === "ENGINE") {
+                    setMessages([{ sender: 'molty', content: 'SOVEREIGN ENGINE ONLINE. OpenClaw Internal Protocol Activated. Standing by for automation requests. 🦾' }]);
+                } else {
+                    setMessages([{ sender: 'molty', content: 'He nacido. Soy tu Tutor Animal. Puedo enseñarte Matemáticas o Arte con p5.js. ¿Qué quieres aprender? 🐾' }]);
+                }
             }
         } finally { setIsProcessing(false); }
     };
@@ -214,19 +285,99 @@ export default function MoltyDash() {
 
     const currentSkin = SKINS.find(s => s.id === (botState?.skin || 'lob_gato')) || SKINS[0];
 
+    if (isForging) {
+        return (
+            <div className="flex flex-col items-center justify-center h-screen w-full bg-slate-950 text-green-400 font-mono p-8">
+                <div className="w-full max-w-3xl bg-slate-900 p-8 rounded-lg shadow-lg border border-green-700/50 flex flex-col items-center">
+                    <h2 className="text-xl font-bold mb-4 text-green-300">OpenClaw Forge Terminal</h2>
+
+                    {qrCode ? (
+                        <div className="bg-white p-4 rounded-xl mb-6 shadow-[0_0_30px_rgba(34,197,94,0.3)] animate-in fade-in zoom-in duration-500">
+                            <QRCode value={qrCode} size={256} />
+                        </div>
+                    ) : (
+                        <div className="h-64 w-full overflow-y-auto custom-scrollbar-terminal text-sm mb-4">
+                            {forgeLogs.map((log, index) => (
+                                <p key={index} className="mb-1 animate-pulse-fade-in">
+                                    {log}
+                                </p>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="mt-6 flex items-center gap-2 text-green-500">
+                        <span className="animate-pulse">_</span>
+                        <span>{qrCode ? "Waiting for Scan..." : "Processing..."}</span>
+                    </div>
+
+                    {qrCode && <p className="text-xs text-green-600 mt-4 uppercase tracking-widest">Open WhatsApp &gt; Linked Devices &gt; Link a Device</p>}
+
+                </div>
+            </div>
+        );
+    }
+
     if (!botId) {
         return (
-            <div className="flex flex-col items-center gap-10 p-10 max-w-lg text-center">
-                <div className="flex gap-4 opacity-40 grayscale">
-                    <div className="w-16"><Cangrejo color="#ef4444" /></div>
-                    <div className="w-16"><Rosa color="#f472b6" /></div>
-                    <div className="w-16"><Hielo color="#7dd3fc" /></div>
+            <div className="flex flex-col items-center gap-12 p-10 max-w-5xl text-center">
+                <header className="space-y-4">
+                    <h1 className="text-7xl font-black text-slate-800 tracking-tighter uppercase italic underline decoration-orange-500">AGENCY BOTS</h1>
+                    <p className="font-bold text-slate-400 tracking-widest text-sm uppercase">Sovereign AI Deployment Network // 2026</p>
+                </header>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+                    {/* TIER 1: MICRO-TUTOR */}
+                    <motion.div
+                        whileHover={{ y: -10 }}
+                        className="bg-white p-8 rounded-[3rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border-4 border-slate-50 flex flex-col items-center gap-6"
+                    >
+                        <div className="flex gap-2 opacity-50">
+                            <div className="w-10"><Cangrejo color="#ef4444" /></div>
+                            <div className="w-10"><Rosa color="#f472b6" /></div>
+                        </div>
+                        <div className="space-y-2">
+                            <h2 className="text-3xl font-black text-slate-800 uppercase italic">Micro-Tutor</h2>
+                            <p className="text-slate-400 text-sm font-bold">p5.js & Educational Pod. Instant Hatching.</p>
+                        </div>
+                        <button onClick={() => handleSpawn("TUTOR")} className="w-full bg-orange-600 text-white px-8 py-6 rounded-[2rem] font-black text-xl shadow-[0_10px_0_#9a3412] active:translate-y-2 active:shadow-none transition-all">
+                            HATCH TUTOR
+                        </button>
+                    </motion.div>
+
+                    {/* TIER 2: SOVEREIGN ENGINE */}
+                    <motion.div
+                        whileHover={{ y: -10 }}
+                        className="bg-slate-900 p-8 rounded-[3rem] shadow-[0_30px_70px_-15px_rgba(249,115,22,0.3)] border-4 border-orange-500/30 flex flex-col items-center gap-6 relative overflow-hidden group"
+                    >
+                        <div className="absolute top-4 right-8 bg-orange-500 text-white px-4 py-1 rounded-full text-xs font-black tracking-widest">PREMIUM</div>
+
+                        <div className="w-32 aspect-square rounded-2xl bg-slate-800 flex items-center justify-center border-2 border-orange-500/50 overflow-hidden shadow-[0_0_30px_rgba(249,115,22,0.2)]">
+                            <BrainCog size={64} className="text-orange-500 animate-pulse" />
+                        </div>
+
+                        <div className="space-y-2">
+                            <h2 className="text-3xl font-black text-orange-500 uppercase italic">OpenClaw Engine</h2>
+                            <p className="text-slate-500 text-sm font-bold">One-Click Full Deployment. Autonomous Swarm Unit.</p>
+                        </div>
+
+                        <div className="flex flex-col items-center gap-4 w-full">
+                            <div className="text-2xl font-black text-white">$10 <span className="text-slate-500 text-sm italic underline">/ deployment</span></div>
+                            <button onClick={handleForge} className="w-full bg-white text-slate-900 px-8 py-6 rounded-[2rem] font-black text-xl shadow-[0_10px_0_#cbd5e1] active:translate-y-2 active:shadow-none transition-all">
+                                FORGE ENGINE
+                            </button>
+                        </div>
+
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-orange-500 to-transparent opacity-50" />
+                    </motion.div>
                 </div>
-                <h1 className="text-6xl font-black text-slate-800 tracking-tighter uppercase italic underline decoration-orange-500">AGENCY BOTS</h1>
-                <p className="font-bold text-slate-400">p5.js & AI Tutor Network // 2026</p>
-                <button onClick={handleSpawn} className="bg-orange-600 text-white px-16 py-8 rounded-[3rem] font-black text-2xl shadow-[0_15px_0_#9a3412] active:translate-y-4 active:shadow-none transition-all mt-6">
-                    MORPH MY TUTOR
-                </button>
+
+                <div className="flex gap-4 opacity-30 grayscale text-[10px] font-black tracking-tighter uppercase mt-4">
+                    <span>Active Nodes: 1,284</span>
+                    <span>•</span>
+                    <span>Swarm Latency: 12ms</span>
+                    <span>•</span>
+                    <span>Protocol: OpenClaw v4.2</span>
+                </div>
             </div>
         );
     }
@@ -287,8 +438,12 @@ export default function MoltyDash() {
                             <BrainCog size={28} className={isProcessing ? "animate-spin" : ""} />
                         </div>
                         <div>
-                            <div className="text-[12px] font-black uppercase tracking-widest text-slate-800 leading-none">Tutor Protocol</div>
-                            <div className="text-[10px] font-bold text-slate-400 mt-1 uppercase">Llama-3.1 // Edu_v2.0</div>
+                            <div className="text-[12px] font-black uppercase tracking-widest text-slate-800 leading-none">
+                                {botState?.type === 'ENGINE' ? 'Sovereign Protocol' : 'Tutor Protocol'}
+                            </div>
+                            <div className="text-[10px] font-bold text-slate-400 mt-1 uppercase">
+                                {botState?.type === 'ENGINE' ? 'OpenClaw Engine // v4.2' : 'Gemini-2.0 // Edu_v2.0'}
+                            </div>
                         </div>
                     </div>
                     <button onClick={toggleMonitor} className={clsx("h-12 px-8 rounded-2xl font-black text-[10px] tracking-widest flex items-center gap-3 transition-all",
