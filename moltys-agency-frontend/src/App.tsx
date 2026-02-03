@@ -1,113 +1,127 @@
-import { useState, useEffect } from 'react';
-import { FileText, Zap, Upload, Activity, ShoppingCart, Lock, Palette, CheckCircle2, Play, PlusCircle, Trash2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import {
+    Palette, Eye, Play,
+    History, Search, BrainCog,
+    BookOpen, Calculator, GraduationCap, Code2, Globe
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 
-const FRAMES = [
-    { id: 'rainbow', name: 'Prism', classes: 'bg-gradient-to-br from-pink-500 via-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500 p-[8px] animate-gradient-xy shadow-2xl' },
-    { id: 'minimal_light', name: 'Clean', classes: 'bg-white border-4 border-slate-200 shadow-xl' },
-    { id: 'minimal_dark', name: 'Stealth', classes: 'bg-slate-900 border-4 border-slate-700 shadow-2xl' },
-];
-
 const API_BASE = "https://lobpoop-core.miladyxx333.workers.dev/agency";
 
-// --- PIXEL ART ASSETS (SVGs) ---
-const PixelLobster = () => (
-    <svg width="64" height="64" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style={{ imageRendering: 'pixelated' }}>
-        <path fill="#ef4444" d="M4 4H6V5H7V6H9V5H10V4H12V6H13V8H12V9H13V11H14V14H12V12H11V14H9V13H7V14H5V12H4V14H2V11H3V9H4V8H3V6H4V4ZM6 7H7V8H6V7ZM9 7H10V8H9V7Z" />
-        <path fill="white" d="M5 5H6V6H5V5ZM10 5H11V6H10V5Z" />
-        <path fill="black" d="M5 5H6V6H5V5H5.5V5.5ZM10 5H11V6H10V5H10.5V5.5Z" />
-        <path fill="black" d="M7 10H9V11H7V10Z" />
+// --- PIXEL AVATARS ---
+const Gato = ({ color }: { color: string }) => (
+    <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-xl">
+        <rect x="20" y="30" width="60" height="50" rx="12" fill={color} />
+        <path d="M 20 35 L 10 5 L 45 30" fill={color} />
+        <path d="M 80 35 L 90 5 L 55 30" fill={color} />
+        <circle cx="35" cy="50" r="5" fill="black" />
+        <circle cx="65" cy="50" r="5" fill="black" />
+        <path d="M 15 55 L 30 58 M 15 62 L 30 62 M 70 58 L 85 55 M 70 62 L 85 62" stroke="black" strokeWidth="1.5" />
     </svg>
 );
 
-const PixelCat = ({ color = "currentColor" }) => (
-    <svg width="64" height="64" viewBox="0 0 16 16" fill={color} xmlns="http://www.w3.org/2000/svg" style={{ imageRendering: 'pixelated' }}>
-        <path d="M3 4H5V5H4V6H3V9H2V12H4V13H12V12H14V9H13V6H12V5H11V4H9V5H7V4H5V5H3V4ZM5 7H6V8H5V7ZM10 7H11V8H10V7ZM7 9H9V10H7V9Z" />
+const Pollo = ({ color }: { color: string }) => (
+    <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-xl">
+        <circle cx="50" cy="55" r="42" fill={color} />
+        <path d="M 42 15 Q 50 2 58 15" stroke="#ef4444" strokeWidth="10" fill="transparent" />
+        <circle cx="35" cy="45" r="5" fill="black" />
+        <circle cx="65" cy="45" r="5" fill="black" />
+        <path d="M 45 55 L 55 55 L 50 70 Z" fill="#f59e0b" />
     </svg>
 );
 
-const PixelPenguin = ({ color = "currentColor" }) => (
-    <svg width="64" height="64" viewBox="0 0 16 16" fill={color} xmlns="http://www.w3.org/2000/svg" style={{ imageRendering: 'pixelated' }}>
-        <path d="M6 2H10V3H11V5H12V10H13V13H11V14H5V13H3V10H4V5H5V3H6V2ZM7 4H6V5H7V4ZM10 4H9V5H10V4ZM8 6H9V7H7V6H8ZM6 8H10V12H6V8Z" />
+const Cangrejo = ({ color }: { color: string }) => (
+    <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-xl">
+        <rect x="25" y="45" width="50" height="35" rx="15" fill={color} />
+        {/* Claws */}
+        <path d="M 20 40 Q 10 30 25 35" stroke={color} strokeWidth="8" fill="transparent" />
+        <path d="M 80 40 Q 90 30 75 35" stroke={color} strokeWidth="8" fill="transparent" />
+        {/* Eyes */}
+        <circle cx="40" cy="40" r="4" fill="black" />
+        <circle cx="60" cy="40" r="4" fill="black" />
+        <rect x="38" y="30" width="2" height="10" fill="black" opacity="0.2" />
+        <rect x="58" y="30" width="2" height="10" fill="black" opacity="0.2" />
+        {/* Legs */}
+        <path d="M 25 60 L 10 70 M 25 70 L 10 80" stroke={color} strokeWidth="4" />
+        <path d="M 75 60 L 90 70 M 75 70 L 90 80" stroke={color} strokeWidth="4" />
     </svg>
 );
 
-// --- EMOTE PARTICLES ---
-const EmoteHeart = () => (
-    <motion.div initial={{ y: 0, opacity: 1 }} animate={{ y: -20, opacity: 0 }} transition={{ duration: 1.5, repeat: Infinity }} className="absolute -top-4 right-0 text-red-500 pixel-font text-lg">❤️</motion.div>
-);
-const EmoteSweat = () => (
-    <motion.div initial={{ y: 0, opacity: 1 }} animate={{ y: 10, opacity: 0 }} transition={{ duration: 1, repeat: Infinity }} className="absolute -top-2 -right-2 text-blue-400 pixel-font text-lg">💧</motion.div>
-);
-const EmoteFlower = () => (
-    <motion.div initial={{ scale: 0 }} animate={{ scale: 1, rotate: 180 }} transition={{ duration: 2, repeat: Infinity }} className="absolute -bottom-2 -left-2 text-pink-400 pixel-font text-lg">🌸</motion.div>
+const Rosa = ({ color }: { color: string }) => (
+    <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-xl">
+        <motion.path
+            animate={{
+                d: [
+                    "M 50 20 Q 80 20 80 50 Q 80 80 50 80 Q 20 80 20 50 Q 20 20 50 20",
+                    "M 50 15 Q 85 25 80 55 Q 75 85 50 85 Q 25 85 20 55 Q 15 25 50 15"
+                ]
+            }}
+            transition={{ repeat: Infinity, duration: 2, repeatType: "reverse" }}
+            fill={color}
+        />
+        <circle cx="40" cy="45" r="4" fill="white" />
+        <circle cx="60" cy="45" r="4" fill="white" />
+        <path d="M 45 60 Q 50 65 55 60" stroke="white" strokeWidth="2" fill="transparent" />
+    </svg>
 );
 
-// --- SKINS DATABASE ---
+const Hielo = ({ color }: { color: string }) => (
+    <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-xl">
+        <rect x="20" y="25" width="60" height="60" rx="8" fill={color} />
+        <path d="M 20 25 L 80 25 L 70 35 L 30 35 Z" fill="white" opacity="0.5" />
+        <rect x="25" y="45" width="50" height="30" fill="white" opacity="0.1" />
+        <circle cx="40" cy="55" r="4" fill="#1e293b" />
+        <circle cx="60" cy="55" r="4" fill="#1e293b" />
+        <path d="M 45 70 L 55 70" stroke="#1e293b" strokeWidth="2" strokeLinecap="round" />
+        {/* Shine */}
+        <path d="M 70 40 L 75 45" stroke="white" strokeWidth="2" opacity="0.8" />
+    </svg>
+);
+
 const SKINS = [
-    { id: 'lob_basic', name: 'Lobby Core', type: 'BASIC', component: PixelLobster, color: '#4ade80', bg: 'bg-[#0f1d15]', accent: 'text-green-400' },
-    { id: 'cat_cyber', name: 'Nyan Verify', type: 'PREMIUM', price: 2.99, component: PixelCat, color: '#f472b6', bg: 'bg-indigo-950', accent: 'text-pink-400', shine: true },
-    { id: 'peng_cool', name: 'Ice Breaker', type: 'PREMIUM', price: 3.50, component: PixelPenguin, color: '#38bdf8', bg: 'bg-slate-900', accent: 'text-sky-400', shine: true },
+    { id: 'lob_gato', name: 'Gato Pixel', color: '#f97316', component: Gato },
+    { id: 'lob_pollo', name: 'Pollo Beta', color: '#fbbf24', component: Pollo },
+    { id: 'lob_cangrejo', name: 'Cangrejo Rojo', color: '#ef4444', component: Cangrejo },
+    { id: 'lob_rosa', name: 'Cosa Rosa', color: '#f472b6', component: Rosa },
+    { id: 'lob_hielo', name: 'Bloque Hielo', color: '#7dd3fc', component: Hielo }
+];
+
+const SKILLS = [
+    { id: 'Tutor Experto', name: 'Tutor IA', icon: GraduationCap, color: 'text-orange-500' },
+    { id: 'p5.js Creative Coder', name: 'p5.js Code', icon: Code2, color: 'text-pink-500' },
+    { id: 'Context Bridge 2024-2026', name: 'Bridge 2026', icon: BrainCog, color: 'text-cyan-500' },
+    { id: 'Chronicle 2024-2026', name: 'Crónica 2026', icon: History, color: 'text-amber-600' },
+    { id: 'Spanish Master', name: 'Español', icon: BookOpen, color: 'text-red-500' },
+    { id: 'Math Genius', name: 'Matemáticas', icon: Calculator, color: 'text-blue-500' },
+    { id: 'Web Explorer', name: 'Explorador', icon: Globe, color: 'text-indigo-500' }
 ];
 
 export default function MoltyDash() {
     const [botId, setBotId] = useState<string | null>(null);
     const [botState, setBotState] = useState<any>(null);
-    const [activeTab, setActiveTab] = useState<'OFFICE' | 'OPS'>('OFFICE');
     const [isProcessing, setIsProcessing] = useState(false);
-    const [showSkinStore, setShowSkinStore] = useState(false);
-    const [currentEmote, setCurrentEmote] = useState<'NONE' | 'LOVE' | 'SWEAT' | 'WORK'>('NONE');
-    const [currentFrame, setCurrentFrame] = useState(FRAMES[1]); // Default Minimal Dark
-
-    // Logs System
-    const [logs, setLogs] = useState<string[]>([]);
-
-    // Chat System
-    const [messages, setMessages] = useState<{ sender: 'user' | 'molty', content: string, type: 'text' | 'upsell', skill?: any }[]>([
-        { sender: 'molty', content: 'Gossip Protocol Synced. Awaiting input.', type: 'text' }
-    ]);
+    const [showSkins, setShowSkins] = useState(false);
+    const [messages, setMessages] = useState<{ sender: 'user' | 'molty', content: string }[]>([]);
     const [inputVal, setInputVal] = useState("");
+    const [showMonitor, setShowMonitor] = useState(false);
 
-    // Init: Check URL for ID
+    const chatEndRef = useRef<HTMLDivElement>(null);
+
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const id = params.get('botId');
-        if (id) {
-            setBotId(id);
-            fetchBotState(id);
-        }
+        if (id) { setBotId(id); fetchBotState(id); }
+        else { setMessages([{ sender: 'molty', content: 'Neural Link Idle. Hatch your education Unit. 🐾' }]); }
     }, []);
 
-    // Polling State
-    useEffect(() => {
-        if (!botId) return;
-        const interval = setInterval(() => {
-            fetchBotState(botId);
-        }, 3000);
-        return () => clearInterval(interval);
-    }, [botId]);
+    useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
     const fetchBotState = async (id: string) => {
         try {
-            // State
-            const stateRes = await fetch(`${API_BASE}/bot/${id}/state`);
-            if (stateRes.ok) {
-                const data = await stateRes.json();
-                setBotState(data);
-                // Sync Local State
-                if (data.emotions !== 'NONE') setCurrentEmote(data.emotions as any);
-            }
-
-            // Logs
-            const logsRes = await fetch(`${API_BASE}/bot/${id}/logs`);
-            if (logsRes.ok) {
-                const data = await logsRes.json();
-                setLogs(data);
-            }
-        } catch (e) {
-            console.error(e);
-        }
+            const res = await fetch(`${API_BASE}/bot/${id}/state`);
+            if (res.ok) setBotState(await res.json());
+        } catch (e) { }
     };
 
     const handleSpawn = async () => {
@@ -116,400 +130,277 @@ export default function MoltyDash() {
             const res = await fetch(`${API_BASE}/spawn`, { method: 'POST' });
             const data = await res.json();
             if (data.success) {
-                const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?botId=' + data.botId;
-                window.history.pushState({ path: newUrl }, '', newUrl);
                 setBotId(data.botId);
                 setBotState(data.state);
+                window.history.pushState({}, '', `?botId=${data.botId}`);
+                setMessages([{ sender: 'molty', content: 'He nacido. Soy tu Tutor Animal. Puedo enseñarte Matemáticas o Arte con p5.js. ¿Qué quieres aprender? 🐾' }]);
             }
-        } catch (e) {
-            alert("Failed to spawn bot. Backend might be sleeping.");
-        } finally {
-            setIsProcessing(false);
-        }
+        } finally { setIsProcessing(false); }
     };
 
-    const handleSend = () => {
-        if (!inputVal.trim()) return;
-        setMessages(prev => [...prev, { sender: 'user', content: inputVal, type: 'text' }]);
-
-        const userQuery = inputVal;
+    const handleSend = async () => {
+        if (!inputVal.trim() || !botId) return;
+        const msg = inputVal;
         setInputVal("");
+        setMessages(prev => [...prev, { sender: 'user', content: msg }]);
         setIsProcessing(true);
-        setCurrentEmote('WORK');
 
-        // Connect to Brain (Backend AI)
-        if (botId) {
-            fetch(`${API_BASE}/interact`, {
-                method: 'POST',
-                body: JSON.stringify({ botId, action: 'CHAT', payload: { message: userQuery } })
-            }).then(() => {
-                setTimeout(() => fetchBotState(botId), 1000);
-            }).finally(() => {
-                setTimeout(() => setIsProcessing(false), 1500);
+        try {
+            const res = await fetch(`${API_BASE}/interact`, {
+                method: 'POST', body: JSON.stringify({ botId, action: 'CHAT', payload: { message: msg } })
             });
-        } else {
-            setTimeout(() => setIsProcessing(false), 1000);
-        }
+            const data = await res.json();
+            if (data.aiResponse) setMessages(prev => [...prev, { sender: 'molty', content: data.aiResponse }]);
+            fetchBotState(botId);
+        } catch (e) {
+            setMessages(prev => [...prev, { sender: 'molty', content: "Ouch! Neural lag. Try again. 🐾" }]);
+        } finally { setIsProcessing(false); }
     };
 
-    const handleBuySkill = (skillName: string) => {
-        // Send TRAIN signal to backend
-        if (botId) {
-            fetch(`${API_BASE}/interact`, {
-                method: 'POST',
-                body: JSON.stringify({ botId, action: 'TRAIN', payload: { skill: skillName } })
-            });
-        }
-
-        setShowSkinStore(false);
-        setCurrentEmote('LOVE');
-
-        setMessages(prev => [...prev, {
-            sender: 'molty',
-            content: `Installing ${skillName}... DONE. XP Gained!`,
-            type: 'text'
-        }]);
-
-        setTimeout(() => setCurrentEmote('NONE'), 3000);
-    };
-
-    const handleBuySkinVisual = (skinId: string) => {
-        if (botId) {
-            fetch(`${API_BASE}/interact`, {
+    const handleUpdateSkin = async (skinId: string) => {
+        if (!botId) return;
+        try {
+            const res = await fetch(`${API_BASE}/interact`, {
                 method: 'POST',
                 body: JSON.stringify({ botId, action: 'CHANGE_SKIN', payload: { skinId } })
             });
-        }
-        // Force local update for immediate feedback
-        if (botState) setBotState({ ...botState, skin: skinId });
-
-        setShowSkinStore(false);
-        setCurrentEmote('LOVE');
-        setTimeout(() => setCurrentEmote('NONE'), 3000);
+            const data = await res.json();
+            if (data.success) {
+                setBotState(data.state);
+                setShowSkins(false);
+            }
+        } catch (e) { }
     };
 
-    const handleTerminate = async () => {
-        if (!confirm("⚠️ FIRE THIS EMPLOYEE?\n\nThis action is permanent. All XP and Memory Logs will be wiped from the Neural Net.\n\nAre you sure?")) return;
+    const toggleMonitor = () => {
+        setShowMonitor(!showMonitor);
+    };
 
-        if (botId) {
-            try {
-                // Send Terminate Request
-                await fetch(`${API_BASE}/terminate`, {
-                    method: 'POST',
-                    body: JSON.stringify({ botId })
-                });
-
-                // Clear Local State
-                setBotId(null);
-                setBotState(null);
-                const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-                window.history.pushState({ path: newUrl }, '', newUrl);
-
-            } catch (e) {
-                alert("Termination failed. The contract is ironclad (Backend Error).");
+    // --- P5JS CODE EXTRACTOR ---
+    const getLatestP5Code = () => {
+        for (let i = messages.length - 1; i >= 0; i--) {
+            const m = messages[i];
+            if (m.sender === 'molty') {
+                const match = m.content.match(/```(?:javascript|p5js|js)?\s*([\s\S]*?)```/);
+                if (match) return match[1].trim();
             }
         }
+        return null;
     };
 
-    // --- RENDER LANDING PAGE IF NO BOT ID ---
+    const p5Code = getLatestP5Code();
+
+    const generateP5Html = (code: string) => {
+        return `
+            <html>
+                <head>
+                    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+                    <style>
+                        body { margin: 0; padding: 0; overflow: hidden; background: #0f172a; display: flex; align-items: center; justify-content: center; height: 100vh; }
+                        canvas { display: block; max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 0 50px rgba(0,0,0,0.5); border-radius: 12px; }
+                    </style>
+                </head>
+                <body>
+                    <script>
+                        ${code}
+                        function windowResized() {
+                            resizeCanvas(windowWidth, windowHeight);
+                        }
+                    </script>
+                </body>
+            </html>
+        `;
+    };
+
+    const currentSkin = SKINS.find(s => s.id === (botState?.skin || 'lob_gato')) || SKINS[0];
+
     if (!botId) {
         return (
-            <div className="w-full h-screen bg-[#F0F2F5] flex flex-col items-center justify-center p-4">
-                <div className="text-center mb-8">
-                    <h1 className="text-4xl font-black text-slate-900 mb-2">Moltys Agency</h1>
-                    <p className="text-slate-500">Hire your first specialized digital employee.</p>
+            <div className="flex flex-col items-center gap-10 p-10 max-w-lg text-center">
+                <div className="flex gap-4 opacity-40 grayscale">
+                    <div className="w-16"><Cangrejo color="#ef4444" /></div>
+                    <div className="w-16"><Rosa color="#f472b6" /></div>
+                    <div className="w-16"><Hielo color="#7dd3fc" /></div>
                 </div>
-
-                <button
-                    onClick={handleSpawn}
-                    disabled={isProcessing}
-                    className="group relative bg-indigo-600 text-white px-8 py-4 rounded-2xl shadow-xl shadow-indigo-500/20 hover:scale-105 hover:shadow-indigo-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    <div className="flex items-center gap-3 font-bold text-lg">
-                        {isProcessing ? (
-                            <Activity className="animate-spin" />
-                        ) : (
-                            <PlusCircle size={24} />
-                        )}
-                        <span>{isProcessing ? 'INITIALIZING NEURAL NET...' : 'SPAWN MY AGENT'}</span>
-                    </div>
+                <h1 className="text-6xl font-black text-slate-800 tracking-tighter uppercase italic underline decoration-orange-500">AGENCY BOTS</h1>
+                <p className="font-bold text-slate-400">p5.js & AI Tutor Network // 2026</p>
+                <button onClick={handleSpawn} className="bg-orange-600 text-white px-16 py-8 rounded-[3rem] font-black text-2xl shadow-[0_15px_0_#9a3412] active:translate-y-4 active:shadow-none transition-all mt-6">
+                    MORPH MY TUTOR
                 </button>
             </div>
         );
     }
 
-    // --- MAIN DASHBOARD ---
-
-    // Resolve Skin
-    const skinId = botState?.skin || 'lob_basic';
-    const skin = SKINS.find(s => s.id === skinId) || SKINS[0];
-    const Avatar = skin.component;
-
     return (
-        <div className="w-full h-screen bg-[#F0F2F5] text-slate-800 font-sans overflow-hidden flex flex-col relative">
+        <div className="w-full max-w-[1200px] h-[90vh] flex gap-8 items-stretch p-6 font-['Outfit',sans-serif]">
 
-            {/* MAIN WORKSPACE */}
-            <div className="flex-1 flex flex-col md:flex-row h-[calc(100vh-40px)]">
-
-                {/* 1. SIDEBAR / MOLTYGOTCHI */}
-                <div className="w-72 bg-white border-r border-slate-200 flex flex-col items-center py-6 px-4 z-10 shrink-0 relative shadow-lg">
-
-                    {/* MOLTYGOTCHI CONTAINER */}
-                    <div className="w-full aspect-square mb-6 relative group">
-
-                        {/* THE FRAME */}
-                        <div className={clsx("w-full h-full rounded-3xl relative transition-all duration-500 overflow-hidden flex items-center justify-center", currentFrame.classes)}>
-
-                            {/* INNER BEZEL / CONTENT AREA */}
-                            <div className={clsx("w-full h-full relative overflow-hidden rounded-[20px]",
-                                currentFrame.id === 'rainbow' ? 'bg-slate-100' : ''
-                            )}
-                                style={{ backgroundColor: currentFrame.id.includes('minimal') ? (currentFrame.id === 'minimal_dark' ? '#0f172a' : '#f8fafc') : undefined }}
-                            >
-                                {/* Screen Background - Increased Inset for thicker bezel */}
-                                <div className={clsx("absolute inset-4 rounded-xl overflow-hidden flex flex-col items-center justify-center pixelated-border", skin.bg)}>
-
-                                    {/* Scanlines & Glow for Premium */}
-                                    {skin.shine && <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_4px,6px_100%] pointer-events-none opacity-50" />}
-                                    {skin.shine && <div className="absolute inset-0 bg-indigo-500/10 animate-pulse z-0" />}
-
-                                    {/* THE AVATAR 8-BIT */}
-                                    <div className="relative z-20">
-                                        <motion.div
-                                            animate={isProcessing ? { y: [0, -4, 0], scale: [1, 1.05, 1] } : { y: [0, -2, 0] }}
-                                            transition={isProcessing ? { repeat: Infinity, duration: 0.2 } : { repeat: Infinity, duration: 2, ease: "easeInOut" }}
-                                            className={clsx(skin.shine ? "drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]" : "")}
-                                        >
-                                            <Avatar color={skin.color} />
-                                        </motion.div>
-
-                                        {/* EMOTIONS OVERLAY */}
-                                        <AnimatePresence>
-                                            {currentEmote === 'LOVE' && <EmoteHeart />}
-                                            {currentEmote === 'SWEAT' && <EmoteSweat />}
-                                            {currentEmote === 'LOVE' && <EmoteFlower />}
-                                        </AnimatePresence>
-                                    </div>
-
-                                    {/* Status Text */}
-                                    <div className={clsx("mt-4 font-mono text-[10px] tracking-widest z-20 uppercase", skin.accent)}>
-                                        {isProcessing ? "THINKING..." : currentEmote === 'SWEAT' ? "NERVOUS" : currentEmote === 'LOVE' ? "HAPPY" : "IDLE"}
-                                    </div>
-
-                                    {/* Energy Bar */}
-                                    <div className="absolute bottom-2 left-2 right-2 h-1 bg-black/20 rounded-full overflow-hidden">
-                                        <div className="h-full bg-green-500 transition-all" style={{ width: `${botState?.energy || 50}%` }} />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Frame Selector Dots & Label */}
-                        <div className="absolute -bottom-10 left-0 right-0 flex flex-col items-center gap-2">
-                            <div className="flex justify-center gap-2">
-                                {FRAMES.map(f => (
-                                    <button
-                                        key={f.id}
-                                        onClick={() => setCurrentFrame(f)}
-                                        className={clsx("w-4 h-4 rounded-full transition-all border-2",
-                                            currentFrame.id === f.id ? "border-indigo-600 bg-indigo-600 scale-110" : "border-slate-300 bg-white hover:bg-slate-100"
-                                        )}
-                                        title={f.name}
-                                    />
-                                ))}
-                            </div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{currentFrame.name}</span>
-                        </div>
-
-                        {/* Edit Skin Button */}
-                        <button
-                            onClick={() => setShowSkinStore(true)}
-                            className="absolute -top-3 -right-3 w-8 h-8 bg-white rounded-full shadow-md border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:scale-110 transition-all z-30"
-                        >
-                            <Palette size={14} />
-                        </button>
+            {/* LEFT: PET STATUS */}
+            <div className="w-[380px] flex flex-col gap-6">
+                <div className="flex-1 bg-white ring-8 ring-white rounded-[5rem] shadow-[0_30px_90px_-20px_rgba(0,0,0,0.15)] p-12 flex flex-col items-center justify-between relative tamagotchi-float">
+                    <div className="absolute top-10 left-12 flex items-center gap-3">
+                        <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                        <span className="text-[11px] font-black tracking-widest text-slate-300 uppercase">{botState?.name}</span>
                     </div>
 
-                    <nav className="space-y-2 w-full flex-1 mt-8">
-                        <NavBtn active={activeTab === 'OFFICE'} onClick={() => setActiveTab('OFFICE')} icon={FileText} label="Office" />
-                        <NavBtn active={activeTab === 'OPS'} onClick={() => setActiveTab('OPS')} icon={Zap} label="Field Ops" />
-                    </nav>
+                    <div className="w-full aspect-square flex items-center justify-center p-6 bg-slate-50/50 rounded-[4rem] border-4 border-dotted border-slate-100">
+                        <motion.div animate={isProcessing ? { y: [0, -15, 0], scale: [1, 1.1, 1] } : {}} transition={{ repeat: Infinity, duration: 0.5 }}>
+                            <currentSkin.component color={currentSkin.color} />
+                        </motion.div>
+                    </div>
 
-                    <div className="mt-auto hidden md:block w-full flex flex-col gap-4">
-                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-center">
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{botState?.name || 'Unit-?'} (Lvl {botState?.level || 1})</span>
+                    <div className="w-full space-y-6">
+                        <div className="grid grid-cols-3 gap-3">
+                            {SKILLS.map(s => (
+                                <div key={s.id} className="bg-slate-50 p-4 rounded-3xl flex flex-col items-center justify-center border border-slate-100/50">
+                                    <s.icon size={18} className={s.color} />
+                                    <span className="text-[8px] font-black uppercase mt-1.5 text-slate-400">{s.name}</span>
+                                </div>
+                            ))}
                         </div>
-
-                        {/* TERMINATE BUTTON */}
-                        <button
-                            onClick={handleTerminate}
-                            className="w-full py-2 flex items-center justify-center gap-2 text-red-300 hover:text-red-600 hover:bg-red-50 rounded-lg text-xs font-bold transition-all"
-                            title="Fire/Delete Agent"
-                        >
-                            <Trash2 size={14} />
-                            <span>TERMINATE</span>
-                        </button>
+                        <div className="space-y-2">
+                            <div className="flex justify-between text-[11px] font-black text-slate-400 uppercase tracking-widest px-2">
+                                <span>Academic Energy</span>
+                                <span>{botState?.energy}%</span>
+                            </div>
+                            <div className="h-4 bg-slate-100 rounded-full p-1 overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-orange-400 to-red-500 rounded-full" style={{ width: `${botState?.energy}%` }} />
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                {/* 2. CHAT AREA */}
-                <div className="flex-1 flex flex-col bg-[#FAFAFA] relative min-w-0">
-                    {/* Skin Store Modal Overlay */}
-                    <AnimatePresence>
-                        {showSkinStore && (
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-                                className="absolute inset-0 z-50 bg-white/90 backdrop-blur-md p-8 flex items-center justify-center"
-                            >
-                                <div className="max-w-3xl w-full bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col h-[600px]">
-                                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                                        <h2 className="text-xl font-black text-slate-800">Molty Custom Shop</h2>
-                                        <button onClick={() => setShowSkinStore(false)} className="text-slate-400 hover:text-slate-900 font-bold">CLOSE</button>
-                                    </div>
-                                    <div className="p-8 overflow-y-auto grid grid-cols-2 md:grid-cols-3 gap-6 bg-[#F8FAFC]">
-                                        {SKINS.map(s => (
-                                            <div key={s.id} onClick={() => handleBuySkinVisual(s.id)}
-                                                className={clsx("relative rounded-2xl p-4 border-2 flex flex-col items-center gap-4 cursor-pointer transition-all hover:scale-105",
-                                                    skinId === s.id ? "border-indigo-500 bg-indigo-50" : "border-slate-200 bg-white hover:border-indigo-300"
-                                                )}
-                                            >
-                                                <div className={clsx("w-20 h-20 rounded-lg flex items-center justify-center mb-2", s.bg)}>
-                                                    <s.component color={s.color} />
-                                                </div>
-                                                <div className="text-center">
-                                                    <div className="font-bold text-slate-800">{s.name}</div>
-                                                    <div className="text-xs text-slate-400 mt-1">{s.type}</div>
-                                                </div>
+                <div className="flex gap-4">
+                    <button onClick={() => setShowSkins(true)} className="flex-1 bg-orange-600 h-20 rounded-[2.5rem] flex items-center justify-center text-white shadow-[0_12px_0_#9a3412] active:translate-y-2 active:shadow-none transition-all border-4 border-white">
+                        <Palette size={32} />
+                    </button>
+                    <button onClick={() => setMessages([])} className="flex-1 bg-white h-20 rounded-[2.5rem] flex items-center justify-center text-slate-300 shadow-2xl transition-all border-4 border-white hover:text-red-400">
+                        <History size={32} />
+                    </button>
+                </div>
+            </div>
 
-                                                {s.price && skinId !== s.id ? (
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); handleBuySkinVisual(s.id); }}
-                                                        className="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-indigo-600 transition-colors"
-                                                    >
-                                                        BUY ${s.price}
-                                                    </button>
-                                                ) : (
-                                                    <div className="text-xs font-bold text-green-500 flex items-center gap-1">
-                                                        <CheckCircle2 size={12} /> OWNED
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-
-                    {/* Header */}
-                    <div className="h-16 border-b border-slate-200 flex items-center justify-between px-6 bg-white/50 backdrop-blur-sm sticky top-0 z-20">
-                        <h2 className="font-bold text-slate-700 truncate">Mission Control // {activeTab}</h2>
-                        <div className="flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">
-                            <Activity size={12} />
-                            <span>Online</span>
+            {/* RIGHT: CHAT CORE */}
+            <div className="flex-1 bg-white border-[8px] border-white rounded-[5rem] shadow-[0_40px_100px_rgba(0,0,0,0.05)] flex flex-col overflow-hidden relative">
+                <header className="h-24 border-b border-slate-50 flex items-center justify-between px-12">
+                    <div className="flex items-center gap-6">
+                        <div className="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600">
+                            <BrainCog size={28} className={isProcessing ? "animate-spin" : ""} />
+                        </div>
+                        <div>
+                            <div className="text-[12px] font-black uppercase tracking-widest text-slate-800 leading-none">Tutor Protocol</div>
+                            <div className="text-[10px] font-bold text-slate-400 mt-1 uppercase">Llama-3.1 // Edu_v2.0</div>
                         </div>
                     </div>
+                    <button onClick={toggleMonitor} className={clsx("h-12 px-8 rounded-2xl font-black text-[10px] tracking-widest flex items-center gap-3 transition-all",
+                        showMonitor ? "bg-slate-900 text-white shadow-xl" : "bg-slate-50 text-slate-600"
+                    )}>
+                        <div className="relative">
+                            <Eye size={18} />
+                            {p5Code && !showMonitor && <div className="absolute -top-1 -right-1 w-2 h-2 bg-pink-500 rounded-full animate-ping" />}
+                        </div>
+                        P5.JS MONITOR
+                    </button>
+                </header>
 
-                    {/* Chat Stream */}
-                    <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 scroll-smooth pb-32">
-                        {messages.map((msg, i) => (
-                            <motion.div
-                                key={i}
-                                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                                className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                            >
-                                {msg.type === 'upsell' && msg.skill ? (
-                                    <div className="flex flex-col gap-2 max-w-sm">
-                                        <div className="bg-white border border-slate-200 text-slate-600 p-4 rounded-2xl rounded-tl-sm shadow-sm text-sm">
-                                            {msg.content}
-                                        </div>
-                                        {/* UPSELL CARD */}
-                                        <div className="bg-indigo-900 text-white p-5 rounded-2xl shadow-xl shadow-indigo-500/20 flex flex-col gap-4 relative overflow-hidden group">
-                                            <div className="absolute top-0 right-0 p-4 opacity-10">
-                                                <Lock size={80} />
-                                            </div>
-                                            <div className="flex items-center gap-3 relative z-10">
-                                                <div className="w-10 h-10 bg-indigo-500/30 rounded-lg flex items-center justify-center border border-indigo-400/30">
-                                                    <msg.skill.icon size={20} className="text-indigo-300" />
-                                                </div>
-                                                <div>
-                                                    <div className="font-bold text-lg leading-tight">{msg.skill.name}</div>
-                                                    <div className="text-indigo-300 text-xs font-medium">Official Expansion Pack</div>
-                                                </div>
-                                            </div>
-                                            <p className="text-sm text-indigo-200 relative z-10">{msg.skill.desc}</p>
-                                            <button
-                                                onClick={() => handleBuySkill(msg.skill.name)}
-                                                className="w-full py-3 bg-white text-indigo-900 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-50 transition-colors relative z-10"
-                                            >
-                                                <span>Buy for ${msg.skill.price}</span>
-                                                <ShoppingCart size={16} />
-                                            </button>
-                                        </div>
-                                    </div>
+                <div className="flex-1 overflow-y-auto p-12 space-y-8 custom-scrollbar bg-slate-50/20">
+                    {messages.map((m, i) => (
+                        <motion.div key={i} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className={clsx("flex flex-col", m.sender === 'user' ? "items-end" : "items-start")}>
+                            <div className={clsx("max-w-[90%] p-8 rounded-[3.5rem] text-sm font-black leading-relaxed shadow-sm",
+                                m.sender === 'user' ? "bg-orange-600 text-white rounded-tr-none shadow-orange-100" : "bg-white text-slate-700 border border-slate-100 rounded-tl-none")}>
+                                <div className="whitespace-pre-wrap">{m.content}</div>
+                            </div>
+                            {m.sender === 'molty' && m.content.includes('```') && (
+                                <button
+                                    onClick={() => setShowMonitor(true)}
+                                    className="mt-4 px-6 py-2 bg-pink-100 text-pink-600 rounded-full text-[10px] font-black uppercase hover:bg-pink-200 transition-all flex items-center gap-2"
+                                >
+                                    <Play size={10} fill="currentColor" /> Ver Ejecución Visual
+                                </button>
+                            )}
+                        </motion.div>
+                    ))}
+                    <div ref={chatEndRef} />
+                </div>
+
+                <AnimatePresence>
+                    {showMonitor && (
+                        <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25 }} className="absolute inset-0 bg-slate-900 z-50 flex flex-col">
+                            <div className="p-8 flex items-center justify-between border-b border-white/10">
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-black text-white/50 tracking-[0.4em] uppercase">P5.JS LIVE PLAYGROUND</span>
+                                    {p5Code ? <span className="text-[8px] text-green-400 font-mono mt-1">CODE_DETECTED // AUTO_RUNNING</span> : <span className="text-[8px] text-red-400 font-mono mt-1">NO_CODE_FOUND // WAITING_FOR_INPUT</span>}
+                                </div>
+                                <button onClick={() => setShowMonitor(false)} className="bg-white text-black px-8 py-3 rounded-2xl text-[10px] font-black uppercase shadow-lg">Close Monitor</button>
+                            </div>
+                            <div className="flex-1 relative bg-slate-950 overflow-hidden">
+                                {p5Code ? (
+                                    <iframe
+                                        key={p5Code} // Reset iframe when code changes
+                                        title="p5js-preview"
+                                        srcDoc={generateP5Html(p5Code)}
+                                        className="w-full h-full border-none"
+                                        sandbox="allow-scripts"
+                                    />
                                 ) : (
-                                    <div className={`max-w-[85%] md:max-w-xl p-4 md:p-5 text-sm md:text-base font-medium leading-relaxed shadow-sm
-                                        ${msg.sender === 'user'
-                                            ? 'bg-indigo-600 text-white rounded-2xl rounded-tr-sm'
-                                            : 'bg-white border border-slate-200 text-slate-600 rounded-2xl rounded-tl-sm'
-                                        }
-                                    `}>
-                                        {msg.content}
+                                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-600 gap-4">
+                                        <Code2 size={64} className="opacity-20" />
+                                        <p className="text-xs font-black uppercase tracking-widest opacity-50">Dile a Molty que genere un sketch de p5.js</p>
                                     </div>
                                 )}
-                            </motion.div>
-                        ))}
-                        {isProcessing && <div className="text-xs text-slate-400 pl-4 animate-pulse">Molty is thinking...</div>}
-                    </div>
-
-                    {/* Input Area */}
-                    <div className="p-4 md:p-6 bg-white border-t border-slate-200 sticky bottom-0 z-20">
-                        <div className="max-w-4xl mx-auto relative flex items-center gap-3">
-                            <div className="flex-1 bg-slate-50 border-2 border-slate-100 hover:border-slate-200 focus-within:border-indigo-500 rounded-2xl flex items-center px-2 transition-all shadow-inner">
-                                <input
-                                    className="w-full h-12 bg-transparent outline-none text-slate-700 font-medium placeholder:text-slate-400 px-2"
-                                    placeholder="Type instructions..."
-                                    value={inputVal}
-                                    onChange={(e) => setInputVal(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                                />
-                                <button onClick={handleSend} className="text-slate-400 hover:text-indigo-600 transition-colors p-2 rounded-xl hover:bg-slate-100">
-                                    <Upload size={20} />
-                                </button>
                             </div>
-                            <button
-                                onClick={handleSend}
-                                className="w-12 h-12 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl flex items-center justify-center transition-all shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-105 active:scale-95 shrink-0"
-                            >
-                                <Play size={20} className="ml-1" fill="currentColor" />
-                            </button>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                <div className="p-12 border-t border-slate-100 bg-white/80 backdrop-blur-xl relative">
+                    {isProcessing && (
+                        <div className="absolute -top-10 left-14 flex items-center gap-3 text-orange-600 font-black text-[10px] tracking-widest uppercase animate-pulse">
+                            <Search size={16} /> <span>Educating...</span>
                         </div>
+                    )}
+                    <div className="relative group">
+                        <input
+                            className="w-full h-20 bg-white border-4 border-slate-50 focus:border-orange-100 rounded-[3rem] px-12 pr-24 outline-none text-slate-800 font-black shadow-2xl shadow-slate-200/50 transition-all placeholder:text-slate-300"
+                            placeholder="Pídemel un sketch de p5.js o una clase..."
+                            value={inputVal}
+                            onChange={(e) => setInputVal(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                            disabled={isProcessing}
+                        />
+                        <button onClick={handleSend} className="absolute right-4 top-4 w-12 h-12 bg-orange-600 text-white rounded-3xl flex items-center justify-center shadow-lg active:scale-95 transition-all disabled:opacity-50" disabled={isProcessing}>
+                            <Play size={24} fill="currentColor" />
+                        </button>
                     </div>
                 </div>
             </div>
 
-            {/* 3. TERMINAL BAR */}
-            <div className="w-full bg-[#0A0F16] border-t border-white/10 h-8 flex items-center px-4 text-[10px] font-mono text-[#4af626] z-50">
-                <span className="opacity-50 mr-2">LOGS</span>
-                <span className="truncate">{logs[logs.length - 1] || 'SYSTEM READY'}</span>
-            </div>
+            <AnimatePresence>
+                {showSkins && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-3xl flex items-center justify-center p-6">
+                        <motion.div initial={{ scale: 0.9, y: 50 }} animate={{ scale: 1, y: 0 }} className="bg-white p-14 rounded-[5rem] max-w-lg w-full shadow-2xl border-[10px] border-white">
+                            <h2 className="text-4xl font-black text-slate-800 mb-12 text-center uppercase tracking-tighter decoration-orange-500 underline decoration-8">Evolution Lab</h2>
+                            <div className="grid grid-cols-2 gap-8">
+                                {SKINS.map(s => (
+                                    <button
+                                        key={s.id}
+                                        onClick={() => handleUpdateSkin(s.id)}
+                                        className={clsx("p-8 rounded-[4rem] flex flex-col items-center gap-6 transition-all group border-4",
+                                            botState?.skin === s.id ? "bg-orange-50 border-orange-500" : "bg-slate-50 border-transparent hover:bg-slate-100"
+                                        )}
+                                    >
+                                        <div className="w-20"><s.component color={s.color} /></div>
+                                        <div className="text-center">
+                                            <div className="text-[12px] font-black text-slate-800 uppercase tracking-widest">{s.name}</div>
+                                            <div className="text-[9px] font-bold text-slate-400 mt-1 uppercase">Unit_Morph_v3</div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                            <button onClick={() => setShowSkins(false)} className="w-full mt-12 p-6 bg-slate-900 text-white rounded-[2.5rem] font-black uppercase text-xs tracking-widest text-center">Abort Morph</button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
-    );
-}
-
-function NavBtn({ icon: Icon, active, onClick, label }: any) {
-    return (
-        <button
-            onClick={onClick}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all mb-1 group
-                ${active
-                    ? 'bg-indigo-50 text-indigo-700 font-bold shadow-sm'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium'
-                }
-            `}
-        >
-            <Icon size={20} strokeWidth={active ? 2.5 : 2} className={active ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'} />
-            <span className="text-sm hidden md:block">{label}</span>
-        </button>
     );
 }

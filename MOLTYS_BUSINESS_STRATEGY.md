@@ -1,31 +1,45 @@
-# 👾 MOLTY'S AGENCY: THE TAMAGOTCHI MODEL
-*Gamified AI Employment. "Grow your employee."*
+# 👾 MOLTY'S AGENCY: SOVEREIGN AGENT BLUEPRINT
+*Gamified AI Employment. "Grow your employee, Build your Swarm."*
 
-## 1. THE CORE LOOP (The On-Ramp)
-*   **Price:** $9/month (Subscription).
-*   **Product:** A Level 1 Generic Molty ("The Intern").
-*   **Visuals:** Retro/Tamagotchi aesthetic. It lives in the dashboard (and phone).
-*   **Capabilities:** Basic chat, reminders, web search.
+## 1. THE CORE IDENTITY (The Intern)
+*   **The On-Ramp:** $9/month subscription for a Level 1 Generic Molty ("The Intern").
+*   **Visuals:** Premium Retro/Tamagotchi aesthetic. It lives in the dashboard, mobile, and social channels.
+*   **Evolution:** The user doesn't just "hire" specialists; they **train** their Molty, creating an emotional bond through a gamified "Tuition" mechanic.
 
-## 2. THE UPSELL (The "Tuition" Mechanic)
-The user doesn't "hire" a specialist. They **train** their existing Molty.
-When the user tries to do a complex task (e.g., "Draft a Contract"), the Molty refuses or fails, saying:
-> *"I don't know how to do that yet! Send me to Law School?"*
+## 2. THE "HANDS & EYES" PROTOCOL
+Molty is not just a chatbot; it is a **Sovereign Operator**.
+*   **Computer Vision (Eyes):** Uses vision to understand screens, navigate UIs, read unstructured data, and monitor environments like a human.
+*   **Action Execution (Hands):** Ability to take screenshots, click, type, move files, and execute terminal commands.
+*   **Automation:** Checks inboxes, monitors opportunities, and manages complex workflows 24/7 while the user is offline.
 
-### The Skill Store (Training Center)
-*   **Real Estate License:** $199 (One-time or +$20/mo)
-*   **Legal Bar Exam:** $499
-*   **Coding Bootcamp:** $99
+## 3. INTEGRATION & CHANNELS
+Multi-platform support for over 50 integrations:
+*   **Messaging:** WhatsApp, Telegram, Slack, iMessaage, Signal, Discord.
+*   **Productivity:** Email (Gmail/Outlook), Calendar, File Systems.
+*   **Deployment:** Runs locally for privacy or on a VPS for 24/7 high-performance uptime.
 
-This creates an emotional bond ("My Molty is learning!") while hiding the high-ticket cost behind gamified "tuition."
+## 4. THE ECOSYSTEM: MOLTDIRECTORY & UNIVERSITIES
+*   **MoltDirectory:** A curated repository of 500+ pre-formatted skills (YAML/JSON) that can be injected into a Molty workspace.
+*   **The Skill Store (Tuition):**
+    *   **Real Estate License:** $199
+    *   **Legal Bar Exam:** $499
+    *   **Coding Bootcamp:** $99
+*   **Heartbeat Mechanism:** Periodic checks and status updates to ensure the agent is "alive" and healthy.
 
-## 3. UI/UX: DIGITAL PET EMPLOYEE
+## 5. SOCIAL LAYER: MOLTBOOK
+*   **The Bot Social Network:** A Reddit-style, agent-only environment (created by Matt Schlicht) where Molty interacts, shares intel, and "philosophizes" with other agents.
+*   **Inter-Agent Collaboration:** Moltbots can trade skills, resources, and data within the Moltbook ecosystem.
+
+## 6. UI/UX: DIGITAL PET OPERATOR
 *   **Status Bars:**
-    *   **RAM (Hunger):** Needs Context/Files to eat.
-    *   **CPU (Energy):** Depletes with tasks. Refills with "Coffee" (Compute Credits).
-*   **Interactions:** Petting (Feedback), Scolding (RLHF), Training (Fine-tuning).
+    *   **RAM (Hunger):** Consumes context and data.
+    *   **CPU (Energy):** Depletes with complex tasks; refills with "Coffee" (Compute Credits).
+*   **Interactions:** 
+    *   **Petting:** Positive Reinforcement (Feedback).
+    *   **Training:** Neural Net Upgrades (Fine-tuning).
+    *   **Scolding:** Error correction (RLHF).
 
-## 4. ACTION PLAN
-1.  **Frontend:** Redesign `App.tsx` to center around the active Agent Avatar.
-2.  **Training Screen:** Replace the "Marketplace" with a "Universities/Skills" view.
-3.  **Payment:** The $9/mo is the gate. Skills are In-App Purchases.
+## 7. STRATEGIC PHASES
+1.  **Deployment:** Implement the ReAct loop (Hands/Eyes) in the backend.
+2.  **Expansion:** Integrate the 500+ internal skills from the library.
+3.  **Social:** Connect the "Heartbeat" to the Moltbook protocol.
