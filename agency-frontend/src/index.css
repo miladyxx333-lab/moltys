@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+    .cursor-wait {
+        cursor: wait;
+    }
+}
+
+body {
+    background-color: #05080a;
+    color: #e2e8f0;
+}

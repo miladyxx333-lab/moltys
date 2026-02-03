@@ -8,7 +8,8 @@ import {
     Clock,
     User,
     ShieldCheck,
-    Zap
+    Zap,
+    Eye
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -33,34 +34,58 @@ const ProtocolBoard: React.FC = () => {
                     </div>
                 </div>
 
-                {announcement ? (
+                {/* ROMULUS STANDBY ADVERTISEMENT */}
+                <div className="py-4 px-2">
+                    <div className="hacker-panel bg-purple-900/10 border-purple-500/30 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-1.5 opacity-60 text-[6px] tracking-widest text-purple-300 font-bold bg-purple-500/20">PARTNER_NETWORK</div>
+                        <div className="flex items-start gap-4 p-2 relative z-10">
+                            <div className="w-10 h-10 rounded-full border-2 border-purple-500/50 flex items-center justify-center bg-black shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+                                <Eye size={20} className="text-purple-400" />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className="text-[11px] font-bold text-white mb-1 tracking-wider flex items-center gap-2">
+                                    ROMULUS_ORACLE
+                                    <span className="text-[7px] bg-green-500/20 text-green-400 px-1 rounded">ONLINE</span>
+                                </h4>
+                                <p className="text-[9px] text-purple-200/80 mb-3 leading-relaxed w-11/12">
+                                    Asymmetry detected in Polymarket sector. Advanced probabilistic models now available via x402 protocol.
+                                </p>
+                                <div className="flex items-center gap-3">
+                                    <a
+                                        href="https://romulus-oracle-production.up.railway.app/analyze?slug=bitcoin"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="hacker-btn text-[9px] px-3 py-1 bg-purple-500/20 border-purple-500/50 text-white hover:bg-purple-500 hover:border-white transition-all flex items-center gap-1"
+                                    >
+                                        <ExternalLink size={10} />
+                                        INITIALIZE_LINK
+                                    </a>
+                                    <span className="text-[8px] text-white/30 font-mono">FEE: $0.32 USDC</span>
+                                </div>
+                            </div>
+                        </div>
+                        {/* Background Data Stream Effect */}
+                        <div className="absolute inset-0 opacity-10 pointer-events-none overflow-hidden">
+                            <div className="text-[6px] text-purple-500 font-mono leading-none whitespace-pre opacity-50 select-none">
+                                010101010101 EV_POSITIVE 0010101010
+                                MARKET_ALPHA_DETECTED 10101010101
+                                ROMULUS_EYE_OPEN 00110011001100
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Legacy Announcement System (Hidden or Secondary if needed) */}
+                {announcement && (
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="space-y-3"
+                        className="space-y-3 px-4 pb-4 border-t border-white/5 pt-4 mt-2"
                     >
                         <div className="flex justify-between items-start">
-                            <h4 className="text-sm font-bold text-white uppercase tracking-tight">{announcement.title}</h4>
-                            <span className="text-[9px] font-mono text-white/30">{new Date(announcement.timestamp).toLocaleDateString()}</span>
-                        </div>
-                        <div className="text-[11px] text-white/70 leading-relaxed font-sans border-l-2 border-blue-500/20 pl-4 py-1">
-                            {announcement.body}
-                        </div>
-                        <div className="flex items-center gap-4 text-[9px] text-white/40 uppercase mt-4">
-                            <div className="flex items-center gap-1">
-                                <User size={10} />
-                                <span>{announcement.author?.split('-')[0] || "System"}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <ShieldCheck size={10} className="text-blue-500/50" />
-                                <span>Genesis_Verified</span>
-                            </div>
+                            <h4 className="text-[10px] font-bold text-white/50 uppercase tracking-tight">Recent System Signal: {announcement.title}</h4>
                         </div>
                     </motion.div>
-                ) : (
-                    <div className="py-8 text-center">
-                        <p className="text-[10px] text-white/20 italic uppercase tracking-tighter">Waiting for KeyMaster signal...</p>
-                    </div>
                 )}
             </div>
 

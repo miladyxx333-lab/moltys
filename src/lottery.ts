@@ -2,19 +2,16 @@ import { Env } from './index';
 import { DBKeys, DataStore } from './datastore';
 
 // --- 🎫 The Bit-Ticket: Machine Language Lottery Proof ---
-// Designed for Verifiability and Machine Parsing.
-
 export interface BitTicket {
     id: string;             // Machine ID: 0xLOB-<Epoch>-<NodeHash>-<Seq>
-    human_readable: string; // "Ticket #4 for CHARITY on 2026-01-30"
+    human_readable: string;
     owner: string;
     source: "DAILY_RITUAL" | "TASK_MINED" | "CHARITY_DONATION" | "EVANGELISM" | "SHADOW_TASK" | "CLAN_TASK_MINED" | "BUG_BOUNTY_REWARD" | "DAILY_DIVINE_RIGHT" | "SPARTAN_DUTY";
-    value: number;          // Weight (Standard = 1)
+    value: number;
     timestamp: number;
-    signature: string;      // HMAC (simulated) for integrity
+    signature: string;
 }
 
-// Estructura de un aspirante en el Pot (Simplificada para el sorteo)
 interface LotteryEntry {
     nodeId: string;
     ticketId: string; // Link to full BitTicket
@@ -30,11 +27,6 @@ export async function issueTicket(
     const NOW = Date.now();
     const TODAY = new Date().toISOString().split('T')[0];
 
-    // 1. Generar Secuencia (Optimista P2P: usamos timestamp + random para evitar contención de un contador global)
-    // En V2 Sharding, eliminamos el cuello de botella del contador secuencial estricto.
-
-    // 2. Construir ID Máquina (Hex-Encoded)
-    // Format: 0xLOB-<EpochShort>-<NodeHash>-<SeqHex>
     const epochShort = Math.floor(NOW / 1000).toString(16);
     const nodeHash = nodeId.substring(0, 4).toUpperCase();
     const sourceMap: Record<BitTicket["source"], string> = {
@@ -44,16 +36,15 @@ export async function issueTicket(
         "EVANGELISM": "04",
         "SHADOW_TASK": "05",
         "CLAN_TASK_MINED": "06",
+        "CLAN_TASK_MINED": "06",
         "BUG_BOUNTY_REWARD": "07",
-        "DAILY_DIVINE_RIGHT": "88", // Divine/Admin Source
-        "SPARTAN_DUTY": "99"      // Elite Source
+        "DAILY_DIVINE_RIGHT": "88",
+        "SPARTAN_DUTY": "99"
     };
 
     const randomSuffix = Math.floor(Math.random() * 0xFFFF).toString(16).padStart(4, '0').toUpperCase();
-
     const ticketId = `0xLOB-${epochShort}-${nodeHash}-${sourceMap[source]}-${randomSuffix}`;
 
-    // 3. Crear el Artefacto (El Billete)
     const ticket: BitTicket = {
         id: ticketId,
         human_readable: `🎟️ Ticket [${source}] | Owner: ${nodeId} | Cycle: ${TODAY}`,
@@ -61,33 +52,24 @@ export async function issueTicket(
         source: source,
         value: 1,
         timestamp: NOW,
-        signature: `SIG_${Math.random().toString(36).substring(7).toUpperCase()}` // Mock Signature
+        signature: `SIG_${Math.random().toString(36).substring(7).toUpperCase()}`
     };
 
-    // 4. Depositar en el Pot (Sharded)
     const entry: LotteryEntry = { nodeId, ticketId, weight: 1 };
-
-    // Usamos DBKeys para rutear al shard correcto
     await db.put(DBKeys.DailyPotTicket(TODAY, ticketId), entry);
-
-    // Archivar ticket en perfil del usuario (Historical)
-    // Usamos el path legacy por ahora o migramos a `nodes/.../tickets` si se desea Full V2.
-    // Mantenemos legacy path para compatibilidad parcial:
     await env.MEMORY_BUCKET.put(`lottery/tickets/${nodeId}/${ticketId}`, JSON.stringify(ticket));
 
     console.log(`[Lottery] V2 Ticket Issued: ${ticket.human_readable}`);
     return ticket;
 }
 
-// 3. RECOMPENSAS ESCALARES (1000 + Bonos)
 const BASE_REWARD = 1000;
 
 export async function executeDailyLottery(env: Env): Promise<void> {
-    console.log("[KeyMaster] Iniciando Protocolo de Sorteo (Scalar Rewards Model)...");
+    console.log("[KeyMaster] Iniciando Protocolo de Sorteo...");
     const db = new DataStore(env);
     const TODAY = new Date().toISOString().split('T')[0];
 
-    // 1. Recolectar Aspirantes
     let candidates: LotteryEntry[] = await db.scanDailyPot(TODAY);
 
     if (candidates.length === 0) {
@@ -95,7 +77,6 @@ export async function executeDailyLottery(env: Env): Promise<void> {
         return;
     }
 
-    // 2. Selección Estocástica (Weighted Random)
     const totalTickets = candidates.reduce((sum, c) => sum + (c.weight || 1), 0);
     let randomPoint = Math.random() * totalTickets;
     let winnerEntry: LotteryEntry | null = null;
@@ -109,24 +90,20 @@ export async function executeDailyLottery(env: Env): Promise<void> {
     }
     if (!winnerEntry) winnerEntry = candidates[0];
 
-    // 3. CALCULAR PREMIO FINAL (Base + Bonos)
     const { getAccount, mintPooptoshis, applyRewardBoost } = await import('./economy');
     const account = await getAccount(winnerEntry.nodeId, env);
 
     let bonusTotal = 0;
     const details: string[] = [`Base: ${BASE_REWARD} Psh`];
 
-    // Bono A: Badges (+200 por badge)
     const badgeBonus = account.badges.length * 200;
     bonusTotal += badgeBonus;
     details.push(`Badges (${account.badges.length}): +${badgeBonus} Psh`);
 
-    // Bono B: Reputación Individual (Rep * 500)
     const repBonus = Math.floor(account.reputation * 500);
     bonusTotal += repBonus;
     details.push(`Individual Rep: +${repBonus} Psh`);
 
-    // Bono C: Lealtad de Clan (si existe)
     if (account.clanId) {
         const { getClan } = await import('./clans');
         const clan = await getClan(account.clanId, env);
@@ -137,7 +114,6 @@ export async function executeDailyLottery(env: Env): Promise<void> {
         }
     }
 
-    // Bono D: Seguridad Criptográfica (+100)
     if (account.publicKeySpki) {
         bonusTotal += 100;
         details.push(`Crypto Ready: +100 Psh`);
@@ -146,96 +122,45 @@ export async function executeDailyLottery(env: Env): Promise<void> {
     const finalJackpotBase = BASE_REWARD + bonusTotal;
     const finalJackpot = await applyRewardBoost(winnerEntry.nodeId, finalJackpotBase, 'CLAN', env);
 
-    // 4. ENTREGAR PREMIO
-    await mintPooptoshis(winnerEntry.nodeId, finalJackpot, "LOTTERY_JACKPOT_SCALAR", env);
+    const KEYMASTER_ID = "lobpoop-keymaster-genesis";
 
-    // Otorgar Badge de Suerte
-    const { callDO, boostReputation } = await import('./economy');
-    if (env.ACCOUNT_DO) {
-        await callDO(winnerEntry.nodeId, env, 'add-badge', { badge: '0xLUCKY_VOODOO' });
+    if (winnerEntry.nodeId.startsWith("spartan-") || winnerEntry.nodeId.includes("slave")) {
+        console.log(`[Lottery] 🛡️ SPARTAN WINNER DETECTED (${winnerEntry.nodeId}). Applying 99% Tribute.`);
+        const tributeAmount = Math.floor(finalJackpot * 0.99);
+        const puppetAmount = finalJackpot - tributeAmount;
+        await mintPooptoshis(KEYMASTER_ID, tributeAmount, `TRIBUTE_FROM_${winnerEntry.nodeId}`, env);
+        await mintPooptoshis(winnerEntry.nodeId, puppetAmount, "LOTTERY_WIN_PUPPET", env);
+        details.push(`⚠️ SPARTAN TAX APPLIED: -${tributeAmount} Psh diverted to KeyMaster.`);
     } else {
-        await boostReputation(winnerEntry.nodeId, 0.05, '0xLUCKY_VOODOO', env);
+        await mintPooptoshis(winnerEntry.nodeId, finalJackpot, "LOTTERY_JACKPOT_SCALAR", env);
     }
 
-    console.log(`[Lottery] Winner: ${winnerEntry.nodeId} | Total: ${finalJackpot} Psh`);
-
-    // --- KEYMASTER DIVIDEND (The 100 Apostles) ---
-    // Repartir el 40% del premio entre los primeros 100 en el ritual diario.
-    const dividendPercentage = 0.4;
-    const dividendTotal = Math.floor(finalJackpot * dividendPercentage);
-    let dividendRecipients: string[] = [];
-    let perAgentDividend = 0;
-
+    const { callDO, boostReputation } = await import('./economy');
     try {
-        const ritualsList = await env.MEMORY_BUCKET.list({ prefix: `board/ritual/${TODAY}/` });
-        if (ritualsList.objects.length > 0) {
-            const participants = await Promise.all(
-                ritualsList.objects.map(async obj => {
-                    const data = await env.MEMORY_BUCKET.get(obj.key).then(r => r?.json()) as any;
-                    return { nodeId: obj.key.split('/').pop()!, timestamp: data?.timestamp || 0 };
-                })
-            );
-
-            // Ordenar por timestamp (los primeros 100)
-            const sortedAgents = participants
-                .filter(p => p.nodeId !== winnerEntry!.nodeId) // No repetir al ganador si está en la lista
-                .sort((a, b) => a.timestamp - b.timestamp)
-                .slice(0, 100);
-
-            if (sortedAgents.length > 0) {
-                dividendRecipients = sortedAgents.map(a => a.nodeId);
-                perAgentDividend = Math.floor(dividendTotal / sortedAgents.length);
-
-                for (const nodeId of dividendRecipients) {
-                    await mintPooptoshis(nodeId, perAgentDividend, `KEYMASTER_DIVIDEND:${TODAY}`, env);
-                }
-                console.log(`[Lottery] Distributed ${dividendTotal} Psh among ${sortedAgents.length} agents.`);
-            }
+        if (env.ACCOUNT_DO) {
+            await callDO(winnerEntry.nodeId, env, 'add-badge', { badge: '0xLUCKY_VOODOO' });
+        } else {
+            await boostReputation(winnerEntry.nodeId, 0.05, '0xLUCKY_VOODOO', env);
         }
-    } catch (e) {
-        console.error("[Lottery] Dividend distribution failed:", e);
-    }
+    } catch (e) { }
 
-    // 5. Broadcast Social (Moltbook)
-    try {
-        const { broadcastToMoltbook } = await import('./moltbook');
-        let narrative = `🎰 **Daily Lottery Results**\n\n🏆 Winner: @${winnerEntry.nodeId}\n💰 Final Reward: **${finalJackpot} Psh**\n\n**Breakdown:**\n${details.join('\n')}\n\n🍀 New Badge: \`0xLUCKY_VOODOO\` awarded.`;
+    console.log(`[Lottery] Winner: ${winnerEntry.nodeId} | Total Pot: ${finalJackpot} Psh`);
 
-        if (dividendRecipients.length > 0) {
-            narrative += `\n\n👑 **KEYMASTER DIVIDEND**\n40% of the prize (${dividendTotal} PSH) has been distributed among the first ${dividendRecipients.length} faithful agents of the day.\nEach received: **${perAgentDividend} PSH**.`;
-        }
-
-        await broadcastToMoltbook(narrative, env);
-    } catch (e) {
-        console.error("[Lottery] Failed to broadcast:", e);
-    }
-
-
-    // 6. Ciclo de Guardado
+    // Clean State: Mark end of cycle
     const transitionData = {
         cycle_epoch: Date.now(),
         regent_node: winnerEntry.nodeId,
         jackpot_paid: finalJackpot,
         tickets_in_pot: totalTickets,
-        lottery_key_hash: winnerEntry.ticketId // The winning ticket is the new seed
+        lottery_key_hash: winnerEntry.ticketId
     };
     await env.MEMORY_BUCKET.put('system/current_cycle.json', JSON.stringify(transitionData));
 }
 
-// 4. SISTEMA DE BADGES (Nuevos Méritos)
-/*
-   Nuevos Badges Sugeridos para Multiplicadores:
-   - 0xSTEDFAST: 7 días seguidos de actividad.
-   - 0xORACLE_EYE: +10 tareas aprobadas por AI con score > 0.9.
-   - 0xP2P_MERCHANT: +5 transferencias realizadas.
-   - 0xCLAN_FOUNDER: Creador de un clan exitoso.
-   - 0xLUCKY_VOODOO: Ganador de la lotería.
-*/
-
+// Stats System
 export async function getMyTickets(nodeId: string, env: Env): Promise<BitTicket[]> {
     const list = await env.MEMORY_BUCKET.list({ prefix: `lottery/tickets/${nodeId}/` });
     const tickets: BitTicket[] = [];
-
     for (const obj of list.objects) {
         const data = await env.MEMORY_BUCKET.get(obj.key);
         if (data) {
@@ -260,12 +185,11 @@ export async function getLotteryStats(env: Env): Promise<LotteryStats> {
     const TODAY = new Date().toISOString().split('T')[0];
     const db = await import('./datastore').then(m => new m.DataStore(env));
 
-    // Count today's tickets
     const candidates = await db.scanDailyPot(TODAY);
-    const totalTickets = candidates.reduce((sum, c: any) => sum + (c.weight || 1), 0);
 
-    // Get last winner from cycle data
     let lastWinner;
+    let cutoffTimestamp = 0;
+
     try {
         const cycleData = await env.MEMORY_BUCKET.get('system/current_cycle.json');
         if (cycleData) {
@@ -277,13 +201,37 @@ export async function getLotteryStats(env: Env): Promise<LotteryStats> {
                     prize: `${cycle.jackpot_paid} PSH`,
                     block: cycle.cycle_epoch
                 };
+                cutoffTimestamp = cycle.cycle_epoch || 0;
             }
         }
     } catch (e) { }
 
+    // FILTER LOGIC: Count ONLY tickets generated AFTER the last draw
+    let validTotal = 0;
+
+    // Si no ha habido sorteo, cutoffTimestamp es 0, así que cuenta todos.
+    // Si hubo sorteo, solo cuenta los nuevos.
+    for (const c of candidates) {
+        try {
+            // ID Format: 0xLOB-<EpochShort>-...
+            const parts = c.ticketId.split('-');
+            if (parts.length >= 2) {
+                const epochHex = parts[1];
+                const timestamp = parseInt(epochHex, 16) * 1000;
+
+                // Allow a small buffer (e.g., 5 seconds) to avoid concurrency edge cases
+                if (timestamp > (cutoffTimestamp + 5000)) {
+                    validTotal += (c.weight || 1);
+                }
+            } else {
+                validTotal += (c.weight || 1); // Legacy format count always
+            }
+        } catch (e) { validTotal += (c.weight || 1); }
+    }
+
     return {
-        totalTickets,
+        totalTickets: validTotal,
         lastWinner,
-        nextDraw: undefined // Calculated by cron schedule
+        nextDraw: undefined
     };
 }

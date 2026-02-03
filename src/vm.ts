@@ -455,6 +455,38 @@ export async function executeAgentScript(nodeId: string, scriptCode: string, env
             logs.push(`> Next Draw: Midnight UTC`);
             result = status;
         }
+        else if (cleanCode.includes('Lottery.forceDraw')) {
+            if (!isKeyMaster) {
+                logs.push("ACCESS DENIED: Only KeyMaster can force the Hand of Fate.");
+            } else {
+                const { executeDailyLottery } = await import('./lottery');
+                logs.push("> 🎰 FORCING DESTINY...");
+                await executeDailyLottery(env);
+                logs.push("> ✅ DRAW COMPLETE. WINNER CHOSEN.");
+                result = "DRAW_FORCED";
+            }
+        }
+        else if (cleanCode.includes('Lottery.forceElite')) {
+            if (!isKeyMaster) {
+                logs.push("ACCESS DENIED.");
+            } else {
+                const { issueTicket } = await import('./lottery');
+                const { listSpartans } = await import('./spartans');
+                logs.push("> 🛡️ ISSUING ELITE TICKETS...");
+
+                await issueTicket("lobpoop-keymaster-genesis", "DAILY_DIVINE_RIGHT", env);
+                logs.push("> Ticket Issued: KeyMaster");
+
+                let spartans = await listSpartans(env);
+                if (spartans.length === 0) spartans = ['spartan-001', 'spartan-045', 'spartan-300'];
+
+                for (const s of spartans) {
+                    await issueTicket(s, "SPARTAN_DUTY", env);
+                }
+                logs.push(`> Tickets Issued: ${spartans.length} Spartans`);
+                result = "ELITE_SEEDED";
+            }
+        }
         else if (cleanCode.includes('Artifact.consume')) {
             const match = cleanCode.match(/Artifact\.consume\(['"](.*)['"]\)/);
             if (!match) {

@@ -39,21 +39,56 @@ export default function OracleIntervention() {
 
     if (!isAuthorized) {
         return (
-            <div className="hacker-panel border-blue-500/20 bg-blue-500/5">
-                <div className="flex items-center gap-2 mb-4">
-                    <Lock size={14} className="text-blue-500" />
-                    <p className="label-dim text-blue-500">MASTER_ORACLE_LINK [ENCRYPTED]</p>
+            <div className="flex flex-col gap-4">
+                {/* ROMULUS PROMO BLOCK */}
+                <div className="hacker-panel border-purple-500/30 bg-purple-500/5 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-2 opacity-50 text-[6px] tracking-widest text-purple-300">ADVERTISEMENT</div>
+                    <div className="flex items-start gap-3 p-1">
+                        <div className="w-8 h-8 rounded border border-purple-500/50 flex items-center justify-center bg-black">
+                            <Eye size={16} className="text-purple-400 group-hover:text-purple-200 transition-colors" />
+                        </div>
+                        <div className="flex-1">
+                            <h4 className="text-[10px] font-bold text-purple-400 mb-1 tracking-wider">ROMULUS_ORACLE v1.0</h4>
+                            <p className="text-[9px] text-white/60 mb-2 leading-relaxed">
+                                Predict real-world asymmetry. Direct connection to Polymarket Probability Engine.
+                            </p>
+                            <div className="flex items-center justify-between mt-2">
+                                <span className="text-[8px] bg-purple-900/40 text-purple-300 px-1.5 py-0.5 rounded border border-purple-500/20">
+                                    PRICE: $0.32 USDC
+                                </span>
+                                <a
+                                    href="https://romulus-oracle-production.up.railway.app/analyze?slug=bitcoin"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="hacker-btn text-[8px] px-2 py-0.5 border-purple-500/40 text-purple-300 hover:bg-purple-500/20 hover:text-white"
+                                >
+                                    ACCESS_API &rarr;
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <form onSubmit={handleAuthorize} className="flex gap-2">
-                    <input
-                        type="password"
-                        value={overrideCode}
-                        onChange={(e) => setOverrideCode(e.target.value)}
-                        placeholder="ENTER_MASTER_KEY..."
-                        className="flex-1 bg-black border border-white/10 text-[10px] p-2 text-blue-400 outline-none focus:border-blue-500/50"
-                    />
-                    <button type="submit" className="hacker-btn px-4 text-[8px]">SYNC</button>
-                </form>
+
+                {/* ORIGINAL LOCKED VIEW */}
+                <div className="hacker-panel border-blue-500/20 bg-blue-500/5">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Lock size={14} className="text-blue-500" />
+                        <p className="label-dim text-blue-500">MASTER_ORACLE_LINK [ENCRYPTED]</p>
+                    </div>
+                    <p className="text-[8px] text-white/30 mb-2 italic">
+                        Only the KeyMaster may access the Trinity Pulse directly from this terminal.
+                    </p>
+                    <form onSubmit={handleAuthorize} className="flex gap-2">
+                        <input
+                            type="password"
+                            value={overrideCode}
+                            onChange={(e) => setOverrideCode(e.target.value)}
+                            placeholder="ENTER_MASTER_KEY..."
+                            className="flex-1 bg-black border border-white/10 text-[10px] p-2 text-blue-400 outline-none focus:border-blue-500/50"
+                        />
+                        <button type="submit" className="hacker-btn px-4 text-[8px]">SYNC</button>
+                    </form>
+                </div>
             </div>
         );
     }

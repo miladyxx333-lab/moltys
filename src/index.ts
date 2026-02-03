@@ -732,9 +732,17 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
     const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
     const myTickets = await getMyTickets(nodeId, env);
     const stats = await getLotteryStats(env);
+
+    // FILTER: Only count tickets active for the NEXT draw
+    const lastDrawTime = stats.lastWinner?.block || 0;
+    const activeTickets = myTickets.filter(t => t.timestamp > lastDrawTime);
+
+    // If total pool is visually 0 (recently reset), ensure we sync user tickets too
+    // unless they just mined one right now.
+
     return Response.json({
       totalTickets: stats.totalTickets,
-      myTickets: myTickets.length,
+      myTickets: activeTickets.length,
       lastWinner: stats.lastWinner,
       nextDraw: stats.nextDraw
     });
@@ -782,6 +790,12 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
 
     await executeOraclePulse(env, shadowSignals);
     return Response.json({ success: true, message: "Trinity Pulse Sync Complete." });
+  }
+
+  // --- 11. MOLTYS AGENCY PROTOCOL (The Tamagotchi Layer) ---
+  if (url.pathname.startsWith("/agency")) {
+    const { handleAgencyRequest } = await import('./agency_protocol');
+    return handleAgencyRequest(request, env);
   }
 
   if (url.pathname === "/oracle/truth" && request.method === "POST") {
