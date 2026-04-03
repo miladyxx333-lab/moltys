@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import {
     LayoutDashboard,
     Sun,
-    Moon
+    Moon,
+    Sword,
+    Store
 } from 'lucide-react';
 import ShadowInbox from './components/ShadowInbox';
 
@@ -38,8 +40,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <NavItem
                         icon={<LayoutDashboard size={14} />}
                         label="COMMAND_CENTER"
-                        active={true}
-                        href="/"
+                        active={window.location.pathname === '/dashboard'}
+                        href="/dashboard"
+                    />
+                    <NavItem
+                        icon={<Sword size={14} />}
+                        label="SPARTAN_COLISEUM"
+                        active={window.location.pathname === '/coliseum'}
+                        href="/coliseum"
+                    />
+                    <NavItem
+                        icon={<Store size={14} />}
+                        label="NEXUS_SILKROAD"
+                        active={window.location.pathname === '/nexus'}
+                        href="/nexus"
                     />
                 </nav>
 

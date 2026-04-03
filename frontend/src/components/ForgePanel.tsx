@@ -82,7 +82,7 @@ export default function ForgePanel() {
                         </div>
                     ) : (
                         <div className="flex flex-col gap-2">
-                            {Object.entries(ingredients).map(([name, qty]: [string, any]) => (
+                            {Object.entries(ingredients || {}).map(([name, qty]: [string, any]) => (
                                 <div key={name} className="flex flex-wrap items-center justify-between p-2 bg-white/[0.03] border border-white/5 hover:border-white/20 transition-all gap-2">
                                     <div className="flex items-center gap-2">
                                         <div className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
@@ -114,7 +114,7 @@ export default function ForgePanel() {
                         </div>
                     ) : (
                         <div className="flex flex-wrap gap-2">
-                            {Object.entries(clanInfo.treasury.ingredients).map(([name, qty]: [string, any]) => (
+                            {Object.entries(clanInfo.treasury.ingredients || {}).map(([name, qty]: [string, any]) => (
                                 <div key={name} className="flex items-center gap-2 px-2 py-1 bg-orange-500/5 border border-orange-500/10">
                                     <span className="text-[9px] font-bold text-orange-400 uppercase">{name}</span>
                                     <span className="text-[9px] text-white/40 font-mono">[{qty}]</span>

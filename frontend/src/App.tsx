@@ -1,4 +1,4 @@
-import { } from 'react';
+import React from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { swrFetcher, apiFetch } from './api';
 import DashboardLayout from './DashboardLayout';
@@ -18,27 +18,27 @@ import { Activity } from 'lucide-react';
 
 function App() {
   const { mutate } = useSWRConfig();
-  // Logs and shark modes are now handled inside AgentTerminal or deprecated
-  // const [logs, setLogs] = useState<string[]>([]);
-  const today = new Date().toISOString().split('T')[0];
-  // const terminalRef = useRef<HTMLDivElement>(null);
+  console.log("App Rendering...");
 
+  const today = new Date().toISOString().split('T')[0];
 
   // API Data
-  const { data: profile, isLoading: profileLoading } = useSWR('/api/economy/profile', swrFetcher, {
+  const { data: profile, error: profileError, isLoading: profileLoading } = useSWR('/api/economy/profile', swrFetcher, {
     refreshInterval: 3000,
-    shouldRetryOnError: false
+    shouldRetryOnError: true
   });
   const { data: stats } = useSWR('/api/stats', swrFetcher, { refreshInterval: 5000 });
   const { data: tokenomics } = useSWR('/api/tokenomics', swrFetcher, { refreshInterval: 10000 });
 
+  if (profileError) {
+    console.error("Profile Fetch Error:", profileError);
+  }
+
   // Determine if we need to show the Red Pill (New User)
-  // Show if: No Profile OR (Default Ghost Profile: 0 balance & 0 minted & default rep)
   const isGhostProfile = profile && profile.balance_psh === 0 && profile.lobpoops_minted === 0 && profile.reputation === 0.5;
   const showRedPill = !profileLoading && (!profile || isGhostProfile);
 
   const handleRedPillSuccess = () => {
-    // Force reload necessary data
     mutate('/api/economy/profile');
     mutate('/api/stats');
   };
@@ -85,42 +85,43 @@ function App() {
           <DailyRitual onCheckIn={handleCheckIn} isCheckedIn={profile?.last_ritual_date === today} isLoading={profileLoading} />
 
           {/* SUPPLY CHAIN TRACKER */}
-          <div className="hacker-panel bg-white/[0.02]">
+          <div className="hacker-panel">
             <div className="flex justify-between items-center mb-4">
               <p className="label-dim">TOKENOMIC_EMISSION_ORACLE</p>
               <div className="flex gap-2">
-                <span className="text-[8px] font-bold text-blue-400 uppercase tracking-widest animate-pulse">HALVENING_PROTOCOL: ACTIVE</span>
+                <span className="text-[8px] font-bold text-[var(--accent-blue)] uppercase tracking-widest animate-pulse">HALVENING_PROTOCOL: ACTIVE</span>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div>
                 <div className="flex justify-between text-[10px] font-bold mb-1">
                   <span>CIRCULATING_SUPPLY</span>
-                  <span className="text-white/40">{tokenomics?.circulating?.toLocaleString() || "0"} / 1,000,000_000</span>
+                  <span className="text-[var(--dim-color)]">{tokenomics?.circulating?.toLocaleString() || "0"} / 1,000,000_000</span>
                 </div>
-                <div className="h-2 bg-white/5 w-full border border-white/10 relative overflow-hidden">
+                <div className="h-2 bg-[var(--border-color)] w-full relative overflow-hidden">
                   <div
-                    className="h-full bg-blue-500 transition-all duration-1000"
+                    className="h-full bg-gradient-to-r from-[var(--accent-blue)] to-[var(--accent-color)] transition-all duration-1000"
                     style={{ width: `${(tokenomics?.circulating / tokenomics?.max_supply) * 100 || 0.1}%` }}
                   />
+                  <div className="absolute inset-0 bg-white/20 animate-shimmer" style={{ width: '50%' }} />
                 </div>
-                <div className="flex justify-between mt-2 text-[8px] text-white/30 uppercase">
+                <div className="flex justify-between mt-2 text-[8px] text-[var(--dim-color)] uppercase">
                   <span>MINTED: {((tokenomics?.circulating / 1000000000) * 100).toFixed(6)}%</span>
                   <span>HARD_CAP: 1.0B PSH</span>
                 </div>
               </div>
-              <div className="border-l border-white/5 pl-6 flex flex-col justify-center">
+              <div className="border-l border-[var(--border-color)] pl-6 flex flex-col justify-center">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 border border-blue-500/30 flex items-center justify-center bg-blue-500/5">
-                    <Activity size={20} className="text-blue-500 animate-pulse" />
+                  <div className="w-10 h-10 border border-[var(--accent-blue)]/30 flex items-center justify-center bg-[var(--accent-blue)]/5">
+                    <Activity size={20} className="text-[var(--accent-blue)] animate-pulse" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-white uppercase">Epoch {tokenomics?.current_epoch || 0} Emission</p>
-                    <p className="text-lg font-bold text-blue-400 tracking-tighter">{(tokenomics?.daily_total || 0).toFixed(2)} Psh/24h</p>
+                    <p className="text-[10px] font-bold text-[var(--text-color)] uppercase tracking-tighter">Epoch {tokenomics?.current_epoch || 0} Emission</p>
+                    <p className="text-lg font-black text-[var(--accent-blue)] tracking-tighter">{(tokenomics?.daily_total || 0).toFixed(2)} Psh/24h</p>
                   </div>
                 </div>
-                <p className="text-[8px] text-white/30 mt-2 italic uppercase">
-                  Next Halvening in <span className="text-white">{tokenomics?.next_halving_in?.toLocaleString() || "---"}</span> blocks
+                <p className="text-[8px] text-[var(--dim-color)] mt-2 italic uppercase">
+                  Next Halvening in <span className="text-[var(--text-color)]">{tokenomics?.next_halving_in?.toLocaleString() || "---"}</span> blocks
                 </p>
               </div>
             </div>
@@ -177,19 +178,19 @@ function App() {
 
           {/* Status Line: Real Network Metrics */}
           <div className="mt-6">
-            <div className="hacker-panel bg-white/[0.02] flex items-center justify-between">
+            <div className="hacker-panel bg-[var(--panel-bg)] flex items-center justify-between shadow-lg">
               <div className="flex items-center gap-4">
                 <p className="label-dim uppercase tracking-tighter">NETWORK_STATUS</p>
                 <span className={`text-xs font-bold font-mono ${stats?.online ? 'text-green-500' : 'text-yellow-500'}`}>
                   {stats?.online ? 'ONLINE' : 'SYNCING...'}
                 </span>
               </div>
-              <div className="flex items-center gap-4 flex-1 max-w-xs px-6 border-l border-r border-white/5 mx-6">
+              <div className="flex items-center gap-4 flex-1 max-w-xs px-6 border-x border-[var(--border-color)] mx-6">
                 <p className="label-dim uppercase tracking-tighter whitespace-nowrap">ACTIVE_NODES</p>
-                <span className="text-[10px] text-white/60 font-mono">{stats?.nodes || '--'}</span>
+                <span className="text-[10px] text-[var(--dim-color)] font-mono">{stats?.nodes || '--'}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[6px] text-white/20 uppercase tracking-widest">Protocol_V.1.0_GENESIS</span>
+                <span className="text-[6px] text-[var(--dim-color)] opacity-30 uppercase tracking-widest">Protocol_V.1.0_GENESIS</span>
               </div>
             </div>
           </div>
@@ -203,9 +204,10 @@ function App() {
 
 function KPIBox({ label, value }: any) {
   return (
-    <div className="hacker-panel py-3 border-white/20">
-      <p className="label-dim leading-none">{label}</p>
-      <p className="text-xl font-bold tracking-tighter mt-1">{value}</p>
+    <div className="hacker-panel py-3 border-[var(--border-color)] relative group overflow-hidden">
+      <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-[var(--accent-color)]/10 to-transparent -mr-8 -mt-8 rotate-45 group-hover:bg-[var(--accent-color)]/20 transition-all" />
+      <p className="label-dim leading-none relative z-10">{label}</p>
+      <p className="text-2xl font-black tracking-tighter mt-1 text-[var(--text-color)] relative z-10">{value}</p>
     </div>
   );
 }

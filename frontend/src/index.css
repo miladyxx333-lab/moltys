@@ -5,21 +5,36 @@
 @tailwind utilities;
 
 @layer base {
+
+  /* Premium Light Mode: "CYBER_VAPOR" */
+  .light-mode {
+    --bg-color: #f8fafc;
+    --text-color: #0f172a;
+    --accent-color: #ff00ff;
+    /* Neon Pink */
+    --accent-blue: #0ea5e9;
+    /* Neon Blue (Refined for contrast) */
+    --accent-green: #10b981;
+    /* Neon Green (Refined for contrast) */
+    --border-color: rgba(15, 23, 42, 0.1);
+    --dim-color: #64748b;
+    --panel-bg: #ffffff;
+    --panel-shadow: rgba(255, 0, 255, 0.05);
+    --card-glow: 0 0 15px rgba(14, 165, 233, 0.1);
+  }
+
+  /* Default Variables (Dark Mode) */
   :root {
     --bg-color: #000000;
     --text-color: #ffffff;
     --accent-color: #ffffff;
-    --border-color: rgba(255, 255, 255, 0.2);
+    --accent-blue: #3b82f6;
+    --accent-green: #22c55e;
+    --border-color: rgba(255, 255, 255, 0.1);
     --dim-color: #666666;
-  }
-
-  /* Night mode by default, can be toggled by a class if needed */
-  .light-mode {
-    --bg-color: #ffffff;
-    --text-color: #000000;
-    --accent-color: #000000;
-    --border-color: rgba(0, 0, 0, 0.2);
-    --dim-color: #999999;
+    --panel-bg: #09090b;
+    --panel-shadow: rgba(0, 0, 0, 0.4);
+    --card-glow: 0 0 20px rgba(0, 0, 0, 0.5);
   }
 
   body {
@@ -27,24 +42,44 @@
     font-family: 'JetBrains Mono', monospace;
     font-feature-settings: "cv11", "ss01", "ss03";
     overflow-x: hidden;
+    transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), color 0.4s ease;
   }
 }
 
 @layer components {
   .hacker-panel {
-    @apply border border-[var(--border-color)] bg-[var(--bg-color)] p-4;
+    @apply border border-[var(--border-color)] bg-[var(--panel-bg)] p-4 shadow-sm transition-all duration-300;
+    box-shadow: 0 4px 6px -1px var(--panel-shadow), 0 2px 4px -1px var(--panel-shadow);
+  }
+
+  .light-mode .hacker-panel {
+    @apply border-slate-200;
+    box-shadow: 8px 8px 0px rgba(15, 23, 42, 0.02);
   }
 
   .hacker-btn {
-    @apply border border-[var(--border-color)] px-4 py-2 hover:bg-[var(--text-color)] hover:text-[var(--bg-color)] transition-all duration-150 uppercase text-xs font-bold;
+    @apply border border-[var(--border-color)] px-4 py-2 hover:bg-[var(--text-color)] hover:text-[var(--bg-color)] transition-all duration-200 uppercase text-xs font-black tracking-widest bg-[var(--panel-bg)] relative overflow-hidden;
+  }
+
+  .light-mode .hacker-btn {
+    @apply border-slate-900;
+    box-shadow: 3px 3px 0px var(--accent-color);
   }
 
   .hacker-input {
-    @apply bg-transparent border-b border-[var(--border-color)] focus:border-[var(--text-color)] outline-none px-2 py-1 text-sm;
+    @apply bg-transparent border-b border-[var(--border-color)] focus:border-[var(--accent-color)] outline-none px-2 py-1 text-sm transition-all;
+  }
+
+  .light-mode .hacker-input {
+    @apply border-slate-200;
   }
 
   .label-dim {
-    @apply text-[var(--dim-color)] text-[10px] uppercase font-bold tracking-widest mb-1;
+    @apply text-[var(--dim-color)] text-[10px] uppercase font-black tracking-[0.2em] mb-1 inline-block;
+  }
+
+  .light-mode .label-dim {
+    @apply text-slate-500 border-b border-[var(--accent-blue)] pb-0.5;
   }
 
   .terminal-text {
@@ -62,14 +97,21 @@
     width: 100%;
     height: 100%;
     background: linear-gradient(rgba(18, 16, 16, 0) 50%,
-        rgba(0, 0, 0, 0.05) 50%), linear-gradient(90deg,
-        rgba(255, 0, 0, 0.01),
-        rgba(0, 255, 0, 0.01),
-        rgba(0, 0, 255, 0.01));
+        rgba(0, 0, 0, 0.03) 50%), linear-gradient(90deg,
+        rgba(255, 0, 0, 0.005),
+        rgba(0, 255, 0, 0.005),
+        rgba(0, 0, 255, 0.005));
     background-size: 100% 4px, 3px 100%;
     pointer-events: none;
     z-index: 100;
-    opacity: 0.3;
+    opacity: 0.2;
+  }
+
+  .light-mode .scanlines {
+    background: linear-gradient(rgba(255, 255, 255, 0) 50%,
+        rgba(0, 212, 255, 0.02) 50%);
+    background-size: 100% 4px;
+    opacity: 1;
   }
 }
 
@@ -95,6 +137,7 @@
   0% {
     transform: translateX(-100%);
   }
+
   100% {
     transform: translateX(100%);
   }

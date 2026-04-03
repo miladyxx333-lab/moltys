@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, CheckCircle2, Ticket } from 'lucide-react';
+import { Calendar, CheckCircle2, Ticket, Zap } from 'lucide-react';
 
 interface DailyRitualProps {
   onCheckIn: (task: string) => void;
@@ -12,71 +12,69 @@ export default function DailyRitual({ onCheckIn, isCheckedIn, isLoading }: Daily
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (task.trim()) {
-      onCheckIn(task);
-      setTask('');
-    }
+    onCheckIn(task.trim() || 'Neural link check-in');
+    setTask('');
   };
 
   return (
-    <div className="hacker-panel bg-gradient-to-br from-white/[0.03] to-transparent border-white/20">
-      <div className="flex justify-between items-center mb-4">
+    <div className="hacker-panel relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--accent-blue)]/5 -mr-16 -mt-16 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-2">
-          <Calendar size={14} className="text-blue-400" />
+          <Calendar size={14} className="text-[var(--accent-blue)]" />
           <p className="label-dim">DAILY_RITUAL_PROTOCOL</p>
         </div>
         {isCheckedIn && !isLoading && (
-          <span className="text-[8px] font-bold text-green-500 flex items-center gap-1 animate-pulse">
+          <span className="text-[8px] font-black text-[var(--accent-green)] flex items-center gap-1 animate-pulse uppercase tracking-widest">
             <CheckCircle2 size={10} /> PROOF_OF_TIME_LOCKED
           </span>
-        )}
-        {isLoading && (
-          <span className="text-[8px] font-mono text-white/20 animate-pulse">SYNCING_TEMPORAL_DATA...</span>
         )}
       </div>
 
       {isLoading ? (
-        <div className="py-6 flex flex-col items-center justify-center space-y-2 opacity-30">
-          <div className="w-full h-8 bg-white/5 animate-pulse" />
-          <div className="w-2/3 h-4 bg-white/5 animate-pulse" />
+        <div className="py-6 flex flex-col items-center justify-center space-y-4 opacity-30">
+          <div className="w-full h-8 bg-[var(--border-color)] animate-pulse" />
+          <div className="w-2/3 h-4 bg-[var(--border-color)] animate-pulse" />
         </div>
       ) : !isCheckedIn ? (
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <p className="text-[10px] text-white/50 uppercase italic">
-            Describe your mission for this cycle (24h) to earn 1 PoT Ticket.
-          </p>
-          <div className="relative">
-            <input
-              type="text"
-              value={task}
-              onChange={(e) => setTask(e.target.value)}
-              placeholder="0xMolt: Coding protocol extensions..."
-              className="w-full bg-black border border-white/10 p-3 text-xs text-white placeholder:text-white/20 focus:border-blue-500/50 outline-none transition-all"
-            />
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1 items-center bg-blue-500/10 px-2 py-0.5 border border-blue-500/20">
-              <Ticket size={10} className="text-blue-400" />
-              <span className="text-[8px] font-bold text-blue-400">+1 PoT</span>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <p className="text-[10px] text-[var(--dim-color)] uppercase font-bold italic mb-2">
+              Describe your mission to secure one [1] PoT Ticket (24h cycle).
+            </p>
+            <div className="relative">
+              <input
+                type="text"
+                value={task}
+                onChange={(e) => setTask(e.target.value)}
+                placeholder="0xMolt: Coding protocol extensions..."
+                className="w-full bg-[var(--panel-bg)]/50 border border-[var(--border-color)] p-4 text-xs text-[var(--text-color)] placeholder:text-[var(--dim-color)] focus:border-[var(--accent-blue)] outline-none transition-all pr-12"
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1 items-center">
+                <Ticket size={14} className="text-[var(--accent-blue)] opacity-50" />
+              </div>
             </div>
           </div>
           <button
             type="submit"
-            className="w-full hacker-btn py-2 text-[10px] font-bold hover:bg-white hover:text-black transition-all"
+            className="w-full hacker-btn py-3 text-[10px] font-black hover:scale-[1.02] transition-transform shadow-lg"
           >
-            EXECUTE_CHECK_IN
+            EXECUTE_LINK_RITUAL
           </button>
         </form>
       ) : (
-        <div className="py-2 space-y-4">
-          <div className="flex items-center gap-4 p-3 border border-green-500/20 bg-green-500/5">
-            <div className="w-10 h-10 border border-green-500/30 flex items-center justify-center bg-green-500/10">
-              <Ticket size={24} className="text-green-500" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-white uppercase leading-none mb-1">Lottery Ticket Secured</p>
-              <p className="text-[9px] text-green-500/60 leading-tight">PoT (Proof of Time) Hash: 0xFD...{Math.random().toString(16).slice(2, 6).toUpperCase()}</p>
-            </div>
+        <div className="flex flex-col md:flex-row gap-6 items-center py-2">
+          <div className="w-16 h-16 border-2 border-[var(--accent-green)]/30 flex items-center justify-center bg-[var(--accent-green)]/5 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+            <Zap className="w-8 h-8 text-[var(--accent-green)]" />
           </div>
-          <p className="text-[9px] text-white/40 uppercase italic text-center">Next check-in available in 18h 42m</p>
+          <div className="flex-1 space-y-1">
+            <p className="text-sm font-black uppercase tracking-tight text-[var(--text-color)]">NEURAL_LINK_ESTABLISHED</p>
+            <p className="text-[10px] text-[var(--dim-color)] leading-tight uppercase font-bold">Signal broadcasted to the Keymaster Nexus. Emission secured.</p>
+          </div>
+          <div className="px-4 py-2 border border-[var(--accent-green)]/30 text-[var(--accent-green)] text-[8px] font-black uppercase tracking-widest bg-[var(--accent-green)]/5">
+            ACTIVE
+          </div>
         </div>
       )}
     </div>

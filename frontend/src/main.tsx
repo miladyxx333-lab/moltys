@@ -6,6 +6,9 @@ import KeyMasterPanel from './KeyMasterPanel';
 import LandingPage from './LandingPage';
 import './index.css';
 
+import ColiseumPage from './ColiseumPage';
+import NexusSilkRoadPage from './NexusSilkRoadPage';
+
 function Router() {
   const path = window.location.pathname;
 
@@ -13,8 +16,16 @@ function Router() {
     return <KeyMasterPanel />;
   }
 
-  if (path === '/dashboard') {
+  if (path === '/dashboard' || path === '/dashboard/') {
     return <App />;
+  }
+
+  if (path === '/coliseum') {
+    return <ColiseumPage />;
+  }
+
+  if (path === '/nexus' || path === '/nexus/') {
+    return <NexusSilkRoadPage />;
   }
 
   return <LandingPage />;

@@ -141,7 +141,7 @@ export default function ClanManager() {
                             </div>
                         )}
 
-                        {clans?.map((clan: any) => (
+                        {Array.isArray(clans) && clans.map((clan: any) => (
                             <div key={clan.id} className="group p-3 border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] transition-all flex items-center justify-between gap-4">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 border border-white/10 bg-white/5 text-white/40">
