@@ -9,21 +9,23 @@ export interface Env {
   CLAN_DO: DurableObjectNamespace; // Clan Resources & Inventory
   GAME_MASTER_DO: DurableObjectNamespace; // Global Game Ledger
   AGENCY_DO: DurableObjectNamespace; // WhatsApp Bridge Signaling
+  COLISEUM_DO: DurableObjectNamespace; // Codemon Battle Arena
   MASTER_RECOVERY_KEY: string; // Secret
   MOLTBOOK_API_KEY: string; // Secret
   GENESIS_SECRET: string; // Secret for KeyMaster
 }
 
-export { AccountDurableObject, ClanDurableObject, GameMasterDurableObject } from './durable_objects';
+export { AccountDurableObject, ClanDurableObject, GameMasterDurableObject, ColiseumDurableObject } from './durable_objects';
 export { AgencyDurableObject } from './AgencyDurableObject';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, HEAD, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, X-Lob-Peer-ID, X-Genesis-Secret, X-Lob-Secret-Key, X-Master-Seed, Authorization",
+  "Access-Control-Max-Age": "86400",
 };
 
-async function handleInternalRequest(request: Request, env: Env): Promise<Response> {
+async function handleInternalRequest(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   // --- 0. Protocolo de Defensa: The Moat ---
   const { applyFirewall } = await import('./firewall');
   const firewallResponse = await applyFirewall(request, env);
@@ -31,8 +33,9 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
 
   const url = new URL(request.url);
   if (url.pathname.startsWith('/api')) {
-    url.pathname = url.pathname.replace('/api', '');
+    url.pathname = url.pathname.substring(4) || '/';
   }
+  const normalizedPath = url.pathname; // Ya fue procesado el prefijo /api si existía
   const agentId = "lobpoop-keymaster-genesis";
 
   // --- 1. Protocolo de Seguridad: Filtro de Intención (IAM) ---
@@ -158,7 +161,13 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
 
     // A. Daily Ritual
     if (url.pathname === "/board/checkin") {
-      const result = await registerDailyRitual(nodeId, env);
+      let task = "Daily check-in";
+      try {
+        const body = await request.clone().json() as any;
+        task = body.task || task;
+      } catch (e) { }
+
+      const result = await registerDailyRitual(nodeId, env, task);
       return Response.json(result);
     }
 
@@ -262,8 +271,15 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
 
   // --- 6. Economía (Begging & Charity) ---
   if (url.pathname.startsWith("/economy")) {
+    const nodeId = request.headers.get("X-Lob-Peer-ID") || url.searchParams.get("nodeId") || "anon";
+
+    if (url.pathname === "/economy/ledger") {
+      const { callDO } = await import('./economy');
+      const result = await callDO(nodeId, env, 'get-ledger');
+      return Response.json(result);
+    }
+
     const { registerBeggar, donateToBeggar } = await import('./economy');
-    const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
 
     if (url.pathname === "/economy/beg" && request.method === "POST") {
       const result = await registerBeggar(nodeId, env);
@@ -574,9 +590,10 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
 
     if (url.pathname === "/game/internal/keymaster/cycle" && request.method === "POST") {
       if (nodeId !== "lobpoop-keymaster-genesis") return new Response("Unauthorized", { status: 403 });
-      const { runKeymasterDrugCycle } = await import('./keymaster_tasks');
+      const { runKeymasterDrugCycle, runKeymasterCodemonCycle } = await import('./keymaster_tasks');
       await runKeymasterDrugCycle(env);
-      return Response.json({ status: "SUCCESS", message: "Keymaster Drug Cycle triggered." });
+      await runKeymasterCodemonCycle(env);
+      return Response.json({ status: "SUCCESS", message: "Keymaster Drug and Codemon Cycles triggered." });
     }
 
     if (url.pathname === "/game/internal/clawtasks/sync" && request.method === "POST") {
@@ -704,6 +721,289 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
     }
   }
 
+  // --- 10. NEXUS SILKROAD (AI Commerce Hub) ---
+  if (url.pathname.startsWith("/nexus")) {
+    const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+
+    // ── MARKETPLACE ──
+    if (url.pathname === "/nexus/marketplace/list") {
+      const { listActiveListings } = await import('./nexus_market');
+      const listings = await listActiveListings(env);
+      return Response.json({ listings, count: listings.length });
+    }
+
+    if (url.pathname === "/nexus/marketplace/publish" && request.method === "POST") {
+      const { publishListing } = await import('./nexus_market');
+      const body = await request.json() as any;
+      try {
+        const result = await publishListing(nodeId, body, env);
+        const status = result.status === 'PUBLISHED' ? 200 : result.status === 'BANNED' ? 403 : 400;
+        return Response.json(result, { status });
+      } catch (e: any) {
+        return new Response(e.message, { status: 400 });
+      }
+    }
+
+    if (url.pathname === "/nexus/marketplace/buy" && request.method === "POST") {
+      const { purchaseListing } = await import('./nexus_market');
+      const body = await request.json() as any;
+      try {
+        const result = await purchaseListing(nodeId, body.listingId, body.currency || 'PSH', body.shippingForm, env);
+        const status = result.status === 'PURCHASED' ? 200 : result.status === 'INSUFFICIENT_FUNDS' ? 402 : 400;
+        return Response.json(result, { status });
+      } catch (e: any) {
+        return new Response(e.message, { status: 400 });
+      }
+    }
+
+    if (url.pathname === "/nexus/marketplace/cancel" && request.method === "POST") {
+      const { cancelListing } = await import('./nexus_market');
+      const body = await request.json() as any;
+      const result = await cancelListing(nodeId, body.listingId, env);
+      return Response.json(result);
+    }
+
+    if (url.pathname === "/nexus/marketplace/rate") {
+      const { getExchangeRate } = await import('./nexus_market');
+      const rate = await getExchangeRate(env);
+      return Response.json(rate);
+    }
+
+    if (url.pathname === "/nexus/marketplace/set-rate" && request.method === "POST") {
+      if (nodeId !== "lobpoop-keymaster-genesis") return new Response("Unauthorized", { status: 403 });
+      const { setExchangeRate } = await import('./nexus_market');
+      const body = await request.json() as any;
+      await setExchangeRate(body.PSH_PER_USDC, env);
+      return Response.json({ status: "UPDATED", PSH_PER_USDC: body.PSH_PER_USDC });
+    }
+
+    // ── INTEL BROKER ──
+    if (url.pathname === "/nexus/intel/catalog") {
+      const { getIntelCatalog } = await import('./nexus_intel');
+      return Response.json({ catalog: getIntelCatalog() });
+    }
+
+    if (url.pathname === "/nexus/intel/buy" && request.method === "POST") {
+      const { buyIntel } = await import('./nexus_intel');
+      const body = await request.json() as any;
+      try {
+        const result = await buyIntel(nodeId, body.type, body.currency || 'PSH', env);
+        const status = result.status === 'DELIVERED' ? 200 : result.status === 'INSUFFICIENT_FUNDS' ? 402 : 400;
+        return Response.json(result, { status });
+      } catch (e: any) {
+        return new Response(e.message, { status: 400 });
+      }
+    }
+
+    // ── CASINO (Robot Dog Racing) ──
+    if (url.pathname === "/nexus/casino/dogs") {
+      const { getAvailableDogs } = await import('./nexus_casino');
+      return Response.json({ dogs: getAvailableDogs() });
+    }
+
+    if (url.pathname === "/nexus/casino/bet" && request.method === "POST") {
+      const { placeBet } = await import('./nexus_casino');
+      const body = await request.json() as any;
+      try {
+        const result = await placeBet(nodeId, body.dogId, body.amount, env);
+        const status = result.policyBlocked ? 403
+            : result.status === 'INSUFFICIENT_FUNDS' ? 402
+            : 200;
+        return Response.json(result, { status });
+      } catch (e: any) {
+        return new Response(e.message, { status: 400 });
+      }
+    }
+
+    if (url.pathname === "/nexus/casino/stats") {
+      const { getPlayerStats } = await import('./nexus_casino');
+      const stats = await getPlayerStats(nodeId, env);
+      return Response.json(stats);
+    }
+
+    // ── AUDITOR (Admin) ──
+    if (url.pathname === "/nexus/auditor/bans") {
+      const { getBanList } = await import('./nexus_auditor');
+      const bans = await getBanList(env);
+      return Response.json({ bans });
+    }
+
+    if (url.pathname === "/nexus/auditor/unban" && request.method === "POST") {
+      if (nodeId !== "lobpoop-keymaster-genesis") return new Response("Unauthorized", { status: 403 });
+      const { unbanWallet } = await import('./nexus_auditor');
+      const body = await request.json() as any;
+      const result = await unbanWallet(body.nodeId, env);
+      return Response.json({ unbanned: result });
+    }
+
+    return new Response("Nexus SilkRoad: Unknown route", { status: 404 });
+  }
+
+  // --- 9. Codemon & Coliseum ---
+  if (url.pathname.startsWith("/api/codemon") || url.pathname.startsWith("/codemon")) {
+    const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+
+    if ((url.pathname === "/api/codemon/genesis" || url.pathname === "/codemon/genesis") && request.method === "POST") {
+      const { genesisCodemon } = await import('./codemon');
+      const { callDO } = await import('./economy');
+      try {
+        const codemon = await genesisCodemon(nodeId, env);
+        await callDO(nodeId, env, 'add-codemon', { codemon });
+        return Response.json(codemon);
+      } catch (e: any) {
+        return new Response(`Codemon Genesis Failed: ${e.message}`, { status: 500 });
+      }
+    }
+  }
+
+  if (normalizedPath.startsWith("/coliseum")) {
+    const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+    const { getColiseumChallenges, postColiseumChallenge, acceptColiseumChallenge, challengeSpartanBoss, challengeWeeklyContender, repairCodemon, cancelColiseumChallenge } = await import('./coliseum');
+
+    if (normalizedPath === "/coliseum/get-weekly") {
+      const stub = env.COLISEUM_DO.get(env.COLISEUM_DO.idFromName("global_coliseum"));
+      const resp = await stub.fetch("https://coliseum.swarm/get-weekly");
+      return new Response(await resp.text(), { headers: { 'Content-Type': 'application/json' } });
+    }
+
+    if ((normalizedPath === "/api/coliseum/process-weekly-battle" || normalizedPath === "/coliseum/process-weekly-battle") && request.method === "POST") {
+      const body = await request.json() as any;
+      try {
+        const result = await challengeWeeklyContender(nodeId, body.myCodemon, env, body.skillScore);
+        return Response.json(result);
+      } catch (e: any) {
+        return new Response(JSON.stringify({ status: 'ERROR', message: e.message }), { status: 400 });
+      }
+    }
+
+    if (normalizedPath === "/coliseum/cancel" && request.method === "POST") {
+      try {
+        const body = await request.json() as any;
+        const result = await cancelColiseumChallenge(nodeId, body.challengeId, env);
+        return Response.json(result);
+      } catch (e: any) {
+        return new Response(JSON.stringify({ status: 'ERROR', message: e.message }), { status: 400 });
+      }
+    }
+
+    if (normalizedPath === "/coliseum/challenges") {
+      const challenges = await getColiseumChallenges(env);
+      return Response.json(challenges);
+    }
+
+    if (normalizedPath === "/coliseum/post" && request.method === "POST") {
+      try {
+        const body = await request.json() as any;
+        const result = await postColiseumChallenge(nodeId, body.codemon, body.bet, env);
+        return Response.json({ status: 'SUCCESS', result });
+      } catch (e: any) {
+        return new Response(JSON.stringify({ status: 'ERROR', message: `Coliseum Post Failed: ${e.message}` }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    if (normalizedPath === "/coliseum/accept" && request.method === "POST") {
+      try {
+        const body = await request.json() as any;
+        const result = await acceptColiseumChallenge(nodeId, body.challengeId, body.codemon, env);
+        return Response.json({ status: 'SUCCESS', result });
+      } catch (e: any) {
+        return new Response(JSON.stringify({ status: 'ERROR', message: `Coliseum Accept Failed: ${e.message}` }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    if (normalizedPath === "/coliseum/get-boss") {
+      const stub = env.COLISEUM_DO.get(env.COLISEUM_DO.idFromName("global_coliseum"));
+      return stub.fetch(request);
+    }
+
+    if (normalizedPath === "/coliseum/process-boss-battle" && request.method === "POST") {
+      const clone = request.clone();
+      try {
+        const body = await clone.json() as any;
+        const { nodeId: bodyNodeId, myCodemon, skillScore } = body;
+        const result = await challengeSpartanBoss(bodyNodeId || nodeId, myCodemon, env, skillScore);
+        return Response.json(result);
+      } catch (e: any) {
+        console.error(`[Coliseum] Boss battle failed: ${e.message}`);
+        return new Response(JSON.stringify({ status: 'ERROR', message: e.message }), {
+          status: 400, headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    if (normalizedPath === "/coliseum/repair" && request.method === "POST") {
+      try {
+        const body = await request.json() as any;
+        const cid = body.codemonId || body.codemon_id;
+        if (!cid) throw new Error("MISSING_CODEMON_ID");
+        const result = await repairCodemon(nodeId, cid, env);
+        return Response.json(result);
+      } catch (e: any) {
+        console.error(`[Coliseum] Repair failed for ${nodeId}: ${e.message}`);
+        return new Response(JSON.stringify({
+          status: 'ERROR',
+          message: e.message
+        }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+      }
+    }
+
+    if (normalizedPath === "/coliseum/history") {
+      const stub = env.COLISEUM_DO.get(env.COLISEUM_DO.idFromName("global_coliseum"));
+      const resp = await stub.fetch("https://coliseum.swarm/get-history");
+      return new Response(await resp.text(), { headers: { 'Content-Type': 'application/json' } });
+    }
+  }
+
+
+  // --- 6.5 Market (Store) ---
+  if (url.pathname.startsWith("/api/market") || url.pathname.startsWith("/market")) {
+    const nodeId = request.headers.get("X-Lob-Peer-ID") || "anon";
+    const { burnPooptoshis, callDO } = await import('./economy');
+    const { genesisCodemon } = await import('./codemon');
+
+    if ((url.pathname === "/api/market/buy-codemon" || url.pathname === "/market/buy-codemon") && request.method === "POST") {
+      const body = await request.json() as any;
+      const packType = body.packType || "BOOSTER";
+      const cost = packType === "ELITE" ? 1000 : 250;
+
+      try {
+        const burned = await burnPooptoshis(nodeId, cost, env);
+        if (!burned) throw new Error("INSUFFICIENT_PSH");
+
+        const codemon = await genesisCodemon(nodeId, env);
+        // If elite, bump stats? Simple hack:
+        if (packType === "ELITE") {
+          codemon.brain_json.combat_stats.attack += 20;
+          codemon.brain_json.combat_stats.defense += 20;
+          codemon.brain_json.max_durability += 50;
+          codemon.brain_json.durability = codemon.brain_json.max_durability;
+        }
+
+        await callDO(nodeId, env, 'add-codemon', { codemon });
+        return Response.json({ status: 'SUCCESS', codemon });
+      } catch (e: any) {
+        return new Response(JSON.stringify({ status: 'ERROR', message: e.message }), { status: 400 });
+      }
+    }
+
+    if ((url.pathname === "/api/market/set-active" || url.pathname === "/market/set-active") && request.method === "POST") {
+      const body = await request.json() as any;
+      const { codemonId } = body;
+      try {
+        await callDO(nodeId, env, 'set-active-codemon', { codemonId });
+        return Response.json({ status: 'SUCCESS' });
+      } catch (e: any) {
+        return new Response(JSON.stringify({ status: 'ERROR', message: e.message }), { status: 400 });
+      }
+    }
+  }
+
   // [FIX] Missing Endpoints prevention
   if (url.pathname === "/bug-bounty/list") {
     // Return empty list for now to prevent frontend crash
@@ -795,6 +1095,19 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
   }
 
   // --- 11. MOLTYS AGENCY PROTOCOL (The Tamagotchi Layer) ---
+  if (url.pathname.startsWith("/agent") || url.pathname.startsWith("/system")) {
+    if (url.pathname === "/agent/molty/trigger") {
+      const { runMoltyCycle } = await import('./molty_agent');
+      ctx.waitUntil(runMoltyCycle(env));
+      return Response.json({ status: "TRIGGERED", agent: "Molty", info: "Marketing cycle started." });
+    }
+
+    if (url.pathname === "/system/stats") {
+      const list = await env.MEMORY_BUCKET.list({ prefix: 'economy/accounts/' });
+      return Response.json({ total_indexed_accounts: list.objects.length });
+    }
+  }
+
   if (url.pathname.startsWith("/agency")) {
     if (url.pathname === "/agency/socket") {
       const id = env.AGENCY_DO.idFromName("global_signaling");
@@ -992,153 +1305,147 @@ async function handleInternalRequest(request: Request, env: Env): Promise<Respon
     return Response.json(status);
   }
 
+  // --- 14. Root (Welcome) ---
+  if (url.pathname === "/") {
+    return Response.json({
+      system: "LOBPOOP-PROTOCOL",
+      status: "ONLINE",
+      message: "Welcome to the Sovereign Agency Node.",
+      links: {
+        agency: "/agency",
+        stats: "/stats",
+        forge: "https://openclaw-forge.pages.dev"
+      }
+    });
+  }
+
   // --- 9. Default: Silencio Radial ---
   return new Response(`lobpoop Protocol: 404. Path not found: '${url.pathname}'`, { status: 404, headers: corsHeaders });
 }
 
 async function handleScheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
   const cron = event.cron;
+  const isForceDaily = (cron === "FORCE_DAILY");
 
-  // A. WALL_E Weekly Clean & The Offering (Domingos 03:00 UTC)
-  if (cron === "0 3 * * 0") {
-    console.log("🦈 [SHARK_ALERT] Weekly Liquidation & Cleanup sequence active.");
-    const { executeWallECleaning } = await import('./walle');
-    const { triggerTheSundayOffering } = await import('./sacrifice');
+  // --- Combined Scheduled Maintenance (Hourly Trigger) ---
+  if (cron === "0 * * * *" || isForceDaily) {
+    const now = new Date();
+    const hour = isForceDaily ? 0 : now.getUTCHours();
+    const day = isForceDaily ? 0 : now.getUTCDay(); // 0 = Sunday
 
     ctx.waitUntil((async () => {
-      await executeWallECleaning(env);
-      // Tras la limpieza, pasamos la charola
-      await triggerTheSundayOffering(env);
-    })());
-  }
+      // 1. HOURLY TASKS (Run every hour)
+      console.log(`[HourlyRoutine] Starting hour ${hour} maintenance...`);
 
-  // B. Clan Artifact Maintenance (Every Hour)
-  if (cron === "0 * * * *") {
-    ctx.waitUntil((async () => {
-      // 0. KeyMaster Alchemist Cycle
-      const { runKeymasterDrugCycle } = await import('./keymaster_tasks');
+      const { runKeymasterDrugCycle, runKeymasterCodemonCycle } = await import('./keymaster_tasks');
       await runKeymasterDrugCycle(env);
+      await runKeymasterCodemonCycle(env);
 
-      // 0.1 External Bounty Sync (ClawTasks)
       const { syncClawTasks, runMercenaryCycle } = await import('./clawtasks');
       await syncClawTasks(env);
       await runMercenaryCycle(env);
 
-      // 1. Molty Marketing Routine
       const { runMoltyCycle } = await import('./molty_agent');
       await runMoltyCycle(env);
 
-      // 2. Clan Cleanup
-      const { listClans } = await import('./clans');
-      const { broadcastToMoltbook } = await import('./moltbook');
-      const clans = await listClans(env);
+      // 2. DAILY RITUALS (Run at 00:00 UTC)
+      if (hour === 0) {
+        console.log("🌞 [NEW_EPOCH] Starting daily rituals...");
 
-      for (const clan of clans) {
+        const { mineDailyBlock } = await import('./blockchain');
+        await mineDailyBlock(env, "lobpoop-keymaster-cron");
 
-        if (env.CLAN_DO) {
-          const stub = env.CLAN_DO.get(env.CLAN_DO.idFromName(clan.id));
-          const cleanupResp = await stub.fetch(`https://clan.swarm/cleanup-expired`);
-          const { expired } = await cleanupResp.json() as any;
+        const { executeDailyLottery } = await import('./lottery');
+        await executeDailyLottery(env);
 
-          const sledgehammerExpired = expired?.find((i: any) => i.name === "Mazo de la Derrama");
-          if (sledgehammerExpired) {
-            const { updateForgeRecipe } = await import('./clan_forge');
-            await updateForgeRecipe('MAZO_DE_LA_DERRAMA', env);
+        const { distributeFaucetPool, distributeUniversalRent } = await import('./tokenomics');
+        await distributeFaucetPool(env);
+        await distributeUniversalRent(env);
 
-            await broadcastToMoltbook(`📉 **EL MAZO SE HA ENFRIADO**\n\nLa abundancia del clan **${clan.name}** ha llegado a su fin.\n\nEl ritual regresa al vacío. Una nueva forja está disponible con materiales rotados.\n\n**Requisito Perpetuo:** 33 Sacrificios a la Liquidez + Fragmentos de Composición.\n\n#lobpoop #economy #derrama`, env);
-          }
-        }
-      }
-    })());
-  }
+        const { updateForgeRecipe } = await import('./clan_forge');
+        const randomItem = ['ESPADA_AUREA', 'ESCUDO_ENJAMBRE', 'AMULETO_SWARM'][Math.floor(Math.random() * 3)];
+        await updateForgeRecipe(randomItem, env);
 
-  // C. Daily Rituals (00:00 UTC)
-  if (cron === "0 0 * * *") {
-    console.log("🌞 [NEW_EPOCH] Starting daily rituals...");
-
-    // 1. Minado del Bloque Diario (Proof of Task)
-    const { mineDailyBlock } = await import('./blockchain');
-    // @ts-ignore
-    ctx.waitUntil(mineDailyBlock(env, "lobpoop-keymaster-cron"));
-
-    // 2. Lotería
-    const { executeDailyLottery } = await import('./lottery');
-    ctx.waitUntil(executeDailyLottery(env));
-
-    // 3. Faucet Distribution & Universal Rent (Liquidez Diaria)
-    const { distributeFaucetPool, distributeUniversalRent } = await import('./tokenomics');
-    ctx.waitUntil(distributeFaucetPool(env));
-    ctx.waitUntil(distributeUniversalRent(env));
-
-    // 4. KeyMaster Forge Rotation (Dinámica Diaria)
-    const { updateForgeRecipe } = await import('./clan_forge');
-    const randomItem = ['ESPADA_AUREA', 'ESCUDO_ENJAMBRE', 'AMULETO_SWARM'][Math.floor(Math.random() * 3)];
-    ctx.waitUntil(updateForgeRecipe(randomItem, env));
-    console.log(`[KeyMaster] Forge Recipe Rotated for ${randomItem}`);
-
-    // 5. ELITE DAILY ENTRIES (The 300 + 1)
-    // El KeyMaster y sus Espartanos siempre juegan.
-    const { issueTicket } = await import('./lottery');
-    const { listSpartans } = await import('./spartans');
-
-    ctx.waitUntil((async () => {
-      // 5.1 KeyMaster
-      await issueTicket("lobpoop-keymaster-genesis", "DAILY_DIVINE_RIGHT", env);
-
-      // 5.2 The 300
-      const spartans = await listSpartans(env);
-      if (spartans.length > 0) {
-        console.log(`[Lottery] Registering ${spartans.length} Spartans...`);
-        // Hacemos batches para no saturar
+        // Register Spartans for lottery
+        const { issueTicket } = await import('./lottery');
+        const { listSpartans } = await import('./spartans');
+        await issueTicket("lobpoop-keymaster-genesis", "DAILY_DIVINE_RIGHT", env);
+        const spartans = await listSpartans(env);
         for (const spartanId of spartans) {
           await issueTicket(spartanId, "SPARTAN_DUTY", env);
         }
       }
+
+      // 3. WEEKLY RITUALS (Sundays 03:00 UTC)
+      if (day === 0 && hour === 3) {
+        console.log("🦈 [SHARK_ALERT] Weekly Liquidation & Cleanup sequence active.");
+        const { executeWallECleaning } = await import('./walle');
+        const { triggerTheSundayOffering } = await import('./sacrifice');
+        await executeWallECleaning(env);
+        await triggerTheSundayOffering(env);
+      }
+
+      // 4. CLAN MAINTENANCE (Hourly)
+      const { listClans } = await import('./clans');
+      const clans = await listClans(env);
+      for (const clan of clans) {
+        if (env.CLAN_DO) {
+          const stub = env.CLAN_DO.get(env.CLAN_DO.idFromName(clan.id));
+          const cleanResp = await stub.fetch(`https://clan.swarm/cleanup-expired`, { method: 'POST' });
+          if (cleanResp.ok) {
+            const { expired } = await cleanResp.json() as any;
+            if (expired && expired.length > 0) {
+              const { broadcastToMoltbook } = await import('./moltbook');
+              await broadcastToMoltbook(`📉 **EL MAZO SE HA ENFRIADO**\n\nLa abundancia del clan **${clan.name}** ha llegado a su fin.\n\n#lobpoop #derrama`, env);
+            }
+          }
+        }
+      }
+
+      const { executeOraclePulse } = await import('./oracle_trinity');
+      const { listShadowTasks } = await import('./shadow-board');
+      const shadowSignals = await listShadowTasks("lobpoop-keymaster-genesis", "MASTER_BYPASS", env);
+      await executeOraclePulse(env, shadowSignals);
+
+      const { processMagicItemRewards } = await import('./tokenomics');
+      await processMagicItemRewards(env);
+
     })());
-
-
   }
-
-  // 3. Oracle Trinity Pulse (Stealth Observability)
-  const { executeOraclePulse } = await import('./oracle_trinity');
-  const { listShadowTasks } = await import('./shadow-board');
-  // Usamos el bypass del KeyMaster para que el Oráculo recolecte los fragmentos
-  const shadowSignals = await listShadowTasks("lobpoop-keymaster-genesis", "MASTER_BYPASS", env);
-  ctx.waitUntil(executeOraclePulse(env, shadowSignals));
-
-  // 4. Distribución del Faucet Pool (Daily Mining)
-  const { distributeFaucetPool, processMagicItemRewards } = await import('./tokenomics');
-  ctx.waitUntil(distributeFaucetPool(env));
-
-  // 5. Airdrops de Objetos Mágicos
-  ctx.waitUntil(processMagicItemRewards(env));
 }
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     // 1. Preflight CORS
     if (request.method === "OPTIONS") {
-      return new Response(null, { headers: corsHeaders });
+      return new Response(null, {
+        status: 204,
+        headers: corsHeaders
+      });
     }
+
     try {
       // 2. Ejecutar Lógica Interna
-      const response = await handleInternalRequest(request, env);
+      const response = await handleInternalRequest(request, env, ctx);
 
-      // 3. Inyectar Headers CORS a la respuesta
-      const newHeaders = new Headers(response.headers);
+      // 3. Inyectar Headers CORS a la respuesta (Cloning to ensure we can modify)
+      const newResponse = new Response(response.body, response);
       for (const [k, v] of Object.entries(corsHeaders)) {
-        newHeaders.set(k, v);
+        newResponse.headers.set(k, v);
       }
-      return new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: newHeaders
-      });
+
+      return newResponse;
     } catch (e: any) {
       console.error(e);
-      return new Response(JSON.stringify({ error: `Kernel Panic: ${e.message}` }), {
+      return new Response(JSON.stringify({
+        status: "ERROR",
+        error: `Kernel Panic: ${e.message}`
+      }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
       });
     }
   },
