@@ -8,6 +8,7 @@ import './index.css';
 
 import ColiseumPage from './ColiseumPage';
 import NexusSilkRoadPage from './NexusSilkRoadPage';
+import { OWSWalletProvider } from './components/OWSWalletProvider';
 
 function Router() {
   const path = window.location.pathname;
@@ -33,6 +34,8 @@ function Router() {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <Router />
+    <OWSWalletProvider>
+      <Router />
+    </OWSWalletProvider>
   </React.StrictMode>,
 );

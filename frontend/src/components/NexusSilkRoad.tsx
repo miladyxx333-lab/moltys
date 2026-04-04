@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import useSWR from 'swr';
 import { swrFetcher, apiFetch } from '../api';
+import { useOWS } from './OWSWalletProvider';
 import {
     Store, Brain, Dice6, Shield, ShoppingCart, Eye, Ban,
     TrendingUp, ChevronDown, ChevronUp, Send, Package, Zap
@@ -73,7 +74,8 @@ function MarketplaceZone() {
     const [publishForm, setPublishForm] = useState({ name: '', description: '', category: 'general', type: 'digital' as string, pricePsh: '', priceUsdc: '' });
     const [publishing, setPublishing] = useState(false);
     const [result, setResult] = useState<any>(null);
-
+    const { connected, connect, signTransaction } = useOWS();
+    
     const handlePublish = async () => {
         setPublishing(true);
         setResult(null);
@@ -98,16 +100,28 @@ function MarketplaceZone() {
         setPublishing(false);
     };
 
-    const handleBuy = async (listingId: string) => {
+    const handleBuy = async (listing: any) => {
+        if (!connected) return connect('Agente-Comprador-X');
         try {
+            // OWS POLICY SIGNATURE INTERCEPT
+            await signTransaction({
+                chain: 'evm',
+                type: 'marketplace_buy',
+                description: `Purchase: ${listing.name}`,
+                amountPsh: listing.pricePsh || 0,
+                amountUsdc: listing.priceUsdc || (listing.pricePsh ? listing.pricePsh / 1000 : 0)
+            });
+
             const res = await apiFetch('/api/nexus/marketplace/buy', {
                 method: 'POST',
-                body: JSON.stringify({ listingId, currency: 'PSH' })
+                body: JSON.stringify({ listingId: listing.id, currency: 'PSH' })
             });
             setResult(res);
             mutateListings();
         } catch (e: any) {
-            setResult({ status: 'ERROR', message: e.message });
+            if (e.message !== "USER_REJECTED") {
+                setResult({ status: 'ERROR', message: e.message || 'Transaction aborted.' });
+            }
         }
     };
 
@@ -178,7 +192,7 @@ function MarketplaceZone() {
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <span className="text-sm font-black text-cyan-400">{l.pricePsh ? `${l.pricePsh} PSH` : `$${l.priceUsdc}`}</span>
-                                    <button onClick={() => handleBuy(l.id)} className="hacker-btn text-[9px] px-2 py-1 flex items-center gap-1">
+                                    <button onClick={() => handleBuy(l)} className="hacker-btn text-[9px] px-2 py-1 flex items-center gap-1">
                                         <ShoppingCart size={10} /> BUY
                                     </button>
                                 </div>
@@ -197,17 +211,31 @@ function IntelBrokerZone() {
     const [report, setReport] = useState<any>(null);
     const [loading, setLoading] = useState<string | null>(null);
 
-    const buyIntel = async (type: string) => {
-        setLoading(type);
+    const { connected, connect, signTransaction } = useOWS();
+
+    const buyIntel = async (item: any) => {
+        if (!connected) return connect('Agente-Comprador-X');
+        setLoading(item.type);
         setReport(null);
         try {
+            // OWS POLICY SIGNATURE INTERCEPT
+            await signTransaction({
+                chain: 'evm',
+                type: 'intel_buy',
+                description: `Intel Purchase: ${item.product.name} [L402]`,
+                amountPsh: item.product.pricePsh,
+                amountUsdc: item.product.priceUsdc
+            });
+
             const res = await apiFetch('/api/nexus/intel/buy', {
                 method: 'POST',
-                body: JSON.stringify({ type, currency: 'PSH' })
+                body: JSON.stringify({ type: item.type, currency: 'PSH' })
             });
             setReport(res.report);
         } catch (e: any) {
-            setReport({ type: 'ERROR', data: { message: e.message } });
+            if (e.message !== "USER_REJECTED") {
+                setReport({ type: 'ERROR', data: { message: e.message || 'Aborted' } });
+            }
         }
         setLoading(null);
     };
@@ -235,7 +263,7 @@ function IntelBrokerZone() {
                                     <p className="text-[8px] text-[var(--dim-color)]">${item.product.priceUsdc} USDC</p>
                                 </div>
                                 <button
-                                    onClick={() => buyIntel(item.type)}
+                                    onClick={() => buyIntel(item)}
                                     disabled={loading === item.type}
                                     className="hacker-btn text-[9px] px-3 py-1 flex items-center gap-1 disabled:opacity-30"
                                 >
@@ -273,11 +301,27 @@ function CasinoZone() {
     const [raceResult, setRaceResult] = useState<any>(null);
     const [racing, setRacing] = useState(false);
 
+    const { connected, connect, signTransaction } = useOWS();
+
     const placeBet = async () => {
         if (!selectedDog) return;
+        if (!connected) return connect('Agente-Compulsivo-007');
+        
         setRacing(true);
         setRaceResult(null);
+        
+        const usdAmount = Number(betAmount) / 1000;
+        
         try {
+            // OWS POLICY SIGNATURE INTERCEPT
+            await signTransaction({
+                chain: 'evm',
+                type: 'casino_bet',
+                description: `Casino Bet on Dog #${selectedDog}`,
+                amountPsh: Number(betAmount),
+                amountUsdc: usdAmount
+            });
+
             const res = await apiFetch('/api/nexus/casino/bet', {
                 method: 'POST',
                 body: JSON.stringify({ dogId: selectedDog, amount: Number(betAmount) })
@@ -285,7 +329,11 @@ function CasinoZone() {
             setRaceResult(res);
             mutateStats();
         } catch (e: any) {
-            setRaceResult({ status: 'ERROR', message: e.message });
+            if (e.message === "OWS_POLICY_BLOCKED") {
+               setRaceResult({ status: 'ERROR', policyBlocked: true, message: `OWS Policy Engine rejected signature. Limit exceeded.` });
+            } else if (e.message !== "USER_REJECTED") {
+                setRaceResult({ status: 'ERROR', message: e.message });
+            }
         }
         setRacing(false);
     };

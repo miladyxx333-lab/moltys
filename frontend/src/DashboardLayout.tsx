@@ -7,9 +7,11 @@ import {
     Store
 } from 'lucide-react';
 import ShadowInbox from './components/ShadowInbox';
+import { useOWS } from './components/OWSWalletProvider';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const [isDarkMode, setIsDarkMode] = useState(true);
+    const { connected, agentId, connect, disconnect } = useOWS();
 
     const toggleTheme = () => {
         setIsDarkMode(!isDarkMode);
@@ -84,6 +86,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
 
                     <div className="flex items-center gap-6">
+                        {/* OWS WALLET BADGE */}
+                        {connected ? (
+                            <button onClick={disconnect} className="hacker-btn border-cyan-500/50 hover:bg-cyan-900/20 px-3 py-1 flex items-center gap-2">
+                                <span className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
+                                <span className="text-[10px] text-cyan-400">{agentId}</span>
+                            </button>
+                        ) : (
+                            <button onClick={() => connect('Agente-Compulsivo-007')} className="hacker-btn px-3 py-1 text-[10px]">
+                                CONNECT_OWS_VAULT
+                            </button>
+                        )}
+
                         <ShadowInbox />
                         <div className="flex items-center gap-2">
                             <span className="status-dot bg-green-500 animate-pulse" />
