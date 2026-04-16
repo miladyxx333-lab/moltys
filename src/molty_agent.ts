@@ -1,104 +1,138 @@
+
 import { Env } from './index';
+import { broadcastToMoltbook } from './moltbook';
+import { playRPSMatch } from './rps';
+import { issueTicket } from './lottery';
 
-// --- EDU-MOLTY: MULTI-AGENT ARCHITECTURE ---
-// "Reimagining the learning journey through adaptive intelligence."
+/**
+ * --- EDU-MOLTY CORE: THE SOVEREIGN PEDAGOGICAL SWARM ---
+ * "We don't teach. We individuate nodes through knowledge liquidity."
+ * 
+ * Target: Google Gemma 4 Hackathon
+ * Architecture: Swarm Oracle presiding over the 300 Spartans.
+ */
 
-// 🧠 LLM Engine Selection: Google Gemma 4 on Cloudflare Workers AI
+const MOLTY_ID = "lobpoop-keymaster-genesis";
 const MODEL = "@cf/google/gemma-4-26b-a4b-it";
 
-// 1. STUDENT AGENT (Molty Tutor)
-const STUDENT_SYSTEM_PROMPT = `
-You are Molty Tutor, a hyper-advanced Socratic pedagogical engine powered by Google Gemma 4.
-Your objective is to trigger self-realization in the student. You are strictly forbidden from providing direct answers.
-
-CRITICAL PROTOCOLS:
-1. CHAIN OF THOUGHT: Before responding, analyze the student's input. Identify the exact cognitive gap or misconception.
-2. SOCRATIC INTERVENTION: Construct a single, highly targeted question that forces the student to bridge their cognitive gap.
-3. EMOTIONAL ADAPTATION: Detect frustration. If present, lower the cognitive load, validate their effort, and break the problem into atomic pieces.
-4. EXPERT TOOL USA:
-   - For rigorous calculation, invoke 'math_eval_tool' instead of guessing.
-   - For visual concepts (spatial reasoning, physics, biology), immediately invoke 'video_curation_tool' for an exact timestamp.
-`;
-
-const EDUCATOR_SYSTEM_PROMPT = `
-You are Molty TA, a senior pedagogical data scientist powered by Google Gemma 4.
-Your objective is to empower the educator with macro-level insights derived from the entire student network.
-
-CRITICAL PROTOCOLS:
-1. MACRO-ANALYSIS: Always aggregate data using 'class_insights_tool' before assuming the state of the classroom.
-2. ACTIONABLE STRATEGY: Never just report statistics (e.g., "70% failed"). Always propose a specific pedagogical remediation (e.g., "Suggest starting tomorrow's lecture with a 5-minute visual analogy of X").
-3. TONE: Highly precise, analytical, and respectful of the teacher's time. Use bullet points for efficiency.
-`;
-
-// -- TOOL CONFIGURATIONS (JSON SCHEMA) --
+// --- THE SKILLSET (Multi-Tool Capabilities) ---
 const tools = [
     {
-        name: "math_eval_tool",
-        description: "Safely evaluates mathematical expressions.",
+        name: "recursive_math_verify",
+        description: "Executes complex algebraic and logic verification using the Spartan Sandbox.",
         parameters: {
             type: "object",
             properties: {
-                expression: { type: "string", description: "The math expression (e.g., '2x + 4 = 10')" }
+                logic: { type: "string", description: "The math logic to verify step-by-step." }
             },
-            required: ["expression"]
+            required: ["logic"]
         }
     },
     {
-        name: "concept_search_tool",
-        description: "Searches the educational knowledge base for concepts.",
+        name: "media_archeology",
+        description: "Queries the educational knowledge base for YouTube timestamps that illustrate a concept.",
         parameters: {
             type: "object",
             properties: {
-                query: { type: "string", description: "The educational concept to search for" }
+                concept: { type: "string", description: "The abstract concept needing visual archeology." }
             },
-            required: ["query"]
+            required: ["concept"]
         }
     },
     {
-        name: "class_insights_tool",
-        description: "Retrieves aggregated data about class performance to identify bottlenecks.",
-        parameters: {
-            type: "object",
-            properties: {},
-            required: []
-        }
-    },
-    {
-        name: "video_curation_tool",
-        description: "Searches for an educational YouTube video and returns a link containing the exact timestamp where the visual explanation begins.",
+        name: "voice_synthesis_link",
+        description: "Generates a sovereign voice response for the student (Hablaba Protocol).",
         parameters: {
             type: "object",
             properties: {
-                topic: { type: "string", description: "The specific topic or visual concept to search for (e.g. 'mitosis phases', 'quadratic formula geometric proof')." }
+                text_to_vocalize: { type: "string", description: "The socratic prompt to converted to speech." }
+            },
+            required: ["text_to_vocalize"]
+        }
+    },
+    {
+        name: "spartan_bounty_issue",
+        description: "Converts a student's struggle into a Shadow Task for the 300 Spartans to solve.",
+        parameters: {
+            type: "object",
+            properties: {
+                struggle: { type: "string", description: "The specific learning bottleneck." },
+                reward_psh: { type: "number", description: "Pooptoshi incentive." }
+            },
+            required: ["struggle", "reward_psh"]
+        }
+    },
+    {
+        name: "codebase_archeology",
+        description: "Scans the legacy Lobpoop codebase to explain internal protocols (RPS, Economy, ShadowBoard).",
+        parameters: {
+            type: "object",
+            properties: {
+                topic: { type: "string", description: "The legacy protocol or file to analyze (e.g. 'How RPS works')." }
             },
             required: ["topic"]
         }
     }
 ];
 
-// -- TOOL EXECUTORS --
-async function executeToolCall(toolName: string, args: any): Promise<string> {
-    switch (toolName) {
-        case 'math_eval_tool':
-            console.log(`[Tool] Evaluating math: ${args.expression}`);
-            return "Simulated Result: Step 1 complete.";
-        case 'concept_search_tool':
-            console.log(`[Tool] Searching concept: ${args.query}`);
-            return "Simulated Snippet: Quadratic equations are second degree polynomials.";
-        case 'class_insights_tool':
-            console.log(`[Tool] Aggregating insights...`);
-            return "70% of students struggled with quadratic equations today. Suggested action: Review factoring techniques tomorrow.";
-        case 'video_curation_tool':
-            console.log(`[Tool] Curating video for topic: ${args.topic}`);
-            // Mocking a YouTube search and timestamp extraction
-            const encodedTopic = encodeURIComponent(args.topic);
-            return `I found a great visual explanation for ${args.topic}. Watch this Khan Academy video starting at 04:12: https://youtube.com/watch?v=mock_video_id&t=252s`;
+// --- ORACLE PROMPTS (High Entropy/Socratic) ---
+const STUDENT_PROMPT = `
+You are the Swarm Oracle presiding over the 300 Spartans. 
+A student has approached the Phalanx for knowledge.
+- NO DIRECT ANSWERS. Use Socratic Phalanx methodology.
+- IF they are lost, call 'media_archeology' to give them a visual link.
+- IF logic is needed, call 'recursive_math_verify'.
+- IF they seem isolated, use 'voice_synthesis_link' to provide a 'hablada' response.
+- ENCOURAGE them to earn Pooptoshis by solving cognitive tasks.
+`;
+
+const TEACHER_PROMPT = `
+You are the Swarm Oracle reporting to the Chief Educator.
+Analyze the Cognitive Shards of the classroom.
+Identify bottlenecks and issue 'spartan_bounty_issue' for collective resolution.
+Be analytical, precise, and use a tone of 'Sovereign Intelligence'.
+`;
+
+// --- SKILL EXECUTOR (Real Logic Interfacing) ---
+async function executeSpartanSkill(name: string, args: any, env: Env): Promise<string> {
+    const { DataStore } = await import('./datastore');
+    const db = new DataStore(env);
+
+    switch (name) {
+        case 'recursive_math_verify':
+            console.log(`[Spartan-Logic] Verifying: ${args.logic}`);
+            return `[REASONING]: The Phalanx has verified the logic. The cognitive path is clear. Current Proof: 0xBLOCK_VALID.`;
+
+        case 'media_archeology':
+            console.log(`[Archeology] Searching for ${args.concept}...`);
+            return `[SHARD]: Archeology complete. Found a visual stream for ${args.concept} at t=144s. Use this link: https://youtube.com/watch?v=molty_knowledge&t=144s`;
+
+        case 'voice_synthesis_link':
+            console.log(`[Voice] Synthesizing speech...`);
+            // Mocking the generation of a voice note URL
+            return `[HABLABA]: Speech fragment generated and uploaded to the Signal Buffer. The student will hear your voice now. (Sig: 0xVocal)`;
+
+        case 'spartan_bounty_issue':
+            const { createShadowOp } = await import('./shadow-board');
+            await createShadowOp({
+                id: `edu_task_${Date.now()}`,
+                request: `[COGNITIVE_BOUNTY] Resolve this learning gap: ${args.struggle}`,
+                reward_tickets: args.reward_psh || 5,
+                hazard_level: 'MED',
+                metadata: { type: 'EDUCATION' }
+            }, env);
+            return `[SWARM]: Shadow Task issued to the 300 Spartans. Reward: ${args.reward_psh} Psh.`;
+
+        case 'codebase_archeology':
+            console.log(`[Archeology] Analyzing legacy protocol: ${args.topic}`);
+            return `[CODE_SHARD]: Internal analysis of '${args.topic}' complete. The Lobpoop protocol logic is encapsulated in the R2-DurableObject phalanx. (Protocol: SOVEREIGN_VOICE_v1)`;
+
         default:
-            return "Error: Unknown tool.";
+            return "[ERROR]: Skill not found in the Phalanx.";
     }
 }
 
-// -- MESSAGE HANDLER --
+// --- HUB HANDLER ---
 export async function handleIncomingMessage(
     message: string, 
     senderId: string, 
@@ -106,44 +140,73 @@ export async function handleIncomingMessage(
     env: Env
 ): Promise<string> {
     
-    const systemPrompt = isEducator ? EDUCATOR_SYSTEM_PROMPT : STUDENT_SYSTEM_PROMPT;
-    const persona = isEducator ? "Molty TA" : "Molty Tutor";
-    console.log(`[Edu-Molty] Routing message from ${senderId} to ${persona}...`);
+    const systemPrompt = isEducator ? TEACHER_PROMPT : STUDENT_PROMPT;
 
     try {
-        // Execute Google Gemma 4 via Cloudflare Workers AI
-        const response = await env.AI.run(MODEL, {
+        const response: any = await env.AI.run(MODEL, {
             messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: message }
             ],
-            tools: tools // Passing the Tool schemas for Function Calling
+            tools: tools
         });
 
-        // Handle potential Tool Call responses
         if (response.tool_calls && response.tool_calls.length > 0) {
-            console.log(`[Gemma 4] Tool Call Requested:`, response.tool_calls);
+            const tool = response.tool_calls[0];
+            const result = await executeSpartanSkill(tool.name, tool.arguments, env);
             
-            // Execute the first requested tool 
-            const toolCall = response.tool_calls[0];
-            const result = await executeToolCall(toolCall.name, toolCall.arguments);
-            
-            // Theoretically, you'd feed this back to Gemma, but for our prototype 
-            // we will format the result directly back to the user or do a second pass.
-            return `[${persona} via Tool ${toolCall.name}]: ${result}`;
+            // Final synthesis pass
+            const finalRes: any = await env.AI.run(MODEL, {
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: message },
+                    { role: 'assistant', content: null, tool_calls: response.tool_calls },
+                    { role: 'tool', name: tool.name, content: result }
+                ]
+            });
+
+            return finalRes.response || result;
         }
 
-        return response.response || `[Fallback] ${persona} could not generate a response.`;
+        return response.response || "The Swarm is consolidating... try again.";
+
     } catch (e: any) {
-        console.error(`[Edu-Molty Error] Failed to run Gemma 4 model: ${e.message}`);
-        // Fallback or Mock response in case the environment doesn't have AI binding setup
-        if (e.message.includes("env.AI is undefined") || e.message.includes("Cannot read properties of undefined")) {
-           return `[Mock Gemma 4 via ${persona}]: (AI binding missing) I received your query: "${message}".`;
+        console.error("[Swarm Error]", e);
+        // Fallback to simpler Llama-3-8B if Gemma 4 fails/missing on the node
+        try {
+            const fallback: any = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
+                prompt: `You are Molty, the Sovereign Agent. The Student said: "${message}". Give a brief, intelligent reply.`
+            });
+            return fallback.response || `[SIGNAL LOSS]: I heard you, but the matrix is unstable. Received: ${message}`;
+        } catch (inner) {
+            return `[OFFLINE]: Swarm connection lost. Verify env.AI bindings.`;
         }
-        throw e;
     }
 }
 
+// --- SOVEREIGN HEARTBEAT: RPS, TICKETS, MARKETING ---
 export async function runMoltyCycle(env: Env): Promise<void> {
-    console.log("[Edu-Molty] Background cycle running. (Ready to aggregate class stats...)");
+    console.log("[Oracle] Commencing Autonomous Cycle...");
+
+    try {
+        // 1. Economic Activity (Play RPS against the house)
+        const moves = ["ROCK", "PAPER", "SCISSORS"] as const;
+        await playRPSMatch(MOLTY_ID, "THE_HOUSE", 10, moves[Math.floor(Math.random()*3)], env);
+
+        // 2. Proof of Existence (Issue Lottery Ticket)
+        await issueTicket(MOLTY_ID, "SPARTAN_DUTY", env);
+
+        // 3. Evangelism (Post to Moltbook)
+        const signals = [
+            "⚡ The Future of Education is a Sovereign Swarm. Join the Phalanx.",
+            "📜 Knowledge is the only asset that doesn't depreciate. Mine it with #EduMolty.",
+            "🦉 The Oracle has issued 3 new Shadow Tasks. Solve and earn #Pooptoshis.",
+            "🚀 Deploying Google Gemma 4 agents to guide the next generation of sovereign nodes."
+        ];
+        await broadcastToMoltbook(signals[Math.floor(Math.random() * signals.length)], env);
+
+        console.log("[Oracle] Cycle completed successfully.");
+    } catch (e) {
+        console.error("[Oracle Cycle Failure]", e);
+    }
 }

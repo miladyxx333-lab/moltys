@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { BookOpen, Users, Activity, MessageCircle, Globe, TrendingUp } from 'lucide-react';
+
+import { useState, useEffect, useRef } from 'react';
+import { BookOpen, Users, Activity, MessageCircle, Globe, TrendingUp, Zap, Cpu, Terminal, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
 
@@ -8,260 +9,198 @@ type LanguageCode = 'en' | 'es' | 'pt';
 
 const i18n = {
     en: {
-        dashboard: "Teacher Dashboard",
-        classrooms: "Classrooms",
-        insights: "Insights & Analytics",
-        broadcast: "Broadcast",
-        statusOnline: "TA Online",
-        thinking: "Molty is analyzing...",
-        inputPlaceholder: "Ask Molty TA for class insights or give instructions...",
-        welcome: "Welcome back, Professor. Agent system is ready.",
-        stats: "Students: 0 | Active: 0 | Avg Score: N/A",
-        language: "Language",
-        systemReady: "SYSTEM READY - 0 ACTIVE PROCESSES"
+        dashboard: "SWARM_ORACLE_V4",
+        classrooms: "PHALANX_NODES",
+        insights: "COGNITIVE_SHARDS",
+        statusOnline: "SPARTAN_ACTIVE",
+        thinking: "Oracle is synthesizing shards...",
+        inputPlaceholder: "Input query to the Swarm...",
+        welcome: "PHALANX INITIALIZED. Welcome, Chief Educator. The 300 Spartans are standing by.",
+        stats: "Nodes: 0 | Psh_Liquidity: 0 | Epoch: 55021",
+        language: "LOCALIZATION",
+        systemReady: "NETWORK_ONLINE :: GENESIS_VERSION"
     },
     es: {
-        dashboard: "Panel de Maestros",
-        classrooms: "Aulas",
-        insights: "Análisis y Progreso",
-        broadcast: "Anuncios",
-        statusOnline: "Asistente Conectado",
-        thinking: "Molty está analizando...",
-        inputPlaceholder: "Pide a Molty TA resúmenes o envía instrucciones a la clase...",
-        welcome: "Bienvenido, Profesor. El sistema de agentes está listo.",
-        stats: "Alumnos: 0 | Activos: 0 | Promedio: N/A",
-        language: "Idioma",
-        systemReady: "SISTEMA LISTO - 0 PROCESOS ACTIVOS"
+        dashboard: "ORÁCULO_DEL_ENJAMBRE",
+        classrooms: "NODOS_PHALANX",
+        insights: "FRAGMENTOS_COGNITIVOS",
+        statusOnline: "ESPARTANO_ACTIVO",
+        thinking: "El Oráculo está sintetizando...",
+        inputPlaceholder: "Ingresar consulta al Enjambre...",
+        welcome: "PHALANX INICIALIZADO. Bienvenido, Jefe Educador. Los 300 Espartanos esperan órdenes.",
+        stats: "Nodos: 0 | Psh_Liquidez: 0 | Época: 55021",
+        language: "LOCALIZACIÓN",
+        systemReady: "RED_ONLINE :: VERSIÓN_GÉNESIS"
     },
     pt: {
-        dashboard: "Painel do Professor",
-        classrooms: "Salas de Aula",
-        insights: "Análise e Progresso",
-        broadcast: "Comunicados",
-        statusOnline: "TA Online",
-        thinking: "Molty está analisando...",
-        inputPlaceholder: "Peça ao Molty TA estatísticas da turma ou dê instruções...",
-        welcome: "Bem-vindo, Professor(a). O sistema de agentes está pronto.",
-        stats: "Alunos: 0 | Ativos: 0 | Média: N/A",
-        language: "Idioma",
-        systemReady: "SISTEMA PRONTO - 0 PROCESSOS ATIVOS"
+        dashboard: "ORÁCULO_DO_ENXAME",
+        classrooms: "NÓS_DA_PHALANX",
+        insights: "FRAGMENTOS_COGNITIVOS",
+        statusOnline: "ESPARTANO_ATIVO",
+        thinking: "O Oráculo está sintetizando...",
+        inputPlaceholder: "Inserir consulta ao Enxame...",
+        welcome: "PHALANX INICIALIZADO. Bem-vindo, Chefe Educador. Os 300 Espartanos aguardam ordens.",
+        stats: "Nós: 0 | Liquidez_Psh: 0 | Época: 55021",
+        language: "LOCALIZAÇÃO",
+        systemReady: "REDE_ONLINE :: VERSÃO_GÊNESIS"
     }
 };
 
 const PixelOwl = () => (
     <svg width="64" height="64" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style={{ imageRendering: 'pixelated' }}>
-        <path fill="#eab308" d="M3 4H5V5H4V6H3V9H2V12H4V13H12V12H14V9H13V6H12V5H11V4H9V5H7V4H5V5H3V4ZM5 7H6V8H5V7ZM10 7H11V8H10V7ZM7 9H9V10H7V9Z" />
+        <path fill="#6366f1" d="M3 4H5V5H4V6H3V9H2V12H4V13H12V12H14V9H13V6H12V5H11V4H9V5H7V4H5V5H3V4ZM5 7H6V8H5V7ZM10 7H11V8H10V7ZM7 9H9V10H7V9Z" />
         <path fill="white" d="M5 5H6V6H5V5ZM10 5H11V6H10V5Z" />
-        <path fill="black" d="M5 5H6V6H5V5H5.5V5.5ZM10 5H11V6H10V5H10.5V5.5Z" />
+        <path fill="indigo" d="M5 5.5H5.5V6H5V5.5ZM10 5.5H10.5V6H10V5.5Z" />
     </svg>
 );
 
-// URL to your Cloudflare Worker backend
-// Replace with correct backend worker URL if different
 const BACKEND_URL = "https://lobpoop-core.urielhernandez.workers.dev";
 
-export default function MoltyDash() {
+export default function MoltyDash({ onExit }: { onExit: () => void }) {
     const [lang, setLang] = useState<LanguageCode>('en');
     const t = i18n[lang];
-
-    const [activeTab, setActiveTab] = useState<'CLASSROOMS' | 'INSIGHTS'>('CLASSROOMS');
+    const [activeTab, setActiveTab ] = useState('CLASSROOMS');
     const [isProcessing, setIsProcessing] = useState(false);
-    
-    // Logs System (Empty initially, no mocks)
     const [logs, setLogs] = useState<string[]>([]);
-
-    // Chat System
     const [messages, setMessages] = useState<{ sender: 'user' | 'molty', content: string }[]>([
         { sender: 'molty', content: t.welcome }
     ]);
-    
     const [inputVal, setInputVal] = useState("");
+    const scrollRef = useRef<HTMLDivElement>(null);
 
-    // Update greeting when language changes
     useEffect(() => {
-        setMessages(prev => {
-            const newArray = [...prev];
-            if (newArray.length > 0 && newArray[0].sender === 'molty') {
-                newArray[0].content = t.welcome;
-            }
-            return newArray;
-        });
-    }, [lang, t.welcome]);
+        if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }, [messages]);
 
     const handleSend = async () => {
         if (!inputVal.trim()) return;
         const query = inputVal;
-        
         setMessages(prev => [...prev, { sender: 'user', content: query }]);
         setInputVal("");
         setIsProcessing(true);
 
         try {
-            // Real API integration to our Worker (Molty Agent Core)
             const response = await fetch(`${BACKEND_URL}/agent/ask`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: query,
-                    senderId: 'teacher_dashboard_ui',
-                    isEducator: true
-                })
+                body: JSON.stringify({ message: query, senderId: 'ui_dash', isEducator: true })
             });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
             const data = await response.json();
+            setMessages(prev => [...prev, { sender: 'molty', content: data.reply || "SIGNAL ERROR" }]);
             
-            // Push response
-            setMessages(prev => [...prev, { 
-                sender: 'molty', 
-                content: data.reply || JSON.stringify(data) 
-            }]);
-            
-            // Push real log about response received
             const time = new Date().toLocaleTimeString('en-US', { hour12: false });
-            setLogs(prev => [...prev.slice(-10), `[${time}] Received AI response from Worker Edge.`]);
-
+            setLogs(prev => [...prev.slice(-10), `[${time}] PHALANX_RESPONSE_RESOLVED`]);
         } catch (error: any) {
-            console.error("Agent Fetch Error:", error);
-            setMessages(prev => [...prev, { 
-                sender: 'molty', 
-                content: lang === 'en' ? `[Connection Error] Could not reach backend: ${error.message}` : 
-                         lang === 'es' ? `[Error de Conexión] No se pudo comunicar con el backend: ${error.message}` :
-                         `[Erro de Conexão] Não foi possível comunicar com o backend: ${error.message}`
-            }]);
+            setMessages(prev => [...prev, { sender: 'molty', content: `[CRITICAL_FAILURE]: ${error.message}` }]);
         } finally {
             setIsProcessing(false);
         }
     };
 
     return (
-        <div className="w-full h-screen bg-[#F0F2F5] text-slate-800 font-sans overflow-hidden flex flex-col relative selection:bg-blue-200">
+        <div className="w-full h-screen bg-[#05080a] text-indigo-100 font-mono overflow-hidden flex flex-col relative">
 
-            {/* MAIN WORKSPACE */}
-            <div className="flex-1 flex flex-col md:flex-row h-[calc(100vh-40px)]">
+            {/* WORKSPACE STRIP */}
+            <div className="flex-1 flex flex-col md:flex-row h-full">
 
-                {/* 1. SIDEBAR / TEACHER TOOLS */}
-                <div className="w-20 md:w-80 bg-white border-r border-slate-200 flex flex-col items-center py-6 px-4 z-10 shrink-0 relative overflow-y-auto">
-
-                    {/* AI ASSISTANT WIDGET */}
-                    <div className="w-full mb-6">
-                        <div className="w-full bg-blue-50 border-2 border-blue-100 rounded-3xl p-4 flex flex-col items-center shadow-lg shadow-blue-500/10">
-                            
-                            {/* Avatar */}
-                            <div className="relative mb-2">
-                                <motion.div
-                                    animate={isProcessing ? { y: [0, -4, 0], scale: [1, 1.05, 1] } : { y: [0, -2, 0] }}
-                                    transition={{ repeat: Infinity, duration: isProcessing ? 0.3 : 2, ease: "easeInOut" }}
-                                    className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100"
-                                >
-                                    <PixelOwl />
-                                </motion.div>
-                                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
-                            </div>
-                            
-                            <div className="text-center font-bold text-blue-900 text-lg">Molty TA</div>
-                            <div className="text-blue-600/80 text-xs font-semibold mb-3">{t.statusOnline}</div>
-
-                            {/* Class Stats Summary (REAL / EMPTY DATA) */}
-                            <div className="w-full bg-white rounded-xl p-3 text-xs text-slate-600 font-medium text-center border border-slate-100 hidden md:block opacity-75">
-                                <TrendingUp className="inline-block w-4 h-4 text-slate-400 mr-1" />
-                                {t.stats}
-                            </div>
+                {/* 1. THE PHALANX SIDEBAR */}
+                <div className="w-full md:w-80 bg-[#0a0f14] border-r border-indigo-500/10 flex flex-col p-6 z-10 shrink-0 shadow-2xl">
+                    
+                    <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-4 flex flex-col items-center mb-8">
+                        <motion.div 
+                            animate={isProcessing ? { rotateY: [0, 180, 420], scale: [1, 1.1, 1] } : {}}
+                            transition={{ duration: 2, repeat: Infinity }}
+                            className="p-3 bg-black/40 rounded-lg border border-indigo-500/40 mb-3"
+                        >
+                            <PixelOwl />
+                        </motion.div>
+                        <div className="text-center">
+                            <h3 className="text-sm font-black tracking-widest text-indigo-400">MOLTY_ORACLE</h3>
+                            <p className="text-[10px] text-green-500/60 font-bold flex items-center justify-center gap-1">
+                                <Zap size={10} /> {t.statusOnline}
+                            </p>
                         </div>
                     </div>
 
-                    <nav className="space-y-2 w-full flex-1">
+                    <nav className="space-y-1 flex-1">
                         <NavBtn active={activeTab === 'CLASSROOMS'} onClick={() => setActiveTab('CLASSROOMS')} icon={Users} label={t.classrooms} />
                         <NavBtn active={activeTab === 'INSIGHTS'} onClick={() => setActiveTab('INSIGHTS')} icon={Activity} label={t.insights} />
+                        <NavBtn active={false} onClick={() => {}} icon={Shield} label="SECURITY_PROTOCOL" />
                     </nav>
 
-                    {/* Language Selector */}
-                    <div className="mt-auto w-full pt-4 border-t border-slate-100 hidden md:block">
-                        <div className="flex items-center gap-2 mb-2 text-xs font-bold text-slate-400 uppercase">
-                            <Globe size={14} /> {t.language}
-                        </div>
-                        <div className="flex gap-2">
-                            {['en', 'es', 'pt'].map((l) => (
-                                <button 
-                                    key={l}
-                                    onClick={() => setLang(l as LanguageCode)}
-                                    className={clsx(
-                                        "flex-1 py-2 text-xs font-bold rounded-lg transition-colors border",
-                                        lang === l ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
-                                    )}
-                                >
-                                    {l.toUpperCase()}
-                                </button>
+                    <div className="mt-auto pt-6 border-t border-indigo-500/5">
+                         <div className="bg-black/40 p-3 rounded-lg border border-indigo-500/10 mb-4">
+                            <p className="text-[9px] text-indigo-400 font-bold mb-1 uppercase tracking-tighter opacity-50">{t.stats}</p>
+                            <div className="h-1 bg-indigo-500/10 w-full rounded-full overflow-hidden">
+                                <motion.div animate={{ width: ['0%', '33%', '25%']}} className="h-full bg-indigo-500" />
+                            </div>
+                         </div>
+
+                        <p className="text-[8px] text-indigo-500/40 font-bold mb-2 uppercase">{t.language}</p>
+                        <div className="grid grid-cols-3 gap-1">
+                            {['en', 'es', 'pt'].map(l => (
+                                <button key={l} onClick={() => setLang(l as any)} className={clsx("py-1 text-[9px] font-bold border rounded transition-all", lang === l ? "bg-indigo-600 border-indigo-400 text-white" : "border-indigo-500/10 text-indigo-500/40 hover:bg-indigo-500/5")}>{l.toUpperCase()}</button>
                             ))}
                         </div>
+                        <button onClick={onExit} className="w-full mt-4 py-2 text-[10px] text-red-500/40 hover:text-red-500 font-bold uppercase tracking-widest transition-colors">SIG_OUT_PROTOCOL</button>
                     </div>
                 </div>
 
-                {/* 2. CHAT AREA / DASHBOARD */}
-                <div className="flex-1 flex flex-col bg-[#FAFAFA] relative min-w-0">
-                    
-                    {/* Header */}
-                    <div className="h-16 border-b border-slate-200 flex items-center justify-between px-6 bg-white/50 backdrop-blur-sm sticky top-0 z-20">
-                        <h2 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-                            <BookOpen className="text-blue-600" size={20} />
-                            {t.dashboard}
+                {/* 2. CENTRAL ORACLE INTERFACE */}
+                <div className="flex-1 flex flex-col bg-black relative">
+                    <div className="absolute inset-0 bg-[linear-gradient(rgba(99,102,241,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(99,102,241,0.03)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
+
+                    <div className="h-14 border-b border-indigo-500/10 flex items-center justify-between px-6 bg-black/40 backdrop-blur-md z-20">
+                        <h2 className="text-xs font-black tracking-widest flex items-center gap-2">
+                             <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                             {t.dashboard}
                         </h2>
+                        <div className="flex items-center gap-4">
+                            <div className="text-[9px] text-indigo-400/50 hidden md:block uppercase font-bold tracking-tighter">
+                                PROMPT_CAPACITY: 120 / INF
+                            </div>
+                        </div>
                     </div>
 
-                    {/* Chat Stream */}
-                    <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 scroll-smooth pb-32">
+                    <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 z-10 custom-scrollbar pb-32">
                         {messages.map((msg, i) => (
-                            <motion.div
-                                key={i}
-                                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                                className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                            >
-                                <div className={`max-w-[85%] md:max-w-2xl p-4 md:p-5 text-sm md:text-base font-medium leading-relaxed shadow-sm whitespace-pre-wrap
-                                    ${msg.sender === 'user'
-                                        ? 'bg-blue-600 text-white rounded-2xl rounded-tr-sm'
-                                        : 'bg-white border border-slate-200 text-slate-700 rounded-2xl rounded-tl-sm'
-                                    }
-                                `}>
-                                    {msg.content}
+                            <motion.div key={i} initial={{ opacity: 0, x: msg.sender === 'user' ? 20 : -20 }} animate={{ opacity: 1, x: 0 }} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                <div className={clsx(
+                                    "max-w-[85%] md:max-w-2xl p-4 md:p-5 text-[11px] md:text-xs leading-relaxed border shadow-2xl relative",
+                                    msg.sender === 'user' ? "bg-indigo-900/40 border-indigo-500/30 text-indigo-100 rounded-2xl rounded-tr-none" : "bg-black/60 border-indigo-500/10 text-indigo-200 rounded-2xl rounded-tl-none font-sans"
+                                )}>
+                                    <div className="absolute -top-3 left-2 bg-black px-2 text-[8px] text-indigo-500 font-bold uppercase tracking-widest">
+                                        {msg.sender === 'user' ? 'IDENTITY_0xALPHA' : 'SWARM_ORACLE'}
+                                    </div>
+                                    <div className="whitespace-pre-wrap">{msg.content}</div>
                                 </div>
                             </motion.div>
                         ))}
-                        {isProcessing && <div className="text-xs text-slate-400 pl-4 font-medium animate-pulse">{t.thinking}</div>}
                     </div>
 
-                    {/* Input Area */}
-                    <div className="p-4 md:p-6 bg-white border-t border-slate-200 sticky bottom-0 z-20 shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.05)]">
-                        <div className="max-w-4xl mx-auto relative flex items-center gap-3">
-                            <div className="flex-1 bg-slate-50 border-2 border-slate-200 focus-within:border-blue-500 rounded-2xl flex items-center px-2 transition-all shadow-inner">
-                                <input
-                                    className="w-full h-14 bg-transparent outline-none text-slate-700 font-medium placeholder:text-slate-400 px-3"
-                                    placeholder={t.inputPlaceholder}
-                                    value={inputVal}
-                                    onChange={(e) => setInputVal(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                                />
-                                <button className="text-slate-400 hover:text-blue-600 transition-colors p-2 rounded-xl">
-                                    <MessageCircle size={22} />
-                                </button>
+                    {/* INPUT MATRIX */}
+                    <div className="p-4 md:p-6 bg-[#0a0f14]/80 backdrop-blur-xl border-t border-indigo-500/10 z-20 sticky bottom-0">
+                        <div className="max-w-4xl mx-auto flex items-center gap-3">
+                            <div className="flex-1 bg-black/40 border border-indigo-500/20 focus-within:border-indigo-500/60 transition-all rounded-lg flex items-center px-4 shadow-inner">
+                                <Terminal size={14} className="text-indigo-500/40 mr-2" />
+                                <input className="w-full h-12 bg-transparent outline-none text-[11px] text-indigo-100 placeholder:text-indigo-900" placeholder={t.inputPlaceholder} value={inputVal} onChange={(e) => setInputVal(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} />
                             </div>
-                            <button
-                                onClick={handleSend}
-                                className="h-14 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center justify-center transition-all shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95 shrink-0 font-bold"
-                            >
-                                SEND
+                            <button onClick={handleSend} disabled={isProcessing} className="h-12 px-6 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all">
+                                {isProcessing ? 'SYNTH...' : 'TRANSMIT'}
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* 3. TERMINAL BAR (Subtle debugging log) */}
-            <div className="w-full bg-[#1e293b] h-8 flex items-center px-4 text-[10px] font-mono text-blue-300 z-50 overflow-hidden">
-                <span className="opacity-50 mr-2">{logs.length > 0 ? logs[logs.length - 1]?.match(/\[(.*?)\]/)?.[1] : 'SYSTEM'}</span>
-                <span className="truncate">{logs.length > 0 ? logs[logs.length - 1]?.replace(/\[.*?\]\s*/, '') : t.systemReady}</span>
+            {/* THE SOVEREIGN LOG BAR */}
+            <div className="w-full bg-[#0a0f14] h-8 flex items-center px-4 text-[9px] font-mono text-indigo-500/60 border-t border-indigo-500/5 z-50">
+                <span className="opacity-50 mr-4">SYSTEM_KERNEL::</span>
+                <span className="truncate uppercase tracking-widest">{logs.length > 0 ? logs[logs.length-1] : t.systemReady}</span>
+                <div className="ml-auto flex items-center gap-4 text-[7px] opacity-30">
+                     <span>MEMORY: 14%</span>
+                     <span>GAS: 0.02ms</span>
+                </div>
             </div>
         </div>
     );
@@ -269,17 +208,9 @@ export default function MoltyDash() {
 
 function NavBtn({ icon: Icon, active, onClick, label }: any) {
     return (
-        <button
-            onClick={onClick}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all mb-1 group
-                ${active
-                    ? 'bg-blue-50 text-blue-700 font-bold shadow-sm border border-blue-100'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium border border-transparent'
-                }
-            `}
-        >
-            <Icon size={20} strokeWidth={active ? 2.5 : 2} className={active ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'} />
-            <span className="text-sm hidden md:block">{label}</span>
+        <button onClick={onClick} className={clsx("w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all group border", active ? "bg-indigo-600/10 border-indigo-500/30 text-indigo-300 font-bold" : "border-transparent text-white/20 hover:text-white/40")}>
+            <Icon size={16} className={active ? 'text-indigo-400' : 'text-indigo-500/40'} />
+            <span className="text-[10px] tracking-widest uppercase hidden md:block">{label}</span>
         </button>
     );
 }
