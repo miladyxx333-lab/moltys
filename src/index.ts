@@ -1102,6 +1102,55 @@ async function handleInternalRequest(request: Request, env: Env, ctx: ExecutionC
       return Response.json({ status: "TRIGGERED", agent: "Molty", info: "Marketing cycle started." });
     }
 
+    if (url.pathname === "/agent/ask") {
+      const body = await request.clone().json().catch(() => ({})) as any;
+      const senderId = body.senderId || "anon";
+      const { handleIncomingMessage } = await import('./molty_agent');
+
+      // --- FIX #4: Persist history via Durable Object ---
+      const doId = env.AGENCY_DO.idFromName(`tutor_${senderId}`);
+      const stub = env.AGENCY_DO.get(doId);
+
+      // Initialize DO if first time (fire-and-forget, idempotent)
+      await stub.fetch("http://agent/init", {
+        method: "POST",
+        body: JSON.stringify({ id: `tutor_${senderId}`, type: "TUTOR", name: "Molty Oracle" })
+      }).catch(() => {});
+
+      // Load persisted history from DO
+      let persistedHistory: any[] = [];
+      try {
+        const histRes = await stub.fetch("http://agent/history");
+        persistedHistory = await histRes.json() as any[] || [];
+      } catch (e) {}
+
+      // Merge: prefer client history if provided, else use persisted
+      const clientHistory = body.history || [];
+      const mergedHistory = clientHistory.length > 0 ? clientHistory : persistedHistory.slice(-10).map((h: any) => ({
+        role: h.role,
+        content: h.content
+      }));
+
+      const reply = await handleIncomingMessage(
+        body.message || "", 
+        senderId, 
+        { mode: body.mode, isEducator: body.isEducator, history: mergedHistory }, 
+        env
+      );
+
+      // Persist the new exchange to DO history
+      await stub.fetch("http://agent/append", { 
+        method: "POST", 
+        body: JSON.stringify({ role: "user", content: body.message || "" }) 
+      }).catch(() => {});
+      await stub.fetch("http://agent/append", { 
+        method: "POST", 
+        body: JSON.stringify({ role: "assistant", content: reply }) 
+      }).catch(() => {});
+
+      return Response.json({ reply });
+    }
+
     if (url.pathname === "/system/stats") {
       const list = await env.MEMORY_BUCKET.list({ prefix: 'economy/accounts/' });
       return Response.json({ total_indexed_accounts: list.objects.length });

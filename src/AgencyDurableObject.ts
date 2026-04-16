@@ -42,16 +42,23 @@ export class AgencyDurableObject {
         }
 
         if (url.pathname === "/agent/ask" && request.method === "POST") {
-            const { message, senderId, isEducator } = await request.json() as any;
+            const { message, senderId, isEducator, mode } = await request.json() as any;
             
             // Import and run our new Multi-Agent Hub
             const { handleIncomingMessage } = await import('./molty_agent');
             
+            // Load persisted history from DO storage for context continuity
+            let history = await this.state.storage.get("history") as any[] || [];
+            
             try {
-                const response = await handleIncomingMessage(message, senderId || "unknown", !!isEducator, this.env);
+                const response = await handleIncomingMessage(
+                    message, 
+                    senderId || "unknown", 
+                    { mode: mode || null, isEducator: !!isEducator, history: history.slice(-10) },
+                    this.env
+                );
                 
-                // Save to history log
-                let history = await this.state.storage.get("history") as any[] || [];
+                // Save to history log (append to already-loaded history)
                 history.push({ role: 'user', content: message, ts: Date.now() });
                 history.push({ role: 'assistant', content: response, ts: Date.now() });
                 if (history.length > 20) history = history.slice(-20);

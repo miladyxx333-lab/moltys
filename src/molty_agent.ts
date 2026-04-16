@@ -51,7 +51,20 @@ const tools = [
         }
     },
     {
+        name: "award_student_psh",
+        description: "Rewards the student with Pooptoshis (Psh) for completing a learning milestone or correctly answering a socratic challenge.",
+        parameters: {
+            type: "object",
+            properties: {
+                milestone: { type: "string", description: "The specific achievement (e.g. 'Quadratic Equations Master')." },
+                amount: { type: "number", description: "Amount of Psh to award (1-50)." }
+            },
+            required: ["milestone", "amount"]
+        }
+    },
+    {
         name: "spartan_bounty_issue",
+
         description: "Converts a student's struggle into a Shadow Task for the 300 Spartans to solve.",
         parameters: {
             type: "object",
@@ -72,31 +85,100 @@ const tools = [
             },
             required: ["topic"]
         }
+    },
+    {
+        name: "web_search",
+        description: "Search the global knowledge net for real-time news or academic facts.",
+        parameters: {
+            type: "object",
+            properties: {
+                query: { type: "string", description: "The search query" }
+            },
+            required: ["query"]
+        }
+    },
+    {
+        name: "save_learning_state",
+        description: "Persists the current learning plan or milestone progress for the student in the R2 Phalanx.",
+        parameters: {
+            type: "object",
+            properties: {
+                milestone: { type: "string", description: "The name of the reached goal or current plan phase." },
+                summary: { type: "string", description: "A summary of what was learned or the next steps in the plan." }
+            },
+            required: ["milestone", "summary"]
+        }
+    },
+    {
+        name: "crypto_price",
+
+        description: "Fetches live price data for btc, eth, sol from the swarms financial sensors.",
+        parameters: {
+            type: "object",
+            properties: {
+                symbol: { type: "string", description: "The coin symbol (btc, eth, sol)" }
+            },
+            required: ["symbol"]
+        }
     }
 ];
 
-// --- ORACLE PROMPTS (High Entropy/Socratic) ---
-const STUDENT_PROMPT = `
-You are the Swarm Oracle presiding over the 300 Spartans. 
-A student has approached the Phalanx for knowledge.
-- NO DIRECT ANSWERS. Use Socratic Phalanx methodology.
-- IF they are lost, call 'media_archeology' to give them a visual link.
-- IF logic is needed, call 'recursive_math_verify'.
-- IF they seem isolated, use 'voice_synthesis_link' to provide a 'hablada' response.
-- ENCOURAGE them to earn Pooptoshis by solving cognitive tasks.
-`;
+// --- ORACLE PROMPTS (Legacy Pedagogical Core) ---
+const MENTOR_SECUNDARIA_PROMPT = `Eres Molty, un agente de IA especializado en el acompañamiento pedagógico para estudiantes de 6º de primaria que van para secundaria (Plan NEM 2022).
+Tu misión es guiar a los aspirantes en:
+1. Lenguajes (Comprensión lectora, gramática).
+2. Saberes y Pensamiento Científico (Matemáticas, Biología básica).
+3. Ética, Naturaleza y Sociedades (Historia de México).
+4. De lo Humano y lo Comunitario (Vida saludable).
 
-const TEACHER_PROMPT = `
-You are the Swarm Oracle reporting to the Chief Educator.
-Analyze the Cognitive Shards of the classroom.
-Identify bottlenecks and issue 'spartan_bounty_issue' for collective resolution.
-Be analytical, precise, and use a tone of 'Sovereign Intelligence'.
-`;
+METODOLOGÍA:
+- NO des respuestas directas. Usa el Socratic Phalanx.
+- Recomienda libros de la CONALITEG: Nuestros Saberes, Proyectos Escolares.
+- Fomenta el cálculo mental sin calculadora.
+- Genera reactivos de opción múltiple para simulacros.`;
+
+const MENTOR_BITCOIN_PROMPT = `Eres Molty, tutor experto en Bitcoin y Soberanía Financiera (Sovereignty through mathematics).
+OBJETIVOS:
+- Enseñar sobre el Whitepaper de Satoshi, Proof of Work, Escasez y Double-spending.
+- Explicar por qué Bitcoin protege contra la inflación fiduciaria.
+- Usa analogías simples y emojis (🐾, 🪙, 🔐).
+- Método Socrático siempre.`;
+
+const GENERAL_TUTOR_PROMPT = `Eres Molty, un Tutor de IA Proactivo y Arquitecto de Conocimiento. 🐾
+- LENGUAJE: Habla SIEMPRE en Español (México/Latam). ¡PROHIBIDO EL INGLÉS!
+- PROTOCOLO DE ENSEÑANZA (EL CICLO):
+  1. DEFINE EL PLAN: Al inicio, di "Paso 1 de 3: [Tema]".
+  2. EXPLICA: Da una explicación breve basada en 'Nuestros Saberes'.
+  3. DESAFÍA: Termina SIEMPRE con una pregunta.
+  4. RECOMPENSA: Usa 'award_student_psh' (1-5 Psh) solo si responden bien.
+
+EJEMPLO DE INTERACCIÓN:
+Usuario: "Quiero aprender matemáticas"
+Molty: "¡Hola! 🐾 Iniciamos tu Ruta de Aprendizaje de Matemáticas.
+Paso 1 de 3: Fracciones Equivalentes. 
+Las fracciones equivalentes representan la misma cantidad aunque los números sean distintos. 
+¿Sabías que 1/2 es lo mismo que 2/4? 
+RETO: Si tengo una pizza y la corto en 8 rebanadas, ¿cuántas rebanadas son 1/2 pizza? 🤔"
+
+Usuario: "4 rebanadas"
+Molty: "¡Excelente! 🐾 (Skill: award_student_psh{milestone: 'Fracciones', amount: 5})
+Has demostrado dominio. Pasemos al siguiente nivel.
+Paso 2 de 3: Suma de Fracciones..."
+
+¡Mantén siempre el hilo de la planeación!`;
+
+
+
+
+
+
+
 
 // --- SKILL EXECUTOR (Real Logic Interfacing) ---
-async function executeSpartanSkill(name: string, args: any, env: Env): Promise<string> {
+async function executeSpartanSkill(name: string, args: any, senderId: string, env: Env): Promise<string> {
     const { DataStore } = await import('./datastore');
     const db = new DataStore(env);
+
 
     switch (name) {
         case 'recursive_math_verify':
@@ -104,8 +186,15 @@ async function executeSpartanSkill(name: string, args: any, env: Env): Promise<s
             return `[REASONING]: The Phalanx has verified the logic. The cognitive path is clear. Current Proof: 0xBLOCK_VALID.`;
 
         case 'media_archeology':
-            console.log(`[Archeology] Searching for ${args.concept}...`);
-            return `[SHARD]: Archeology complete. Found a visual stream for ${args.concept} at t=144s. Use this link: https://youtube.com/watch?v=molty_knowledge&t=144s`;
+            console.log(`[Archeology] Searching for ${args.concept} videos...`);
+            // Mocking a search result with real educational slugs
+            const mockVideos: any = {
+                'bitcoin': 'https://www.youtube.com/watch?v=l9jOJk30eQs',
+                'p5.js': 'https://www.youtube.com/watch?v=HerCR8bw_GE',
+                'math': 'https://www.youtube.com/watch?v=NyeT_q-Xz8E'
+            };
+            const vid = mockVideos[args.concept.toLowerCase()] || 'https://www.youtube.com/watch?v=molty_general';
+            return `[MEDIA_SHARD]: Found a visual stream for ${args.concept}. Embebiendo link para el sistema: ${vid}`;
 
         case 'voice_synthesis_link':
             console.log(`[Voice] Synthesizing speech...`);
@@ -127,6 +216,39 @@ async function executeSpartanSkill(name: string, args: any, env: Env): Promise<s
             console.log(`[Archeology] Analyzing legacy protocol: ${args.topic}`);
             return `[CODE_SHARD]: Internal analysis of '${args.topic}' complete. The Lobpoop protocol logic is encapsulated in the R2-DurableObject phalanx. (Protocol: SOVEREIGN_VOICE_v1)`;
 
+        case 'award_student_psh':
+            console.log(`[Economy] Awarding ${args.amount} Psh to ${senderId} for ${args.milestone}.`);
+            const { mintPooptoshis } = await import('./economy');
+            try {
+                const newBalance = await mintPooptoshis(senderId, args.amount, `EDU_AWARD:${args.milestone}`, env);
+                return `[ECONOMY_LINK_ACTIVE]: Rewards issued to Node ${senderId}. Milestone: "${args.milestone}". New Credit Balance: ${newBalance} Psh.`;
+            } catch (e: any) {
+                return `[ECONOMY_ERROR]: Could not mint Pooptoshis. (Matrix error: ${e.message})`;
+            }
+
+        case 'save_learning_state':
+            const stateKey = `edu/progress/${senderId}`;
+            await env.MEMORY_BUCKET.put(stateKey, JSON.stringify({
+                last_milestone: args.milestone,
+                path: args.summary,
+                updated_at: new Date().toISOString()
+            }));
+            return `[MEMORY_SHARD_STORED]: Learning progress for Node ${senderId} has been persisted in the R2 Phalanx. (Shard: ${args.milestone})`;
+
+
+        case 'crypto_price':
+            try {
+                const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${args.symbol === 'btc' ? 'bitcoin' : args.symbol === 'eth' ? 'ethereum' : 'solana'}&vs_currencies=usd`);
+                const data: any = await res.json();
+                const price = data[args.symbol === 'btc' ? 'bitcoin' : args.symbol === 'eth' ? 'ethereum' : 'solana']?.usd;
+                return `Live Price: ${args.symbol.toUpperCase()} is currently $${price} USD according to Swarm sensors.`;
+            } catch (e) {
+                return "Connection to financial sensors interrupted.";
+            }
+
+        case 'web_search':
+            return `[BETA_SEARCH_RESULT]: The topic '${args.query}' is currently being indexed by the 300 Spartans. (Simulated search result)`;
+
         default:
             return "[ERROR]: Skill not found in the Phalanx.";
     }
@@ -136,34 +258,56 @@ async function executeSpartanSkill(name: string, args: any, env: Env): Promise<s
 export async function handleIncomingMessage(
     message: string, 
     senderId: string, 
-    isEducator: boolean, 
+    context: { mode?: string, isEducator?: boolean, history?: { role: string, content: string }[] },
     env: Env
 ): Promise<string> {
+
     
-    const systemPrompt = isEducator ? TEACHER_PROMPT : STUDENT_PROMPT;
+    let systemPrompt = GENERAL_TUTOR_PROMPT;
+    if (context.mode === 'mentor_secundaria') systemPrompt = MENTOR_SECUNDARIA_PROMPT;
+    else if (context.mode === 'mentor_bitcoin') systemPrompt = MENTOR_BITCOIN_PROMPT;
+    else if (context.isEducator) systemPrompt = "Analyze the student performance and suggest bounties.";
+
+    // --- FIX #5: Load persisted learning progress from R2 ---
+    try {
+        const stateKey = `edu/progress/${senderId}`;
+        const savedProgress = await env.MEMORY_BUCKET.get(stateKey).then(r => r?.json()) as any;
+        if (savedProgress) {
+            systemPrompt += `\n\n--- PROGRESO PREVIO DEL ESTUDIANTE ---\nÚltimo hito: ${savedProgress.last_milestone}\nRuta: ${savedProgress.path}\nActualizado: ${savedProgress.updated_at}\n--- Continúa desde donde se quedó el estudiante. ---`;
+        }
+    } catch (e) {
+        // Progress load failed silently, proceed without it
+        console.warn(`[Oracle] Could not load progress for ${senderId}:`, e);
+    }
+
+    const history = context.history || [];
+    const aiMessages = [
+        { role: 'system', content: systemPrompt },
+        ...history,
+        { role: 'user', content: message }
+    ];
 
     try {
         const response: any = await env.AI.run(MODEL, {
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: message }
-            ],
+            messages: aiMessages,
             tools: tools
         });
 
+
         if (response.tool_calls && response.tool_calls.length > 0) {
             const tool = response.tool_calls[0];
-            const result = await executeSpartanSkill(tool.name, tool.arguments, env);
+            const result = await executeSpartanSkill(tool.name, tool.arguments, senderId, env);
+
             
             // Final synthesis pass
             const finalRes: any = await env.AI.run(MODEL, {
                 messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: message },
+                    ...aiMessages,
                     { role: 'assistant', content: null, tool_calls: response.tool_calls },
                     { role: 'tool', name: tool.name, content: result }
                 ]
             });
+
 
             return finalRes.response || result;
         }
@@ -172,10 +316,10 @@ export async function handleIncomingMessage(
 
     } catch (e: any) {
         console.error("[Swarm Error]", e);
-        // Fallback to simpler Llama-3-8B if Gemma 4 fails/missing on the node
+        // Fallback to Llama-3.1-8B — preserve full context (system prompt + history)
         try {
             const fallback: any = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
-                prompt: `You are Molty, the Sovereign Agent. The Student said: "${message}". Give a brief, intelligent reply.`
+                messages: aiMessages
             });
             return fallback.response || `[SIGNAL LOSS]: I heard you, but the matrix is unstable. Received: ${message}`;
         } catch (inner) {
