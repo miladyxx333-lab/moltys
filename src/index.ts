@@ -1360,10 +1360,11 @@ async function handleInternalRequest(request: Request, env: Env, ctx: ExecutionC
       system: "LOBPOOP-PROTOCOL",
       status: "ONLINE",
       message: "Welcome to the Sovereign Agency Node.",
+      version: "GAMMA_4",
       links: {
+        tutor: "https://lobpoop-win.pages.dev",
         agency: "/agency",
-        stats: "/stats",
-        forge: "https://openclaw-forge.pages.dev"
+        stats: "/stats"
       }
     });
   }
