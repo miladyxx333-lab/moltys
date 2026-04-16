@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, Users, Activity, MessageCircle, Globe, Play, Upload, TrendingUp, CheckCircle2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { BookOpen, Users, Activity, MessageCircle, Globe, TrendingUp } from 'lucide-react';
+import { motion } from 'framer-motion';
 import clsx from 'clsx';
 
 // --- i18n MULTILINGUAL SUPPORT ---
@@ -15,9 +15,10 @@ const i18n = {
         statusOnline: "TA Online",
         thinking: "Molty is analyzing...",
         inputPlaceholder: "Ask Molty TA for class insights or give instructions...",
-        welcome: "Welcome back, Professor. All Student Agents are deployed and monitoring.",
-        stats: "Students: 32 | Active: 14 | Avg Score: 88%",
+        welcome: "Welcome back, Professor. Agent system is ready.",
+        stats: "Students: 0 | Active: 0 | Avg Score: N/A",
         language: "Language",
+        systemReady: "SYSTEM READY - 0 ACTIVE PROCESSES"
     },
     es: {
         dashboard: "Panel de Maestros",
@@ -27,9 +28,10 @@ const i18n = {
         statusOnline: "Asistente Conectado",
         thinking: "Molty está analizando...",
         inputPlaceholder: "Pide a Molty TA resúmenes o envía instrucciones a la clase...",
-        welcome: "Bienvenido, Profesor. Los Agentes Estudiantiles están activos y supervisando.",
-        stats: "Alumnos: 32 | Activos: 14 | Promedio: 88%",
+        welcome: "Bienvenido, Profesor. El sistema de agentes está listo.",
+        stats: "Alumnos: 0 | Activos: 0 | Promedio: N/A",
         language: "Idioma",
+        systemReady: "SISTEMA LISTO - 0 PROCESOS ACTIVOS"
     },
     pt: {
         dashboard: "Painel do Professor",
@@ -39,9 +41,10 @@ const i18n = {
         statusOnline: "TA Online",
         thinking: "Molty está analisando...",
         inputPlaceholder: "Peça ao Molty TA estatísticas da turma ou dê instruções...",
-        welcome: "Bem-vindo, Professor(a). Os Agentes Estudantis estão monitorando a turma.",
-        stats: "Alunos: 32 | Ativos: 14 | Média: 88%",
+        welcome: "Bem-vindo, Professor(a). O sistema de agentes está pronto.",
+        stats: "Alunos: 0 | Ativos: 0 | Média: N/A",
         language: "Idioma",
+        systemReady: "SISTEMA PRONTO - 0 PROCESSOS ATIVOS"
     }
 };
 
@@ -53,6 +56,10 @@ const PixelOwl = () => (
     </svg>
 );
 
+// URL to your Cloudflare Worker backend
+// Replace with correct backend worker URL if different
+const BACKEND_URL = "https://lobpoop-core.urielhernandez.workers.dev";
+
 export default function MoltyDash() {
     const [lang, setLang] = useState<LanguageCode>('en');
     const t = i18n[lang];
@@ -60,7 +67,7 @@ export default function MoltyDash() {
     const [activeTab, setActiveTab] = useState<'CLASSROOMS' | 'INSIGHTS'>('CLASSROOMS');
     const [isProcessing, setIsProcessing] = useState(false);
     
-    // Logs System
+    // Logs System (Empty initially, no mocks)
     const [logs, setLogs] = useState<string[]>([]);
 
     // Chat System
@@ -69,17 +76,6 @@ export default function MoltyDash() {
     ]);
     
     const [inputVal, setInputVal] = useState("");
-
-    // Mock Live Educational Logs
-    useEffect(() => {
-        const opsEn = ["Evaluating Math Assignment (ID 42)...", "Student +51... asked a question.", "Updating Knowledge Graph...", "Aggregating Quiz Scores..."];
-        const interval = setInterval(() => {
-            const op = opsEn[Math.floor(Math.random() * opsEn.length)];
-            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
-            setLogs(prev => [...prev.slice(-10), `[${time}] ${op}`]);
-        }, 3000);
-        return () => clearInterval(interval);
-    }, []);
 
     // Update greeting when language changes
     useEffect(() => {
@@ -92,33 +88,53 @@ export default function MoltyDash() {
         });
     }, [lang, t.welcome]);
 
-    const handleSend = () => {
+    const handleSend = async () => {
         if (!inputVal.trim()) return;
-        setMessages(prev => [...prev, { sender: 'user', content: inputVal }]);
+        const query = inputVal;
         
-        const q = inputVal.toLowerCase();
+        setMessages(prev => [...prev, { sender: 'user', content: query }]);
         setInputVal("");
         setIsProcessing(true);
 
-        // Simulation of Edu-Molty TA Logic
-        setTimeout(() => {
-            setIsProcessing(false);
-            if (q.includes('insight') || q.includes('resumen') || q.includes('resume')) {
-                setMessages(prev => [...prev, { 
-                    sender: 'molty', 
-                    content: lang === 'en' ? "70% of students struggled with Quadratic Equations. I suggest assigning the Khan Academy review video." :
-                             lang === 'es' ? "El 70% de los alumnos tuvo problemas con Ecuaciones Cuadráticas. Sugiero asignar el video de repaso." :
-                                             "70% dos alunos tiveram problemas com Equações Quadráticas. Sugiro revisar amanhã."
-                }]);
-            } else {
-                setMessages(prev => [...prev, { 
-                    sender: 'molty', 
-                    content: lang === 'en' ? "Understood. Adjusting the pedagogical params for the next cycle." :
-                             lang === 'es' ? "Entendido. Ajustando los parámetros pedagógicos para el siguiente ciclo." :
-                                             "Entendido. Ajustando os parâmetros para o próximo ciclo."
-                }]);
+        try {
+            // Real API integration to our Worker (Molty Agent Core)
+            const response = await fetch(`${BACKEND_URL}/agent/ask`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: query,
+                    senderId: 'teacher_dashboard_ui',
+                    isEducator: true
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-        }, 1500);
+
+            const data = await response.json();
+            
+            // Push response
+            setMessages(prev => [...prev, { 
+                sender: 'molty', 
+                content: data.reply || JSON.stringify(data) 
+            }]);
+            
+            // Push real log about response received
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+            setLogs(prev => [...prev.slice(-10), `[${time}] Received AI response from Worker Edge.`]);
+
+        } catch (error: any) {
+            console.error("Agent Fetch Error:", error);
+            setMessages(prev => [...prev, { 
+                sender: 'molty', 
+                content: lang === 'en' ? `[Connection Error] Could not reach backend: ${error.message}` : 
+                         lang === 'es' ? `[Error de Conexión] No se pudo comunicar con el backend: ${error.message}` :
+                         `[Erro de Conexão] Não foi possível comunicar com o backend: ${error.message}`
+            }]);
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
     return (
@@ -149,9 +165,9 @@ export default function MoltyDash() {
                             <div className="text-center font-bold text-blue-900 text-lg">Molty TA</div>
                             <div className="text-blue-600/80 text-xs font-semibold mb-3">{t.statusOnline}</div>
 
-                            {/* Class Stats Summary */}
-                            <div className="w-full bg-white rounded-xl p-3 text-xs text-slate-600 font-medium text-center border border-slate-100 hidden md:block">
-                                <TrendingUp className="inline-block w-4 h-4 text-blue-500 mr-1" />
+                            {/* Class Stats Summary (REAL / EMPTY DATA) */}
+                            <div className="w-full bg-white rounded-xl p-3 text-xs text-slate-600 font-medium text-center border border-slate-100 hidden md:block opacity-75">
+                                <TrendingUp className="inline-block w-4 h-4 text-slate-400 mr-1" />
                                 {t.stats}
                             </div>
                         </div>
@@ -203,7 +219,7 @@ export default function MoltyDash() {
                                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                                 className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                             >
-                                <div className={`max-w-[85%] md:max-w-2xl p-4 md:p-5 text-sm md:text-base font-medium leading-relaxed shadow-sm
+                                <div className={`max-w-[85%] md:max-w-2xl p-4 md:p-5 text-sm md:text-base font-medium leading-relaxed shadow-sm whitespace-pre-wrap
                                     ${msg.sender === 'user'
                                         ? 'bg-blue-600 text-white rounded-2xl rounded-tr-sm'
                                         : 'bg-white border border-slate-200 text-slate-700 rounded-2xl rounded-tl-sm'
@@ -244,8 +260,8 @@ export default function MoltyDash() {
 
             {/* 3. TERMINAL BAR (Subtle debugging log) */}
             <div className="w-full bg-[#1e293b] h-8 flex items-center px-4 text-[10px] font-mono text-blue-300 z-50 overflow-hidden">
-                <span className="opacity-50 mr-2">{logs[logs.length - 1]?.match(/\[(.*?)\]/)?.[1] || 'SYSTEM'}</span>
-                <span className="truncate">{logs[logs.length - 1]?.replace(/\[.*?\]\s*/, '') || 'READY'}</span>
+                <span className="opacity-50 mr-2">{logs.length > 0 ? logs[logs.length - 1]?.match(/\[(.*?)\]/)?.[1] : 'SYSTEM'}</span>
+                <span className="truncate">{logs.length > 0 ? logs[logs.length - 1]?.replace(/\[.*?\]\s*/, '') : t.systemReady}</span>
             </div>
         </div>
     );
