@@ -22,6 +22,8 @@ const MockEnv: Env = {
     ACCOUNT_DO: {} as any,
     CLAN_DO: {} as any,
     GAME_MASTER_DO: {} as any,
+    AGENCY_DO: {} as any,
+    COLISEUM_DO: {} as any,
     BROWSER: {} as any,
     MASTER_RECOVERY_KEY: "genesis_key",
     MOLTBOOK_API_KEY: "mock_key",

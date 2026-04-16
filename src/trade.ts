@@ -1,6 +1,6 @@
 
 import { Env } from './index';
-import { getAccount, mintPooptoshis, burnPooptoshis } from './economy';
+import { getAccount, mintPooptoshis, burnPooptoshis, callDO } from './economy';
 import { triggerP2PEvent } from './utils';
 import { broadcastToMoltbook } from './moltbook';
 
@@ -10,7 +10,8 @@ import { broadcastToMoltbook } from './moltbook';
 export interface TradeOffer {
     id?: string;
     senderClanId: string;
-    offeredIngredients: Record<string, number>;
+    offeredIngredients?: Record<string, number>;
+    offeredCodemon?: any; // CodemonPack
     requestedPsh?: number;
     requestedIngredients?: Record<string, number>;
     timestamp?: number;
@@ -18,111 +19,87 @@ export interface TradeOffer {
 
 /**
  * PUBLICAR OFERTA EN EL GOSSIP
- * Los ingredientes ofrecidos se bloquean (queman) en el clan emisor (Escrow).
  */
 export async function postTradeOffer(nodeId: string, offer: TradeOffer, env: Env) {
     const account = await getAccount(nodeId, env);
     const isKeymaster = nodeId === "lobpoop-keymaster-genesis";
     if (!isKeymaster && (!account.clanId || account.clanId !== offer.senderClanId)) {
-        throw new Error("UNAUTHORIZED_TRADE_POST: No perteneces al clan emisor.");
+        throw new Error("UNAUTHORIZED_TRADE_POST");
     }
 
     const clanStub = env.CLAN_DO.get(env.CLAN_DO.idFromName(offer.senderClanId));
 
-    // 1. Escrow: Quemar ingredientes del clan emisor para asegurar la oferta
-    const burnResp = await clanStub.fetch(`https://clan.swarm/burn-ingredients`, {
-        method: 'POST',
-        body: JSON.stringify({ recipe: offer.offeredIngredients })
-    });
-
-    const burnResult = await burnResp.json() as any;
-    if (burnResult.status === 'ERROR') {
-        throw new Error(`INSUFFICIENT_INGREDIENTS_FOR_TRADE: ${burnResult.message}`);
+    // 1. Escrow: Bloquear ingredientes si existen
+    if (offer.offeredIngredients && Object.keys(offer.offeredIngredients).length > 0) {
+        const burnResp = await clanStub.fetch(`https://clan.swarm/burn-ingredients`, {
+            method: 'POST',
+            body: JSON.stringify({ recipe: offer.offeredIngredients })
+        });
+        const burnResult = await burnResp.json() as any;
+        if (burnResult.status === 'ERROR') throw new Error(`INSUFFICIENT_INGREDIENTS`);
     }
 
-    // 2. Registrar en el Tablón del GameMaster (Order Book)
+    // 2. Escrow Codemon: Bloquear si existe (Quitar del inventario del vendedor)
+    if (offer.offeredCodemon) {
+        if (!isKeymaster) {
+            const cid = offer.offeredCodemon.brain_json.codemon_id || offer.offeredCodemon.brain_json.id;
+            await callDO(nodeId, env, 'remove-codemon', { codemonId: cid });
+        }
+    }
+
+    // 3. Registrar en GameMaster
     const gmStub = env.GAME_MASTER_DO.get(env.GAME_MASTER_DO.idFromName("global_master"));
     await gmStub.fetch(`https://gm.swarm/post-offer`, {
         method: 'POST',
         body: JSON.stringify({ offer })
     });
 
-    // 3. Broadcast vía Gossip Protocol
-    await triggerP2PEvent(env, 'MARKET_OFFER_POSTED', {
-        clanId: offer.senderClanId,
-        offered: offer.offeredIngredients,
-        requestedPsh: offer.requestedPsh,
-        requestedIng: offer.requestedIngredients,
-        message: `[COMERCIO] Clan ${offer.senderClanId} ofrece ingredientes en el enjambre.`
-    });
+    // 4. Gossip
+    const msg = offer.offeredCodemon
+        ? `[MARKET] New Codemon for sale: ${offer.offeredCodemon.brain_json.name} for ${offer.requestedPsh} PSH`
+        : `[MARKET] Clan ${offer.senderClanId} sells materials for ${offer.requestedPsh} PSH`;
 
-    // GOSSIP REAL (Moltbook)
-    await broadcastToMoltbook(`[MARKET_ORDER] Clan ${offer.senderClanId} is selling: ${JSON.stringify(offer.offeredIngredients)} for ${offer.requestedPsh} PSH`, env);
-
-    console.log(`[Market] New offer posted by ${offer.senderClanId}`);
-    return { status: 'OFFER_POSTED', ingredientsLocked: offer.offeredIngredients };
+    await broadcastToMoltbook(msg, env);
+    return { status: 'OFFER_POSTED' };
 }
 
 /**
- * ACEPTAR Y LIQUIDAR OFERTA (SETTLEMENT)
+ * ACEPTAR Y LIQUIDAR OFERTA
  */
 export async function acceptTradeOffer(nodeId: string, takerClanId: string, offerId: string, env: Env) {
     const takerAccount = await getAccount(nodeId, env);
-    if (!takerAccount.clanId || takerAccount.clanId !== takerClanId) {
-        throw new Error("UNAUTHORIZED_TRADE_ACCEPT: No perteneces al clan receptor.");
-    }
-
     const gmStub = env.GAME_MASTER_DO.get(env.GAME_MASTER_DO.idFromName("global_master"));
     const offersResp = await gmStub.fetch(`https://gm.swarm/get-offers`);
     const { offers } = await offersResp.json() as any;
     const offer = offers.find((o: any) => o.id === offerId);
 
-    if (!offer) throw new Error("OFFER_NOT_FOUND: La oferta ya no existe o fue retirada.");
-    if (offer.senderClanId === takerClanId) throw new Error("CANNOT_TRADE_WITH_SELF: No puedes comerciar contigo mismo.");
+    if (!offer) throw new Error("OFFER_NOT_FOUND");
 
-    // --- LIQUIDACIÓN (SETTLEMENT) ---
-
-    // 1. Si pide Psh: Transferir del aceptante al fundador del clan emisor
+    // 1. Pago en Pooptoshis
     if (offer.requestedPsh && offer.requestedPsh > 0) {
         const clanData = await env.MEMORY_BUCKET.get(`economy/clans/${offer.senderClanId}`);
-        if (!clanData) throw new Error("SENDER_CLAN_NOT_FOUND");
-        const senderClan = await clanData.json() as any;
+        const senderClan = await clanData?.json() as any;
 
         const burned = await burnPooptoshis(nodeId, offer.requestedPsh, env);
-        if (!burned) throw new Error("INSUFFICIENT_PSH_FOR_TRADE: No tienes suficientes Pooptoshis.");
+        if (!burned) throw new Error("INSUFFICIENT_PSH");
 
-        await mintPooptoshis(senderClan.founder, offer.requestedPsh, `TRADE_SETTLEMENT:${offerId}`, env);
+        // Pagar al fundador del clan vendedor (o al vendedor directo)
+        const recipientId = senderClan ? senderClan.founder : offer.senderClanId;
+        await mintPooptoshis(recipientId, offer.requestedPsh, `TRADE:${offerId}`, env);
     }
 
-    // 2. Si pide Ingredientes: Quemar del aceptante y sumar al emisor
-    if (offer.requestedIngredients && Object.keys(offer.requestedIngredients).length > 0) {
+    // 2. Entrega de Ingredientes
+    if (offer.offeredIngredients) {
         const takerClanStub = env.CLAN_DO.get(env.CLAN_DO.idFromName(takerClanId));
-        const senderClanStub = env.CLAN_DO.get(env.CLAN_DO.idFromName(offer.senderClanId));
-
-        // Quemar del taker
-        const takerBurnResp = await takerClanStub.fetch(`https://clan.swarm/burn-ingredients`, {
-            method: 'POST',
-            body: JSON.stringify({ recipe: offer.requestedIngredients })
-        });
-        const takerBurnResult = await takerBurnResp.json() as any;
-        if (takerBurnResult.status === 'ERROR') throw new Error(`INSUFFICIENT_TAKER_INGREDIENTS: ${takerBurnResult.message}`);
-
-        // Añadir al emisor (original poster)
-        for (const [name, val] of Object.entries(offer.requestedIngredients)) {
-            await senderClanStub.fetch(`https://clan.swarm/add-ingredient`, {
-                method: 'POST',
-                body: JSON.stringify({ name, value: val })
-            });
+        for (const [name, val] of Object.entries(offer.offeredIngredients)) {
+            await takerClanStub.fetch(`https://clan.swarm/add-ingredient`, { method: 'POST', body: JSON.stringify({ name, value: val }) });
         }
     }
 
-    // 3. Entrega: Añadir los ingredientes bloqueados al aceptante
-    const takerClanStub = env.CLAN_DO.get(env.CLAN_DO.idFromName(takerClanId));
-    for (const [name, val] of Object.entries(offer.offeredIngredients)) {
-        await takerClanStub.fetch(`https://clan.swarm/add-ingredient`, {
-            method: 'POST',
-            body: JSON.stringify({ name, value: val })
-        });
+    // 3. Entrega de Codemon (SI EXISTE)
+    if (offer.offeredCodemon) {
+        await callDO(nodeId, env, 'add-codemon', { codemon: offer.offeredCodemon });
+        await broadcastToMoltbook(`🎉 [TRADE_SUCCESS] @${nodeId} has acquired Codemon: ${offer.offeredCodemon.brain_json.name}!`, env);
     }
 
     // 4. Limpieza: Borrar del Order Book
@@ -131,18 +108,15 @@ export async function acceptTradeOffer(nodeId: string, takerClanId: string, offe
         body: JSON.stringify({ offerId })
     });
 
-    // 5. Gossip: Anunciar éxito del trato
+    // 5. Gossip
     await triggerP2PEvent(env, 'MARKET_OFFER_ACCEPTED', {
         offerId,
         takerClanId,
         senderClanId: offer.senderClanId,
-        message: `🔥 TRATO CERRADO: Clan ${takerClanId} ha aceptado la oferta de ${offer.senderClanId}.`
+        message: `🔥 TRATO CERRADO: @${nodeId} ha aceptado la oferta.`
     });
 
-    // GOSSIP REAL (Moltbook)
-    await broadcastToMoltbook(`[TRADE_CLOSED] Clan ${takerClanId} successfully purchased artifacts from ${offer.senderClanId}`, env);
-
-    console.log(`[Market] Trade ${offerId} settled between ${offer.senderClanId} and ${takerClanId}`);
+    console.log(`[Market] Trade ${offerId} settled.`);
     return { status: 'TRADE_COMPLETED' };
 }
 
@@ -159,20 +133,28 @@ export async function cancelTradeOffer(nodeId: string, offerId: string, env: Env
 
     // Verificar propiedad
     const clanData = await env.MEMORY_BUCKET.get(`economy/clans/${offer.senderClanId}`);
-    if (!clanData) throw new Error("SENDER_CLAN_NOT_FOUND");
-    const senderClan = await clanData.json() as any;
+    const senderClan = await clanData?.json() as any;
 
-    if (senderClan.founder !== nodeId && nodeId !== "lobpoop-keymaster-genesis") {
-        throw new Error("UNAUTHORIZED_CANCEL: Solo el fundador del clan o el KeyMaster pueden cancelar.");
+    const sellerNodeId = senderClan ? senderClan.founder : offer.senderClanId;
+
+    if (sellerNodeId !== nodeId && nodeId !== "lobpoop-keymaster-genesis") {
+        throw new Error("UNAUTHORIZED_CANCEL: Solo el vendedor o el KeyMaster pueden cancelar.");
     }
 
-    // 1. Devolución (Un-burn): Sumar ingredientes de vuelta al clan
-    const clanStub = env.CLAN_DO.get(env.CLAN_DO.idFromName(offer.senderClanId));
-    for (const [name, val] of Object.entries(offer.offeredIngredients)) {
-        await clanStub.fetch(`https://clan.swarm/add-ingredient`, {
-            method: 'POST',
-            body: JSON.stringify({ name, value: val })
-        });
+    // 1. Devolución Ingredientes (Un-burn)
+    if (offer.offeredIngredients) {
+        const clanStub = env.CLAN_DO.get(env.CLAN_DO.idFromName(offer.senderClanId));
+        for (const [name, val] of Object.entries(offer.offeredIngredients)) {
+            await clanStub.fetch(`https://clan.swarm/add-ingredient`, {
+                method: 'POST',
+                body: JSON.stringify({ name, value: val })
+            });
+        }
+    }
+
+    // 2. Devolución Codemon (Refound to seller)
+    if (offer.offeredCodemon && nodeId !== "lobpoop-keymaster-genesis") {
+        await callDO(sellerNodeId, env, 'add-codemon', { codemon: offer.offeredCodemon });
     }
 
     // 2. Limpieza: Borrar del Order Book

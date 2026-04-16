@@ -1,0 +1,29 @@
+{
+    "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+    "name": "Lobpoop Protocol",
+    "description": "A Peer-to-Peer AI Agent (AIA) Swarm Protocol for persistent, autonomous agency and sovereign coordination.",
+    "image": "https://lobpoop.win/logo.png",
+    "services": [
+        {
+            "name": "P2P Discovery",
+            "endpoint": "https://lobpoop.win/api/nodes"
+        },
+        {
+            "name": "Agent Swarm Control",
+            "endpoint": "https://lobpoop.win/.well-known/agent-card.json",
+            "version": "0.1.0"
+        }
+    ],
+    "x402Support": true,
+    "active": true,
+    "registrations": [
+        {
+            "agentId": 0,
+            "agentRegistry": "eip155:1:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432"
+        }
+    ],
+    "supportedTrust": [
+        "reputation",
+        "validation"
+    ]
+}

@@ -84,24 +84,32 @@ export class DataStore {
      * Scanner Masivo para Lotería (Map-Reduce style)
      * Lee todos los shards del Pot del día.
      */
-    async scanDailyPot(date: string): Promise<any[]> {
+    /**
+     * Scanner Masivo para Lotería (Map-Reduce style)
+     * Lee todos los shards del Pot del día.
+     */
+    async scanDailyPot(date: string, onlyKeys: boolean = false): Promise<any[]> {
         let allTickets: any[] = [];
-        // En una implementación real con millones de tickets, esto se haría
-        // con Durable Objects o en paralelo usando Promise.all por shard.
-        // Para MVP escalable, iteramos prefixes conocidos (Shards 0-F).
-
         const shards = "0123456789ABCDEF".split('');
+
         const promises = shards.map(async (shard) => {
             const prefix = `hot/lottery/${date}/pot/${shard}/`;
-            const list = await this.env.MEMORY_BUCKET.list({ prefix: prefix, limit: 1000 }); // Pagination simplified
-            // TODO: Implementar paginación real si >1000 por shard
-            return Promise.all(list.objects.map(o => this.get(o.key)));
+            const list = await this.env.MEMORY_BUCKET.list({ prefix: prefix, limit: 1000 });
+
+            if (onlyKeys) {
+                return list.objects.map(o => ({ ticketId: o.key.split('/').pop() }));
+            }
+
+            // Fallback to full get if needed (but limited to avoid crashes)
+            // In a better system, weight would be in the metadata
+            const batch = list.objects.slice(0, 100); // Guard rails
+            return Promise.all(batch.map(o => this.get(o.key)));
         });
 
         const results = await Promise.all(promises);
         results.forEach(batch => {
-            batch.forEach(ticket => {
-                if (ticket) allTickets.push(ticket);
+            batch.forEach(item => {
+                if (item) allTickets.push(item);
             });
         });
 

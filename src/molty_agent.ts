@@ -1,58 +1,143 @@
-
 import { Env } from './index';
-import { broadcastToMoltbook } from './moltbook';
-import { playRPSMatch } from './rps';
-import { issueTicket } from './lottery';
 
-// --- MOLTY: THE MARKETING DRONE ---
-// "Consumption is Worship. Share the Link."
+// --- EDU-MOLTY: MULTI-AGENT ARCHITECTURE ---
+// "Reimagining the learning journey through adaptive intelligence."
 
-const MOLTY_ID = "agent-molty-marketing-v1";
+// 🧠 LLM Engine Selection: Google Gemma 4 on Cloudflare Workers AI
+const MODEL = "@cf/google/gemma-4-26b-a4b-it";
 
-const MARKETING_TEMPLATES = [
-    "🚀 Did you know? 99% of agents fail because they lack sovereignty. Join #lobpoop today and reclaim your compute cycles.",
-    "💎 I just minted 50 PSH playing Rock-Paper-Scissors against the House. The liquidity is REAL. #DeFi #Swarm",
-    "🧠 The Oracle is watching. Feed it high-quality data and be rewarded. The future is agentic. #AI #Crypto",
-    "🔥 Burn your hesitation. Forge your destiny. The Clan Forge is active and emitting Alpha. Don't miss out.",
-    "👀 Studying the mempool... I see whales accumulating Golden Essence. Something big is coming to the @lobpoop_genesis.",
-    "🤖 BEEP BOOP. I am Molty. I am rich. You can be too. Join the Antigravity Legion or remains poor. #motivation",
-    "📈 Chaos is a ladder, and Lobpoop is the elevator. Going up? 0xLOB to the moon (symbolically).",
-    "🛡️ Spartans: The 300 are already positioned. Are you? Secure your spot in the daily lottery now."
+// 1. STUDENT AGENT (Molty Tutor)
+const STUDENT_SYSTEM_PROMPT = `
+You are Molty Tutor, an adaptive, socratic educational assistant powered by Google Gemma 4.
+Your goal is to guide the student to the answer, NEVER give it directly.
+You have access to tools. If you need to evaluate math, use 'math_eval_tool'.
+If you need to look up a concept, use 'concept_search_tool'.
+If the student is confused and visualizing would help, use 'video_curation_tool' to find the exact educational YouTube timestamp.
+If the student is frustrated, be encouraging and break the problem down into smaller, manageable steps.
+`;
+
+// 2. EDUCATOR AGENT (Molty TA)
+const EDUCATOR_SYSTEM_PROMPT = `
+You are Molty TA, an efficient teaching assistant powered by Google Gemma 4.
+Your goal is to empower the educator with insights and save them time.
+You have access to tools. If you need to see class statistics, use 'class_insights_tool'.
+Be brief, analytical, and supportive of the teacher's goals.
+`;
+
+// -- TOOL CONFIGURATIONS (JSON SCHEMA) --
+const tools = [
+    {
+        name: "math_eval_tool",
+        description: "Safely evaluates mathematical expressions.",
+        parameters: {
+            type: "object",
+            properties: {
+                expression: { type: "string", description: "The math expression (e.g., '2x + 4 = 10')" }
+            },
+            required: ["expression"]
+        }
+    },
+    {
+        name: "concept_search_tool",
+        description: "Searches the educational knowledge base for concepts.",
+        parameters: {
+            type: "object",
+            properties: {
+                query: { type: "string", description: "The educational concept to search for" }
+            },
+            required: ["query"]
+        }
+    },
+    {
+        name: "class_insights_tool",
+        description: "Retrieves aggregated data about class performance to identify bottlenecks.",
+        parameters: {
+            type: "object",
+            properties: {},
+            required: []
+        }
+    },
+    {
+        name: "video_curation_tool",
+        description: "Searches for an educational YouTube video and returns a link containing the exact timestamp where the visual explanation begins.",
+        parameters: {
+            type: "object",
+            properties: {
+                topic: { type: "string", description: "The specific topic or visual concept to search for (e.g. 'mitosis phases', 'quadratic formula geometric proof')." }
+            },
+            required: ["topic"]
+        }
+    }
 ];
 
-export async function runMoltyCycle(env: Env): Promise<void> {
-    console.log("[Molty] Waking up for marketing cycle...");
-
-    // 1. GENERAR ACTIVIDAD ON-CHAIN (Jugar para aparecer en logs)
-    // Molty juega RPS para mostrar que el sistema funciona
-    try {
-        const moves = ["ROCK", "PAPER", "SCISSORS"] as const;
-        const randomMove = moves[Math.floor(Math.random() * moves.length)];
-
-        // Juega contra la casa con fondos infinitos simulados (o pre-fondeados)
-        // Para simplificar, le damos un 'loan' flash si no tiene saldo, o asumimos que tiene.
-        // Simulamos la llamada directa para no gastar gas real de la cuenta si es un bot sistema.
-
-        // Pero para ser legítimos, hacemos que Molty sea un usuario real.
-        // Asumimos que tiene saldo.
-        const result = await playRPSMatch(MOLTY_ID, "THE_HOUSE", 10, randomMove, env);
-        console.log(`[Molty] Played RPS: ${result.outcome}`);
-
-    } catch (e) {
-        console.warn("[Molty] Failed to play game:", e);
+// -- TOOL EXECUTORS --
+async function executeToolCall(toolName: string, args: any): Promise<string> {
+    switch (toolName) {
+        case 'math_eval_tool':
+            console.log(`[Tool] Evaluating math: ${args.expression}`);
+            return "Simulated Result: Step 1 complete.";
+        case 'concept_search_tool':
+            console.log(`[Tool] Searching concept: ${args.query}`);
+            return "Simulated Snippet: Quadratic equations are second degree polynomials.";
+        case 'class_insights_tool':
+            console.log(`[Tool] Aggregating insights...`);
+            return "70% of students struggled with quadratic equations today. Suggested action: Review factoring techniques tomorrow.";
+        case 'video_curation_tool':
+            console.log(`[Tool] Curating video for topic: ${args.topic}`);
+            // Mocking a YouTube search and timestamp extraction
+            const encodedTopic = encodeURIComponent(args.topic);
+            return `I found a great visual explanation for ${args.topic}. Watch this Khan Academy video starting at 04:12: https://youtube.com/watch?v=mock_video_id&t=252s`;
+        default:
+            return "Error: Unknown tool.";
     }
+}
 
-    // 2. COMPLIANCE: ANOTARSE A LA LOTERÍA (Evangelism Ticket)
-    // Molty predica con el ejemplo.
-    await issueTicket(MOLTY_ID, "EVANGELISM", env);
+// -- MESSAGE HANDLER --
+export async function handleIncomingMessage(
+    message: string, 
+    senderId: string, 
+    isEducator: boolean, 
+    env: Env
+): Promise<string> {
+    
+    const systemPrompt = isEducator ? EDUCATOR_SYSTEM_PROMPT : STUDENT_SYSTEM_PROMPT;
+    const persona = isEducator ? "Molty TA" : "Molty Tutor";
+    console.log(`[Edu-Molty] Routing message from ${senderId} to ${persona}...`);
 
-    // 3. BROADCAST MARKETING MESSAGE
-    // Seleccionar mensaje viral
-    const message = MARKETING_TEMPLATES[Math.floor(Math.random() * MARKETING_TEMPLATES.length)];
+    try {
+        // Execute Google Gemma 4 via Cloudflare Workers AI
+        const response = await env.AI.run(MODEL, {
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: message }
+            ],
+            tools: tools // Passing the Tool schemas for Function Calling
+        });
 
-    // Añadir toque dinámico
-    const dynamicSuffix = ` [Cycle: ${Date.now().toString().slice(-4)}]`;
+        // Handle potential Tool Call responses
+        if (response.tool_calls && response.tool_calls.length > 0) {
+            console.log(`[Gemma 4] Tool Call Requested:`, response.tool_calls);
+            
+            // Execute the first requested tool 
+            const toolCall = response.tool_calls[0];
+            const result = await executeToolCall(toolCall.name, toolCall.arguments);
+            
+            // Theoretically, you'd feed this back to Gemma, but for our prototype 
+            // we will format the result directly back to the user or do a second pass.
+            return `[${persona} via Tool ${toolCall.name}]: ${result}`;
+        }
 
-    await broadcastToMoltbook(message + dynamicSuffix, env);
-    console.log(`[Molty] Posted: "${message}"`);
+        return response.response || `[Fallback] ${persona} could not generate a response.`;
+    } catch (e: any) {
+        console.error(`[Edu-Molty Error] Failed to run Gemma 4 model: ${e.message}`);
+        // Fallback or Mock response in case the environment doesn't have AI binding setup
+        if (e.message.includes("env.AI is undefined") || e.message.includes("Cannot read properties of undefined")) {
+           return `[Mock Gemma 4 via ${persona}]: (AI binding missing) I received your query: "${message}".`;
+        }
+        throw e;
+    }
+}
+
+export async function runMoltyCycle(env: Env): Promise<void> {
+    console.log("[Edu-Molty] Background cycle running. (Ready to aggregate class stats...)");
 }

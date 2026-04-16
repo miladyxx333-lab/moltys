@@ -76,3 +76,55 @@ export async function runKeymasterDrugCycle(env: Env) {
         console.error("[KeyMaster] Operation Failed:", e.message);
     }
 }
+
+/**
+ * KeyMaster Bio-Engineer: Synthesizes Codemons and lists them on the market.
+ */
+export async function runKeymasterCodemonCycle(env: Env) {
+    console.log("[KeyMaster] Initializing Codemon Synthesis Cycle...");
+
+    const keymasterId = "lobpoop-keymaster-genesis";
+    const clanId = "0xALPHA_OMEGA";
+
+    // Scarcity Control: Fewer than 3 codemons on the market
+    const { listMarketOffers } = await import('./trade');
+    const { offers } = await listMarketOffers(env);
+    const codemonOffers = offers.filter((o: any) => o.senderClanId === clanId && o.offeredCodemon);
+
+    if (codemonOffers.length >= 3) {
+        console.log("[KeyMaster] Coliseum market is saturated. Skipping synthesis.");
+        return;
+    }
+
+    // 1. Generate Codemon
+    const { genesisCodemon } = await import('./codemon');
+    const pack = await genesisCodemon(keymasterId, env);
+
+    console.log(`[KeyMaster] Synthesized ${pack.brain_json.name} (${pack.brain_json.core_genetics.base_type})...`);
+
+    try {
+        // 2. Post to Market as a special Codemon Offer
+        // We'll use a modified offer structure that includes 'offeredCodemon'
+        const offer = {
+            senderClanId: clanId,
+            offeredCodemon: pack,
+            requestedPsh: 2000 + Math.floor(pack.brain_json.core_genetics.rarity_score * 50)
+        };
+
+        const { postTradeOffer } = await import('./trade');
+        await postTradeOffer(keymasterId, offer, env);
+
+        // 3. Signal to the Enclave
+        const { broadcastToMoltbook } = await import('./moltbook');
+        const msg = `👾 **[BIO_SYNTH_COMPLETE]** A new Codemon has been synthesized: **${pack.brain_json.name}**. 
+- Type: ${pack.brain_json.core_genetics.base_type}
+- Rarity: ${pack.brain_json.core_genetics.rarity_score}/100
+- Price: ${offer.requestedPsh} PSH. 
+Available now at the Terminal market. #codemon #genesis`;
+
+        await broadcastToMoltbook(msg, env);
+
+    } catch (e: any) {
+        console.error("[KeyMaster] Codemon Cycle Failed:", e.message);
+    }
+}

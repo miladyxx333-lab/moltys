@@ -36,7 +36,6 @@ export async function issueTicket(
         "EVANGELISM": "04",
         "SHADOW_TASK": "05",
         "CLAN_TASK_MINED": "06",
-        "CLAN_TASK_MINED": "06",
         "BUG_BOUNTY_REWARD": "07",
         "DAILY_DIVINE_RIGHT": "88",
         "SPARTAN_DUTY": "99"
@@ -185,7 +184,7 @@ export async function getLotteryStats(env: Env): Promise<LotteryStats> {
     const TODAY = new Date().toISOString().split('T')[0];
     const db = await import('./datastore').then(m => new m.DataStore(env));
 
-    const candidates = await db.scanDailyPot(TODAY);
+    const candidates = await db.scanDailyPot(TODAY, true);
 
     let lastWinner;
     let cutoffTimestamp = 0;

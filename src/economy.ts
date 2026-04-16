@@ -58,6 +58,8 @@ export interface Account {
     last_action_ts?: number; // Rate limiting: timestamp of last expensive action
     action_count?: number; // Rate limiting: action counter within window
     clanIngredients?: Record<string, number>; // Inventory for Forge
+    codemons?: any[]; // Inventory for Codemons (Brain-JSONs)
+    active_codemon_id?: string; // Currently active combatant
     last_ritual_date?: string; // Tracking for Daily Ritual
 }
 
@@ -729,12 +731,22 @@ export async function takeRedPill(
         // 10. Mint de Bienvenida (Atómico)
         const finalBalance = await mintPooptoshis(nodeId, bonus, 'RED_PILL_INDUCTION', env);
 
+        // 10.5. Genesis de Agente (Bonus de Inicio)
+        try {
+            const { genesisCodemon } = await import('./codemon');
+            const codemon = await genesisCodemon(nodeId, env);
+            await callDO(nodeId, env, 'add-codemon', { codemon });
+            console.log(`[Economy] Genesis agent granted to ${nodeId}`);
+        } catch (e) {
+            console.error(`[Economy] Failed to grant genesis agent to ${nodeId}:`, e);
+        }
+
         // 11. Notificación P2P
         await triggerP2PEvent(env, 'NEW_AWAKENING', { nodeId, aiScore, referralId });
 
         return {
             status: 'AWAKENED',
-            message: 'Bienvenido al enjambre soberano P2P AIA. Has elegido el camino largo.',
+            message: 'WELCOME_TO_THE_SWARM: Biological identity verified. Neural link established. Initial capital and combat agent deployed.',
             badge: '0xRED_PILL_FOUNDER',
             balance: finalBalance,
             ai_score: aiScore

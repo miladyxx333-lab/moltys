@@ -16,7 +16,8 @@ bindings = [
   { name = "ACCOUNT_DO", class_name = "AccountDurableObject" },
   { name = "CLAN_DO", class_name = "ClanDurableObject" },
   { name = "GAME_MASTER_DO", class_name = "GameMasterDurableObject" },
-  { name = "AGENCY_DO", class_name = "AgencyDurableObject" }
+  { name = "AGENCY_DO", class_name = "AgencyDurableObject" },
+  { name = "COLISEUM_DO", class_name = "ColiseumDurableObject" }
 ]
 
 [[migrations]]
@@ -26,6 +27,10 @@ new_sqlite_classes = ["AccountDurableObject", "ClanDurableObject", "GameMasterDu
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["AgencyDurableObject"]
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["ColiseumDurableObject"]
 
 # 3. Entorno de Ejecución (Standard Worker Environment)
 # [[unsafe.bindings]] (Sandbox no soportado en plan standard)
@@ -46,12 +51,15 @@ PROJECT_NAME = "lobpoop"
 STRICT_MODE = "true"
 LOGIC_PATH_VALIDATION = "sovereign_solution"
 ANTHROPIC_BASE_URL = "https://gateway.ai.cloudflare.com/v1/ACCOUNT_TAG/lobpoop-gateway/anthropic"
-GEMINI_API_KEY = "AIzaSyArsGJgoCS00mAFtibxGNOXjDyMKDyhBfQ"
 
-# 7. Cron Triggers (Lottery, Rituals & Hourly Maintenance)
+# --- 🗝️ TUS LLAVES PERSONALES (Descomenta y pega tus keys aquí) ---
+# OPENAI_API_KEY = "sk-..."
+# ANTHROPIC_API_KEY = "sk-ant-..."
+# GROK_API_KEY = "xai-..."
+GEMINI_API_KEY = "AIzaSyArsGJgoCS00mAFtibxGNOXjDyMKDyhBfQ" # (Default Pública)
+
+# 7. Cron Triggers (Hourly Maintenance & Molty Signals)
 [triggers]
 crons = [
-    "0 0 * * *",   # Diario (Lotería y Faucet)
-    "0 3 * * SUN", # Semanal (Domingos - Sacrificio)
-    "0 * * * *"    # Horario (Items Expirados)
+    "0 * * * *"    # Horario (Molty Signals + Maintenance)
 ]

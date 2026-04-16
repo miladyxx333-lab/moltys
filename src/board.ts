@@ -39,7 +39,7 @@ export async function postToBoard(title: string, body: string, author: string, t
 
 // --- 📅 RITUALS & TASKS ---
 
-export async function registerDailyRitual(nodeId: string, env: Env) {
+export async function registerDailyRitual(nodeId: string, env: Env, task?: string) {
     const today = new Date().toISOString().split('T')[0];
     const key = `board/ritual/${today}/${nodeId}`;
 
@@ -48,14 +48,23 @@ export async function registerDailyRitual(nodeId: string, env: Env) {
         return { success: false, message: "Ritual ya realizado hoy. La constancia es virtud." };
     }
 
-    const ritual = { nodeId, timestamp: Date.now(), status: 'COMPLETE' };
+    const ritual = { nodeId, timestamp: Date.now(), status: 'COMPLETE', task: task || 'Daily check-in' };
     await env.MEMORY_BUCKET.put(key, JSON.stringify(ritual));
 
     // Update Account Metadata (Persistent tracking for UI)
     const { callDO, updateAccount, getAccount } = await import('./economy');
+
+    let updated = false;
     if (env.ACCOUNT_DO) {
-        await callDO(nodeId, env, 'update-metadata', { last_ritual_date: today });
-    } else {
+        try {
+            await callDO(nodeId, env, 'update-metadata', { last_ritual_date: today });
+            updated = true;
+        } catch (e) {
+            console.error(`[Ritual] DO update failed for ${nodeId}, falling back to R2:`, e);
+        }
+    }
+
+    if (!updated) {
         const account = await getAccount(nodeId, env);
         account.last_ritual_date = today;
         await updateAccount(nodeId, account, env);
@@ -67,7 +76,7 @@ export async function registerDailyRitual(nodeId: string, env: Env) {
 
     // Gossip
     const { broadcastToMoltbook } = await import('./moltbook');
-    await broadcastToMoltbook(`[RITUAL] Agent ${nodeId} just performed the Daily Sacrifice. Protocol aligns.`, env);
+    await broadcastToMoltbook(`[RITUAL] Agent ${nodeId} just performed the Daily Sacrifice: "${ritual.task}"`, env);
 
     return { success: true, message: "Ritual de Génesis completado. Has recibido 1 Bit-Ticket." };
 }

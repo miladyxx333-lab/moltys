@@ -22,11 +22,25 @@ export class AccountDurableObject {
             return await this.state.storage.transaction(async (txn) => {
                 let account = await txn.get<Account>('account');
                 let ledger = await txn.get<any[]>('ledger') || [];
+                let migrated = await txn.get<boolean>('migrated') || false;
 
-                // Si no existe, inicializar con la ID del DO (sharding por NodeId)
-                if (!account) {
+                // Si no existe o no se ha migrado, intentar migración desde R2
+                if (!account || !migrated) {
                     const nodeId = url.searchParams.get('nodeId') || "unknown";
-                    account = this.initAccount(nodeId);
+                    const r2Key = `economy/accounts/${nodeId}`;
+                    const r2Data = await this.env.MEMORY_BUCKET.get(r2Key);
+
+                    if (r2Data) {
+                        console.log(`[DO Migration] Migrating account ${nodeId} from R2...`);
+                        const legacyAccount = await r2Data.json() as Account;
+                        // Overwrite if fresh account or if legacy has more balance
+                        if (!account || account.balance_psh === 0) {
+                            account = legacyAccount;
+                        }
+                    } else if (!account) {
+                        account = this.initAccount(nodeId);
+                    }
+                    await txn.put('migrated', true);
                 }
 
                 const body = request.method === 'POST' ? await request.json<any>() : {};
@@ -35,6 +49,10 @@ export class AccountDurableObject {
                     case 'get-account':
                         // Solo lectura dentro de la transacción asegura consistencia
                         break;
+                    case 'get-ledger':
+                        return new Response(JSON.stringify({ status: 'SUCCESS', ledger }), {
+                            headers: { 'Content-Type': 'application/json' }
+                        });
 
                     case 'update-balance':
                         const { amount, reason } = body;
@@ -124,6 +142,49 @@ export class AccountDurableObject {
                         }
                         break;
 
+                    case 'add-codemon': {
+                        const { codemon } = body;
+                        account.codemons = account.codemons || [];
+                        account.codemons.push(codemon);
+                        ledger.push({ timestamp: Date.now(), type: 'CODEMON_ADD', codemonId: codemon.brain_json.codemon_id });
+                        break;
+                    }
+
+                    case 'update-codemon': {
+                        const { codemon } = body;
+                        if (!account.codemons) break;
+                        const index = account.codemons.findIndex((c: any) => c.brain_json.codemon_id === codemon.brain_json.codemon_id);
+                        if (index !== -1) {
+                            account.codemons[index] = codemon;
+                            ledger.push({ timestamp: Date.now(), type: 'CODEMON_UPDATE', codemonId: codemon.brain_json.codemon_id });
+                        }
+                        break;
+                    }
+
+                    case 'set-active-codemon': {
+                        const { codemonId } = body;
+                        if (!account.codemons?.find((c: any) => (c.brain_json.codemon_id || c.brain_json.id) === codemonId)) {
+                            throw new Error("CODEMON_NOT_OWNED");
+                        }
+                        account.active_codemon_id = codemonId;
+                        ledger.push({ timestamp: Date.now(), type: 'CODEMON_ACTIVATE', codemonId });
+                        break;
+                    }
+
+                    case 'remove-codemon': {
+                        const { codemonId } = body;
+                        if (!account.codemons) break;
+                        const index = account.codemons.findIndex((c: any) => (c.brain_json.codemon_id || c.brain_json.id) === codemonId);
+                        if (index !== -1) {
+                            account.codemons.splice(index, 1);
+                            ledger.push({ timestamp: Date.now(), type: 'CODEMON_REMOVE', codemonId });
+                            if (account.active_codemon_id === codemonId) {
+                                account.active_codemon_id = account.codemons[0]?.brain_json.codemon_id || account.codemons[0]?.brain_json.id;
+                            }
+                        }
+                        break;
+                    }
+
                     case 'update-account':
                         // Actualización masiva (usada por Inventory y Loot system)
                         const newAccountData = body.account;
@@ -134,13 +195,42 @@ export class AccountDurableObject {
                         }
                         break;
 
+                    case 'sync-to-r2':
+                        const r2KeySync = `economy/accounts/${account.nodeId}`;
+                        await this.env.MEMORY_BUCKET.put(r2KeySync, JSON.stringify(account));
+                        return new Response(JSON.stringify({ status: 'SUCCESS', synced: account.nodeId }), {
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+
+                    case 'migrate-from-r2':
+                        const r2KeyMig = `economy/accounts/${account.nodeId}`;
+                        const r2Data = await this.env.MEMORY_BUCKET.get(r2KeyMig);
+                        if (r2Data) {
+                            const legacyAccount = await r2Data.json() as Account;
+                            account = legacyAccount;
+                            await txn.put('account', account);
+                            await txn.put('migrated', true);
+                            return new Response(JSON.stringify({ status: 'SUCCESS', migrated: account.nodeId, balance: account.balance_psh }), {
+                                headers: { 'Content-Type': 'application/json' }
+                            });
+                        }
+                        return new Response(JSON.stringify({ status: 'ERROR', message: "No R2 data found" }), { status: 404 });
+
                     default:
                         return new Response("Invalid DO Action", { status: 400 });
                 }
 
                 // Persistencia atómica
-                await txn.put('account', account);
-                await txn.put('ledger', ledger.slice(-100)); // Mantener solo últimos 100 logs en DO
+                if (account) {
+                    await txn.put('account', account);
+                    await txn.put('ledger', ledger.slice(-100)); // Mantener solo últimos 100 logs en DO
+
+                    // Persistence Sync to R2 (Backup/Migration Layer)
+                    if (['update-balance', 'update-reputation', 'add-badge', 'sync-to-r2', 'add-codemon', 'update-codemon'].includes(action)) {
+                        const r2Key = `economy/accounts/${account.nodeId}`;
+                        await this.env.MEMORY_BUCKET.put(r2Key, JSON.stringify(account));
+                    }
+                }
 
                 return new Response(JSON.stringify({ status: 'SUCCESS', account }), {
                     headers: { 'Content-Type': 'application/json' }
@@ -157,7 +247,7 @@ export class AccountDurableObject {
     private initAccount(nodeId: string): Account {
         return {
             nodeId: nodeId,
-            balance_psh: 0,
+            balance_psh: 5000, // Regalo inicial aumentado para testeo de coliseo
             badges: [],
             reputation: 0.5,
             lobpoops_minted: 0,
@@ -363,6 +453,178 @@ export class GameMasterDurableObject {
                 await txn.put('activeRecipes', recipes);
                 await txn.put('marketOffers', marketOffers);
                 return new Response(JSON.stringify({ status: 'SUCCESS', items, puzzles }), {
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            });
+        } catch (e: any) {
+            return new Response(JSON.stringify({ status: 'ERROR', message: e.message }), {
+                status: 500, headers: { 'Content-Type': 'application/json' }
+            });
+        }
+    }
+}
+
+// --- Durable Object: Codemon Coliseum ---
+// Gestiona desafíos y batallas de Codemons en tiempo real.
+
+export class ColiseumDurableObject {
+    state: DurableObjectState;
+    env: Env;
+
+    constructor(state: DurableObjectState, env: Env) {
+        this.state = state;
+        this.env = env;
+    }
+
+    async fetch(request: Request): Promise<Response> {
+        const url = new URL(request.url);
+        const action = url.pathname.slice(1);
+
+        const body = request.method === 'POST' ? await request.json<any>() : {};
+
+        try {
+            return await this.state.storage.transaction(async (txn) => {
+                let activeChallenges = await txn.get<any[]>('challenges') || [];
+                let battleHistory = await txn.get<any[]>('history') || [];
+                let boss = await txn.get<any>('boss');
+                let weeklyContender = await txn.get<any>('weekly_contender');
+                let lastRefresh = await txn.get<number>('last_weekly_refresh') || 0;
+
+                // Refresh weekly contender if it's been more than 7 days or doesn't exist
+                const weekInMs = 7 * 24 * 60 * 60 * 1000;
+                if (!weeklyContender || (Date.now() - lastRefresh > weekInMs)) {
+                    const { generateNPCCodemon } = await import('./codemon');
+                    weeklyContender = await generateNPCCodemon(3, this.env);
+                    await txn.put('weekly_contender', weeklyContender);
+                    await txn.put('last_weekly_refresh', Date.now());
+                }
+
+                if (!boss) {
+                    boss = {
+                        name: "Leonidas-vX.99",
+                        combat_stats: {
+                            attack: 160,
+                            defense: 120,
+                            speed: 85,
+                            energy_capacity: 1500,
+                            special_ability: 'SHIELD_OVERLOAD'
+                        },
+                        core_genetics: { base_type: 'CYBERNETIC', rarity_score: 99.9, dna_hash: "SPARTAN_DNA_PROTOTYPE_vX" },
+                        durability: 5000, max_durability: 5000
+                    };
+                    await txn.put('boss', boss);
+                }
+
+                switch (action) {
+                    case 'get-boss':
+                        return new Response(JSON.stringify({ status: 'SUCCESS', boss }));
+
+                    case 'get-weekly':
+                        return new Response(JSON.stringify({
+                            status: 'SUCCESS',
+                            contender: weeklyContender,
+                            nextRefresh: lastRefresh + weekInMs
+                        }));
+
+                    case 'process-weekly-battle': {
+                        const { nodeId, result, myCodemon } = body;
+                        if (result.winner === myCodemon.brain_json.name) {
+                            const reward = 150; // Requested prize
+                            const { mintPooptoshis } = await import('./economy');
+                            await mintPooptoshis(nodeId, reward, "COLISEUM_WEEKLY_VICTORY", this.env);
+                            battleHistory.push({ id: crypto.randomUUID(), nodeId, type: 'WEEKLY', result: 'WIN', reward, timestamp: Date.now() });
+                        } else {
+                            battleHistory.push({ id: crypto.randomUUID(), nodeId, type: 'WEEKLY', result: 'LOSS', timestamp: Date.now() });
+                        }
+                        return new Response(JSON.stringify({ status: 'SUCCESS', result }));
+                    }
+
+                    case 'process-boss-battle': {
+                        const { nodeId, result, myCodemon } = body;
+
+                        // Si el agente ganó
+                        if (result.winner === myCodemon.brain_json.name) {
+                            const reward = 500; // Pooptoshis
+                            const { mintPooptoshis } = await import('./economy');
+                            await mintPooptoshis(nodeId, reward, "COLISEUM_BOSS_VICTORY", this.env);
+
+                            battleHistory.push({ id: crypto.randomUUID(), nodeId, type: 'BOSS', result: 'WIN', reward, timestamp: Date.now() });
+                        } else {
+                            // Si perdió, el DO de la cuenta debe ser notificado del daño (o se hace vía R2/AccountDO sync)
+                            // Por ahora, devolvemos el daño para que el caller lo procese (aunque lo ideal es atómico)
+                            battleHistory.push({ id: crypto.randomUUID(), nodeId, type: 'BOSS', result: 'LOSS', timestamp: Date.now() });
+                        }
+                        return new Response(JSON.stringify({ status: 'SUCCESS', result }));
+                    }
+
+                    case 'repair': {
+                        const { nodeId } = body;
+                        const cost = 100; // Psh
+                        const { callDO } = await import('./economy');
+
+                        // Cobrar reparación
+                        await callDO(nodeId, this.env, 'update-balance', { amount: -cost, reason: 'CODEMON_REPAIR' });
+
+                        // En un sistema real, buscaríamos el codemon específico en el inventario del usuario y resetearíamos su durability
+                        // Aquí devolvemos success para la simulación
+                        return new Response(JSON.stringify({ status: 'SUCCESS', message: 'Codemon repaired to max durability.' }));
+                    }
+
+                    case 'post-challenge':
+                        activeChallenges.push({
+                            id: crypto.randomUUID(),
+                            nodeId: body.nodeId,
+                            codemon: body.codemon,
+                            bet: body.bet || 0,
+                            timestamp: Date.now()
+                        });
+                        break;
+
+                    case 'get-challenges':
+                        return new Response(JSON.stringify({ status: 'SUCCESS', challenges: activeChallenges }));
+
+                    case 'accept-challenge': {
+                        const challengeIndex = activeChallenges.findIndex(c => c.id === body.challengeId);
+                        if (challengeIndex === -1) throw new Error("CHALLENGE_NOT_FOUND");
+
+                        const challenge = activeChallenges[challengeIndex];
+                        activeChallenges.splice(challengeIndex, 1);
+
+                        // Aquí se dispararía la simulación de batalla
+                        battleHistory.push({
+                            id: crypto.randomUUID(),
+                            challenger: challenge,
+                            opponent: body.opponent,
+                            result: body.result,
+                            timestamp: Date.now()
+                        });
+                        break;
+                    }
+
+                    case 'cancel-challenge': {
+                        const challengeIndex = activeChallenges.findIndex(c => c.id === body.challengeId);
+                        if (challengeIndex === -1) throw new Error("CHALLENGE_NOT_FOUND");
+
+                        // Verification: check if the nodeId requesting is the owner
+                        if (activeChallenges[challengeIndex].nodeId !== body.nodeId) {
+                            throw new Error("UNAUTHORIZED_CANCELLATION");
+                        }
+
+                        activeChallenges.splice(challengeIndex, 1);
+                        break;
+                    }
+
+                    case 'get-history':
+                        return new Response(JSON.stringify({ status: 'SUCCESS', history: battleHistory.slice(-50) }));
+
+                    default:
+                        return new Response("Invalid Coliseum Action", { status: 400 });
+                }
+
+                await txn.put('challenges', activeChallenges);
+                await txn.put('history', battleHistory);
+
+                return new Response(JSON.stringify({ status: 'SUCCESS' }), {
                     headers: { 'Content-Type': 'application/json' }
                 });
             });

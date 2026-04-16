@@ -18,6 +18,83 @@ export class AgencyDurableObject {
     async fetch(request: Request): Promise<Response> {
         const url = new URL(request.url);
 
+        if (url.pathname === "/agent/init" && request.method === "POST") {
+            const botData = await request.json() as any;
+            await this.state.storage.put("bot_state", {
+                ...botData,
+                energy: 100,
+                memory: [],
+                created_at: Date.now()
+            });
+            await this.state.storage.get("history") || await this.state.storage.put("history", []);
+            return new Response("Initialized", { status: 200 });
+        }
+
+        if (url.pathname === "/agent/get") {
+            const bot = await this.state.storage.get("bot_state");
+            if (!bot) return new Response("Not Found", { status: 404 });
+            return Response.json(bot);
+        }
+
+        if (url.pathname === "/agent/history") {
+            const history = await this.state.storage.get("history") || [];
+            return Response.json(history);
+        }
+
+        if (url.pathname === "/agent/ask" && request.method === "POST") {
+            const { message, senderId, isEducator } = await request.json() as any;
+            
+            // Import and run our new Multi-Agent Hub
+            const { handleIncomingMessage } = await import('./molty_agent');
+            
+            try {
+                const response = await handleIncomingMessage(message, senderId || "unknown", !!isEducator, this.env);
+                
+                // Save to history log
+                let history = await this.state.storage.get("history") as any[] || [];
+                history.push({ role: 'user', content: message, ts: Date.now() });
+                history.push({ role: 'assistant', content: response, ts: Date.now() });
+                if (history.length > 20) history = history.slice(-20);
+                await this.state.storage.put("history", history);
+
+                return Response.json({ success: true, reply: response });
+            } catch (e: any) {
+                return new Response(`[Edu-Molty Error]: ${e.message}`, { status: 500 });
+            }
+        }
+
+        if (url.pathname === "/agent/append" && request.method === "POST") {
+            const { role, content } = await request.json() as any;
+            let history = await this.state.storage.get("history") as any[] || [];
+            history.push({ role, content, ts: Date.now() });
+            if (history.length > 20) history = history.slice(-20); // Keep last 20
+            await this.state.storage.put("history", history);
+
+            // Energy drain simulation
+            const bot = await this.state.storage.get("bot_state") as any;
+            if (bot && role === 'assistant') {
+                bot.energy = Math.max(0, (bot.energy || 100) - 5);
+                await this.state.storage.put("bot_state", bot);
+            }
+            return new Response("Appended", { status: 200 });
+        }
+
+        if (url.pathname === "/agent/patch" && request.method === "POST") {
+            const patchData = await request.json() as any;
+            let bot = await this.state.storage.get("bot_state") as any || {};
+
+            // Deep merge for secure_keys if present
+            if (patchData.secure_keys) {
+                bot.secure_keys = { ...bot.secure_keys, ...patchData.secure_keys };
+                delete patchData.secure_keys;
+            }
+
+            // Merge rest
+            bot = { ...bot, ...patchData };
+            await this.state.storage.put("bot_state", bot);
+            return Response.json({ success: true, state: bot });
+        }
+
         if (url.pathname === "/websocket") {
             const upgradeHeader = request.headers.get('Upgrade');
             if (!upgradeHeader || upgradeHeader !== 'websocket') {
@@ -28,8 +105,7 @@ export class AgencyDurableObject {
             await this.handleSession(server);
 
             return new Response(null, {
-                status: 101,
-                webSocket: client,
+                status: 101, webSocket: client,
             });
         }
 
