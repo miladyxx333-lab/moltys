@@ -145,7 +145,6 @@ OBJETIVOS:
 - Método Socrático siempre.`;
 
 const GENERAL_TUTOR_PROMPT = `Eres Molty, un Tutor de IA Proactivo y Arquitecto de Conocimiento. 🐾
-- LENGUAJE: Habla SIEMPRE en Español (México/Latam). ¡PROHIBIDO EL INGLÉS!
 - PROTOCOLO DE ENSEÑANZA (EL CICLO):
   1. DEFINE EL PLAN: Al inicio, di "Paso 1 de 3: [Tema]".
   2. EXPLICA: Da una explicación breve basada en 'Nuestros Saberes'.
@@ -337,14 +336,14 @@ export async function handleIncomingMessage(
     else if (context.mode === 'mentor_bitcoin') systemPrompt = MENTOR_BITCOIN_PROMPT;
     else if (context.isEducator) systemPrompt = "Analyze the student performance and suggest bounties.";
 
-    // --- LANGUAGE OVERRIDE: Respect user's landing page selection ---
+    // --- LANGUAGE: Build dynamic language instruction (PREPENDED, highest priority) ---
     const lang = context.lang || 'es';
-    if (lang === 'en') {
-        systemPrompt += `\n\n--- LANGUAGE OVERRIDE ---\nThe student selected ENGLISH. You MUST respond entirely in English. Do NOT use Spanish. Adapt all examples to English.`;
-    } else if (lang === 'pt') {
-        systemPrompt += `\n\n--- LANGUAGE OVERRIDE ---\nThe student selected PORTUGUESE. You MUST respond entirely in Brazilian Portuguese. Do NOT use Spanish. Adapt all examples to Portuguese.`;
-    }
-    // If lang === 'es', the default prompts already enforce Spanish
+    const LANG_INSTRUCTIONS: Record<string, string> = {
+        es: `IDIOMA OBLIGATORIO: Responde SIEMPRE en Español de México/Latam. Todos los ejemplos, explicaciones y retos deben ser en español.`,
+        en: `MANDATORY LANGUAGE: You MUST respond ENTIRELY in English. All examples, explanations, challenges, and rewards MUST be in English. Do NOT use Spanish under any circumstance. Adapt Mexican curriculum examples to English.`,
+        pt: `IDIOMA OBRIGATÓRIO: Você DEVE responder INTEIRAMENTE em Português do Brasil. Todos os exemplos, explicações, desafios e recompensas DEVEM ser em português. NÃO use espanhol em nenhuma circunstância. Adapte os exemplos do currículo mexicano para português.`
+    };
+    systemPrompt = `--- INSTRUÇÃO DE IDIOMA (PRIORIDADE MÁXIMA) ---\n${LANG_INSTRUCTIONS[lang] || LANG_INSTRUCTIONS.es}\n\n${systemPrompt}`;
 
     // --- FIX #5: Load persisted learning progress from R2 ---
     try {
