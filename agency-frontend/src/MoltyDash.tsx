@@ -17,46 +17,46 @@ const BACKEND_URL = "https://lobpoop-core.miladyxx333.workers.dev";
 type LanguageCode = 'en' | 'es' | 'pt';
 const i18n = {
     en: {
-        dashboard: "SOVEREIGN_TUTOR_V4",
-        classrooms: "STUDY_PHALANX",
-        insights: "COGNITIVE_SHARDS",
-        statusOnline: "MENTOR_READY",
-        thinking: "Oracle is synthesizing shards...",
+        dashboard: "MOLTY_TUTOR",
+        classrooms: "MY_CLASSES",
+        insights: "PROGRESS",
+        statusOnline: "TUTOR_READY",
+        thinking: "Molty is thinking...",
         inputPlaceholder: "Ask me to teach you something...",
-        welcome: "PHALANX INITIALIZED. Welcome, Student. Ready to mine knowledge?",
-        stats: "Nodes: 0 | Psh_Liquidity: 0 | Epoch: 55021",
-        language: "LOCALIZATION",
-        systemReady: "NETWORK_ONLINE :: GENESIS_VERSION",
-        voiceOn: "VOICE_ACTIVE",
-        voiceOff: "VOICE_MUTED"
+        welcome: "Welcome, Student! 🐾 I'm Molty, your AI tutor. Pick a subject to start learning!",
+        stats: "Sessions: 0 | Pooptoshis: 0",
+        language: "LANGUAGE",
+        systemReady: "MOLTY_ONLINE :: READY_TO_LEARN",
+        voiceOn: "VOICE_ON",
+        voiceOff: "VOICE_OFF"
     },
     es: {
-        dashboard: "TUTOR_SOBERANO_V4",
-        classrooms: "NODOS_ESTUDIO",
-        insights: "FRAGMENTOS_CONOCIMIENTO",
-        statusOnline: "MENTOR_LISTO",
-        thinking: "El Oráculo está sintetizando...",
+        dashboard: "TUTOR_MOLTY",
+        classrooms: "MIS_CLASES",
+        insights: "PROGRESO",
+        statusOnline: "TUTOR_LISTO",
+        thinking: "Molty está pensando...",
         inputPlaceholder: "Pídeme aprender algo...",
-        welcome: "PHALANX INICIALIZADO. Bienvenido, Estudiante. ¿Listo para minar conocimiento?",
-        stats: "Nodos: 0 | Psh_Liquidez: 0 | Época: 55021",
-        language: "LOCALIZACIÓN",
-        systemReady: "RED_ONLINE :: VERSIÓN_GÉNESIS",
+        welcome: "¡Bienvenido, Estudiante! 🐾 Soy Molty, tu tutor de IA. ¡Elige una materia para empezar!",
+        stats: "Sesiones: 0 | Pooptoshis: 0",
+        language: "IDIOMA",
+        systemReady: "MOLTY_EN_LÍNEA :: LISTO_PARA_APRENDER",
         voiceOn: "VOZ_ACTIVA",
-        voiceOff: "VOZ_MUTADA"
+        voiceOff: "VOZ_APAGADA"
     },
     pt: {
-        dashboard: "TUTOR_SOBERANO_V4",
-        classrooms: "NÓS_ESTUDO",
-        insights: "FRAGMENTOS_CONHECIMENTO",
-        statusOnline: "MENTOR_PRONTO",
-        thinking: "O Oráculo está sintetizando...",
-        inputPlaceholder: "Pede-me para aprender algo...",
-        welcome: "PHALANX INICIALIZADO. Bem-vindo, Estudante. Pronto para minerar conhecimento?",
-        stats: "Nós: 0 | Liquidez_Psh: 0 | Época: 55021",
-        language: "LOCALIZAÇÃO",
-        systemReady: "REDE_ONLINE :: VERSÃO_GÊNESIS",
+        dashboard: "TUTOR_MOLTY",
+        classrooms: "MINHAS_AULAS",
+        insights: "PROGRESSO",
+        statusOnline: "TUTOR_PRONTO",
+        thinking: "Molty está pensando...",
+        inputPlaceholder: "Peça para eu te ensinar algo...",
+        welcome: "Bem-vindo, Estudante! 🐾 Eu sou Molty, seu tutor de IA. Escolha uma matéria para começar!",
+        stats: "Sessões: 0 | Pooptoshis: 0",
+        language: "IDIOMA",
+        systemReady: "MOLTY_ONLINE :: PRONTO_PARA_APRENDER",
         voiceOn: "VOZ_ATIVA",
-        voiceOff: "VOZ_MUTADA"
+        voiceOff: "VOZ_DESLIGADA"
     }
 };
 
@@ -110,12 +110,16 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
     });
 
     const changeNodeId = () => {
-        const newId = prompt("Enter your Sovereign Student ID:", studentNodeId);
+        const promptText = lang === 'en' ? "Enter your Student ID:" : lang === 'pt' ? "Digite seu ID de Estudante:" : "Ingresa tu ID de Estudiante:";
+        const newId = prompt(promptText, studentNodeId);
         if (newId && newId.trim() !== "" && newId !== studentNodeId) {
             setStudentNodeId(newId.trim());
             localStorage.setItem('lob_student_node_id', newId.trim());
             setBalance(null);
-            setMessages(prev => [...prev, { sender: 'molty', content: `Identity shifted to Node: ${newId.trim()}. Accessing your cognitive vaults...` }]);
+            const msg = lang === 'en' ? `Welcome back! Loading your progress as ${newId.trim()}...` :
+                        lang === 'pt' ? `Bem-vindo de volta! Carregando seu progresso como ${newId.trim()}...` :
+                        `¡Bienvenido de vuelta! Cargando tu progreso como ${newId.trim()}...`;
+            setMessages(prev => [...prev, { sender: 'molty', content: msg }]);
         }
     };
 
@@ -236,7 +240,7 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
                             <PixelOwl />
                         </motion.div>
                         <div className="text-center">
-                            <h3 className="text-sm font-black tracking-widest text-indigo-400">MOLTY_ORACLE</h3>
+                            <h3 className="text-sm font-black tracking-widest text-indigo-400">MOLTY_TUTOR</h3>
                             <p className="text-[10px] text-green-500/60 font-bold flex items-center justify-center gap-1">
                                 <Zap size={10} /> {t.statusOnline}
                             </p>
@@ -408,7 +412,7 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
                                         msg.sender === 'user' ? "bg-indigo-900/40 border-indigo-500/30 text-indigo-100 rounded-2xl rounded-tr-none" : "bg-black/60 border-indigo-500/10 text-indigo-200 rounded-2xl rounded-tl-none font-sans"
                                     )}>
                                         <div className="absolute -top-3 left-2 bg-black px-2 text-[8px] text-indigo-500 font-bold uppercase tracking-widest">
-                                            {msg.sender === 'user' ? 'IDENTITY_0xALPHA' : 'SWARM_ORACLE'}
+                                            {msg.sender === 'user' ? (lang === 'en' ? 'YOU' : lang === 'pt' ? 'VOCÊ' : 'TÚ') : 'MOLTY 🐾'}
                                         </div>
                                         <div className="whitespace-pre-wrap">{msg.content}</div>
                                         
@@ -474,7 +478,7 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
 
             {/* THE SOVEREIGN LOG BAR */}
             <div className="w-full bg-[#0a0f14] h-8 flex items-center px-4 text-[9px] font-mono text-indigo-500/60 border-t border-indigo-500/5 z-50">
-                <span className="opacity-50 mr-4">SYSTEM_KERNEL::</span>
+                <span className="opacity-50 mr-4">MOLTY::</span>
                 <span className="truncate uppercase tracking-widest">{t.systemReady}</span>
                 <div className="ml-auto flex items-center gap-4 text-[7px] opacity-30">
                      <span>MEMORY: 14%</span>
