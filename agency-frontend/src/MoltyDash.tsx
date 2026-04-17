@@ -70,20 +70,20 @@ const SUBJECTS_I18N: Record<LanguageCode, { id: string, name: string, icon: any,
         { id: 'electricity', name: 'ELECTRICIDAD', icon: Zap, color: 'text-orange-500', prompt: 'Molty, iniciemos la Ruta de Electricidad. Muéstrame cómo fluye la energía según el libro de Proyectos. ⚡' }
     ],
     en: [
-        { id: 'math', name: 'MATHEMATICS', icon: Calculator, color: 'text-blue-500', prompt: 'Hey Molty! 🐾 I want to start my Mathematics Learning Path. Respond ONLY in English. What are we learning today?' },
-        { id: 'english', name: 'ENGLISH', icon: Globe, color: 'text-indigo-500', prompt: 'Hey Molty! Help me master English grammar. Respond ONLY in English. Create a 3-step plan for me today. 🌎' },
-        { id: 'spanish', name: 'SPANISH', icon: BookOpen, color: 'text-red-500', prompt: 'Molty, help me learn Spanish. Respond ONLY in English. What grammar topic should we cover today? 📖' },
-        { id: 'art', name: 'ART_P5JS', icon: Code2, color: 'text-pink-500', prompt: 'Start the Generative Art Workshop! Respond ONLY in English. 🌈 Create a p5.js challenge for me.' },
-        { id: 'cooking', name: 'COOKING', icon: Utensils, color: 'text-green-500', prompt: 'Hey Molty! Let\'s start a Cooking plan. Respond ONLY in English. What\'s the science behind the first dish? 🍳' },
-        { id: 'electricity', name: 'ELECTRICITY', icon: Zap, color: 'text-orange-500', prompt: 'Molty, let\'s start the Electricity Path. Respond ONLY in English. Show me how energy flows! ⚡' }
+        { id: 'math', name: 'ALGEBRA', icon: Calculator, color: 'text-blue-500', prompt: 'Hey Molty! 🐾 Let\'s start my STEM Algebra Path. Respond ONLY in English. What is the Common Core objective for today?' },
+        { id: 'cs', name: 'COMPUTER SCI', icon: Terminal, color: 'text-indigo-500', prompt: 'Hey Molty! I want to learn Computer Science. Respond ONLY in English. Teach me a fundamental programming concept. 💻' },
+        { id: 'history', name: 'US HISTORY', icon: BookOpen, color: 'text-amber-500', prompt: 'Molty, let\'s explore US History. Respond ONLY in English. What historical event are we analyzing today? 📜' },
+        { id: 'physics', name: 'PHYSICS', icon: Zap, color: 'text-orange-500', prompt: 'Molty, let\'s dive into Physics. Respond ONLY in English. Explain a fundamental law of motion to me! ⚡' },
+        { id: 'art', name: 'CREATIVE CODE', icon: Code2, color: 'text-pink-500', prompt: 'Start the Creative Coding Workshop! Respond ONLY in English. 🌈 Create a p5.js generative art challenge for me.' },
+        { id: 'literature', name: 'LITERATURE', icon: Globe, color: 'text-green-500', prompt: 'Hey Molty! Let\'s read some Literature. Respond ONLY in English. What classic text are we discussing today? 📚' }
     ],
     pt: [
-        { id: 'math', name: 'MATEMÁTICA', icon: Calculator, color: 'text-blue-500', prompt: 'Olá Molty! 🐾 Quero começar minha Rota de Matemática. Responda apenas em PORTUGUÊS. O que vamos aprender hoje?' },
-        { id: 'english', name: 'INGLÊS', icon: Globe, color: 'text-indigo-500', prompt: 'Oi Molty! Quero dominar o Inglês. Responda apenas em PORTUGUÊS. Crie um plano de vocabulário em 3 passos para mim. 🌎' },
-        { id: 'spanish', name: 'ESPANHOL', icon: BookOpen, color: 'text-red-500', prompt: 'Molty, me ajude a estudar Espanhol. Responda apenas em PORTUGUÊS. Que tema de gramática vamos ver hoje? 📖' },
-        { id: 'art', name: 'ARTE_P5JS', icon: Code2, color: 'text-pink-500', prompt: 'Inicie a Oficina de Arte Generativa! Responda apenas em PORTUGUÊS. 🌈 Crie um desafio p5.js para mim.' },
-        { id: 'cooking', name: 'COZINHA', icon: Utensils, color: 'text-green-500', prompt: 'Olá Molty! Vamos iniciar um Plano de Cozinha. Responda apenas em PORTUGUÊS. Qual a ciência por trás do primeiro prato? 🍳' },
-        { id: 'electricity', name: 'ELETRICIDADE', icon: Zap, color: 'text-orange-500', prompt: 'Molty, vamos iniciar a Rota de Eletricidade. Responda apenas em PORTUGUÊS. Me mostre como a energia flui! ⚡' }
+        { id: 'math', name: 'MATEMÁTICA', icon: Calculator, color: 'text-blue-500', prompt: 'Olá Molty! 🐾 Quero começar minha rota de Matemática baseada na BNCC. Responda apenas em PORTUGUÊS. Qual a competência de hoje?' },
+        { id: 'ciencias', name: 'CIÊNCIAS', icon: Zap, color: 'text-orange-500', prompt: 'Oi Molty! Vamos explorar Ciências da Natureza. Responda apenas em PORTUGUÊS. O que vamos descobrir hoje? 🔬' },
+        { id: 'historia', name: 'HISTÓRIA BNCC', icon: BookOpen, color: 'text-amber-500', prompt: 'Molty, me ajude a estudar História do Brasil. Responda apenas em PORTUGUÊS. Qual período histórico vamos analisar? 📖' },
+        { id: 'portugues', name: 'PORTUGUÊS', icon: Globe, color: 'text-green-500', prompt: 'Olá Molty! Vamos praticar Língua Portuguesa e gramática. Responda apenas em PORTUGUÊS. Qual o tópico de hoje? 📝' },
+        { id: 'art', name: 'ARTE DIGITAL', icon: Code2, color: 'text-pink-500', prompt: 'Inicie a Oficina de Arte Digital! Responda apenas em PORTUGUÊS. 🌈 Crie um desafio p5.js interativo para mim.' },
+        { id: 'cidadania', name: 'CIDADANIA', icon: GraduationCap, color: 'text-indigo-500', prompt: 'Olá Molty! Vamos debater Cidadania e Ética. Responda apenas em PORTUGUÊS. Qual o tema de reflexão de hoje? 🤝' }
     ]
 };
 
