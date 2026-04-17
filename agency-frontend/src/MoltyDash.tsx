@@ -24,7 +24,6 @@ const i18n = {
         thinking: "Molty is thinking...",
         inputPlaceholder: "Ask me to teach you something...",
         welcome: "Welcome, Student! 🐾 I'm Molty, your AI tutor. Pick a subject to start learning!",
-        stats: "Sessions: 0 | Pooptoshis: 0",
         language: "LANGUAGE",
         systemReady: "MOLTY_ONLINE :: READY_TO_LEARN",
         voiceOn: "VOICE_ON",
@@ -38,7 +37,6 @@ const i18n = {
         thinking: "Molty está pensando...",
         inputPlaceholder: "Pídeme aprender algo...",
         welcome: "¡Bienvenido, Estudiante! 🐾 Soy Molty, tu tutor de IA. ¡Elige una materia para empezar!",
-        stats: "Sesiones: 0 | Pooptoshis: 0",
         language: "IDIOMA",
         systemReady: "MOLTY_EN_LÍNEA :: LISTO_PARA_APRENDER",
         voiceOn: "VOZ_ACTIVA",
@@ -52,7 +50,6 @@ const i18n = {
         thinking: "Molty está pensando...",
         inputPlaceholder: "Peça para eu te ensinar algo...",
         welcome: "Bem-vindo, Estudante! 🐾 Eu sou Molty, seu tutor de IA. Escolha uma matéria para começar!",
-        stats: "Sessões: 0 | Pooptoshis: 0",
         language: "IDIOMA",
         systemReady: "MOLTY_ONLINE :: PRONTO_PARA_APRENDER",
         voiceOn: "VOZ_ATIVA",
@@ -337,11 +334,11 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
                                 showMonitor ? "bg-indigo-600 text-white" : "bg-white/5 text-indigo-400 hover:bg-white/10"
                             )}>
                                 <Eye size={14} />
-                                <span className="hidden sm:inline">P5.JS MONITOR</span>
+                                <span className="hidden sm:inline uppercase">{lang === 'en' ? 'ART_STUDIO' : lang === 'pt' ? 'ESTÚDIO_ARTE' : 'ESTUDIO_ARTE'}</span>
                             </button>
                             {mentorMode !== 'normal' && (
                                 <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className={clsx("px-3 py-1 rounded-full border text-[9px] font-black tracking-widest uppercase flex items-center gap-2 shadow-lg", mentorMode === 'secundaria' ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400 shadow-emerald-500/10" : "bg-amber-500/20 border-amber-500/40 text-amber-400 shadow-amber-500/10")}>
-                                    <Sparkles size={10} /> {mentorMode === 'secundaria' ? 'MODE: SEC' : 'MODE: BTC'}
+                                    <Sparkles size={10} /> {mentorMode === 'secundaria' ? (lang === 'en' ? 'MODE: MIDDLE_SCHOOL' : lang === 'pt' ? 'MODO: ENSINO_MÉDIO' : 'MODO: SECUNDARIA') : (lang === 'en' ? 'MODE: BITCOIN' : 'MODO: BITCOIN')}
                                 </motion.div>
                             )}
                         </div>
@@ -481,8 +478,7 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
                 <span className="opacity-50 mr-4">MOLTY::</span>
                 <span className="truncate uppercase tracking-widest">{t.systemReady}</span>
                 <div className="ml-auto flex items-center gap-4 text-[7px] opacity-30">
-                     <span>MEMORY: 14%</span>
-                     <span>GAS: 0.02ms</span>
+                     <span>{studentNodeId}</span>
                 </div>
             </div>
         </div>
