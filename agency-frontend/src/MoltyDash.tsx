@@ -88,18 +88,69 @@ const SUBJECTS_I18N: Record<LanguageCode, { id: string, name: string, icon: any,
 };
 
 
+const THEMES = {
+    es: {
+        wrapper: "bg-[#0a0505] text-rose-100",
+        sidebar: "bg-[#140a0a] border-rose-500/10",
+        owlBg: "bg-rose-500/5 border-rose-500/20",
+        owlBox: "border-rose-500/40",
+        accentText: "text-rose-400",
+        buttonBorder: "border-rose-500/10 hover:border-rose-500/40 hover:bg-rose-500/5",
+        buttonTextHover: "group-hover:text-rose-300",
+        grid: "bg-[linear-gradient(rgba(244,63,94,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(244,63,94,0.03)_1px,transparent_1px)]",
+        borderBottom: "border-rose-500/10",
+        monitorBtnOn: "bg-rose-600 text-white",
+        monitorBtnOff: "text-rose-400",
+        voiceBtnOn: "bg-rose-500/10 border-rose-500/40 text-rose-400",
+        owlFill: "#f43f5e",
+        pulse: "bg-rose-500"
+    },
+    en: {
+        wrapper: "bg-[#05080a] text-indigo-100",
+        sidebar: "bg-[#0a0f14] border-indigo-500/10",
+        owlBg: "bg-indigo-500/5 border-indigo-500/20",
+        owlBox: "border-indigo-500/40",
+        accentText: "text-indigo-400",
+        buttonBorder: "border-indigo-500/10 hover:border-indigo-500/40 hover:bg-indigo-500/5",
+        buttonTextHover: "group-hover:text-indigo-300",
+        grid: "bg-[linear-gradient(rgba(99,102,241,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(99,102,241,0.03)_1px,transparent_1px)]",
+        borderBottom: "border-indigo-500/10",
+        monitorBtnOn: "bg-indigo-600 text-white",
+        monitorBtnOff: "text-indigo-400",
+        voiceBtnOn: "bg-indigo-500/10 border-indigo-500/40 text-indigo-400",
+        owlFill: "#6366f1",
+        pulse: "bg-indigo-500"
+    },
+    pt: {
+        wrapper: "bg-[#050a06] text-emerald-100",
+        sidebar: "bg-[#0a140d] border-emerald-500/10",
+        owlBg: "bg-emerald-500/5 border-emerald-500/20",
+        owlBox: "border-emerald-500/40",
+        accentText: "text-emerald-400",
+        buttonBorder: "border-emerald-500/10 hover:border-emerald-500/40 hover:bg-emerald-500/5",
+        buttonTextHover: "group-hover:text-emerald-300",
+        grid: "bg-[linear-gradient(rgba(16,185,129,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.03)_1px,transparent_1px)]",
+        borderBottom: "border-emerald-500/10",
+        monitorBtnOn: "bg-emerald-600 text-white",
+        monitorBtnOff: "text-emerald-400",
+        voiceBtnOn: "bg-emerald-500/10 border-emerald-500/40 text-emerald-400",
+        owlFill: "#10b981",
+        pulse: "bg-emerald-500"
+    }
+};
 
-const PixelOwl = () => (
+const PixelOwl = ({ fill = "#6366f1" }: { fill?: string }) => (
     <svg width="64" height="64" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style={{ imageRendering: 'pixelated' }}>
-        <path fill="#6366f1" d="M3 4H5V5H4V6H3V9H2V12H4V13H12V12H14V9H13V6H12V5H11V4H9V5H7V4H5V5H3V4ZM5 7H6V8H5V7ZM10 7H11V8H10V7ZM7 9H9V10H7V9Z" />
+        <path fill={fill} d="M3 4H5V5H4V6H3V9H2V12H4V13H12V12H14V9H13V6H12V5H11V4H9V5H7V4H5V5H3V4ZM5 7H6V8H5V7ZM10 7H11V8H10V7ZM7 9H9V10H7V9Z" />
         <path fill="white" d="M5 5H6V6H5V5ZM10 5H11V6H10V5Z" />
-        <path fill="indigo" d="M5 5.5H5.5V6H5V5.5ZM10 5.5H10.5V6H10V5.5Z" />
+        <path fill="currentColor" opacity="0.5" d="M5 5.5H5.5V6H5V5.5ZM10 5.5H10.5V6H10V5.5Z" />
     </svg>
 );
 
 export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () => void, initialLang?: LanguageCode }) {
     const [lang] = useState<LanguageCode>(initialLang);
     const t = i18n[lang];
+    const theme = THEMES[lang] || THEMES.es;
     // const [activeTab, setActiveTab ] = useState('CLASSROOMS');
     const [studentNodeId, setStudentNodeId] = useState(() => {
         const saved = localStorage.getItem('lob_student_node_id');
@@ -230,23 +281,23 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
     const p5Code = getLatestP5Code();
 
     return (
-        <div className="w-full h-screen bg-[#05080a] text-indigo-100 font-mono overflow-hidden flex flex-col relative">
+        <div className={clsx("w-full h-screen font-mono overflow-hidden flex flex-col relative", theme.wrapper)}>
 
             <div className="flex-1 flex flex-col md:flex-row h-full">
 
                 {/* 1. THE PHALANX SIDEBAR */}
-                <div className="w-full md:w-80 bg-[#0a0f14] border-r border-indigo-500/10 flex flex-col p-6 z-10 shrink-0 shadow-2xl">
+                <div className={clsx("w-full md:w-80 flex flex-col p-6 z-10 shrink-0 shadow-2xl border-r", theme.sidebar)}>
                     
-                    <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-4 flex flex-col items-center mb-6">
+                    <div className={clsx("rounded-xl p-4 flex flex-col items-center mb-6 border", theme.owlBg)}>
                         <motion.div 
                             animate={isProcessing ? { rotateY: [0, 180, 420], scale: [1, 1.1, 1] } : {}}
                             transition={{ duration: 2, repeat: Infinity }}
-                            className="p-3 bg-black/40 rounded-lg border border-indigo-500/40 mb-3"
+                            className={clsx("p-3 bg-black/40 rounded-lg border mb-3", theme.owlBox)}
                         >
-                            <PixelOwl />
+                            <PixelOwl fill={theme.owlFill} />
                         </motion.div>
                         <div className="text-center">
-                            <h3 className="text-sm font-black tracking-widest text-indigo-400">MOLTY_TUTOR</h3>
+                            <h3 className={clsx("text-sm font-black tracking-widest", theme.accentText)}>MOLTY_TUTOR</h3>
                             <p className="text-[10px] text-green-500/60 font-bold flex items-center justify-center gap-1">
                                 <Zap size={10} /> {t.statusOnline}
                             </p>
@@ -259,11 +310,11 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
                                  <button 
                                     key={s.id} 
                                     onClick={() => handleSend(s.prompt)}
-                                    className="p-3 bg-black/40 border border-indigo-500/10 rounded-xl flex flex-col items-center justify-center gap-1 hover:border-indigo-500/40 transition-all hover:bg-indigo-500/5 group"
+                                    className={clsx("p-3 bg-black/40 border rounded-xl flex flex-col items-center justify-center gap-1 transition-all group", theme.buttonBorder)}
                                 >
                                     <s.icon size={16} className={clsx(s.color, "group-hover:scale-110 transition-transform")} />
                                     <span className="text-[8px] font-bold text-white/50">{s.name}</span>
-                                    <span className="text-[6px] font-black text-indigo-400 group-hover:text-indigo-300 transition-colors uppercase">{t.actionLearn}</span>
+                                    <span className={clsx("text-[6px] font-black transition-colors uppercase", theme.accentText, theme.buttonTextHover)}>{t.actionLearn}</span>
                                  </button>
                              ))}
                         </div>
@@ -305,9 +356,9 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
                         </div>
                     </div>
 
-                    <div className="mt-auto pt-4 border-t border-indigo-500/5">
+                    <div className={clsx("mt-auto pt-4 border-t", theme.borderBottom)}>
                         <div className="flex gap-2">
-                             <button onClick={toggleVoice} className={clsx("flex-1 h-12 rounded-xl flex items-center justify-center gap-2 border transition-all", isVoiceEnabled ? "bg-indigo-500/10 border-indigo-500/40 text-indigo-400" : "bg-black/40 border-white/5 text-white/20")}>
+                             <button onClick={toggleVoice} className={clsx("flex-1 h-12 rounded-xl flex items-center justify-center gap-2 border transition-all", isVoiceEnabled ? theme.voiceBtnOn : "bg-black/40 border-white/5 text-white/20")}>
                                 {isVoiceEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
                                 <span className="text-[8px] font-bold uppercase">{isVoiceEnabled ? t.voiceOn : t.voiceOff}</span>
                              </button>
@@ -320,16 +371,16 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
 
                 {/* 2. CENTRAL ORACLE INTERFACE */}
                 <div className="flex-1 flex flex-col bg-black relative">
-                    <div className="absolute inset-0 bg-[linear-gradient(rgba(99,102,241,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(99,102,241,0.03)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
+                    <div className={clsx("absolute inset-0 bg-[size:32px_32px] pointer-events-none", theme.grid)} />
 
-                    <div className="h-14 border-b border-indigo-500/10 flex items-center justify-between px-6 bg-black/40 backdrop-blur-md z-20">
+                    <div className={clsx("h-14 border-b flex items-center justify-between px-6 bg-black/40 backdrop-blur-md z-20", theme.borderBottom)}>
                         <h2 className="text-xs font-black tracking-widest flex items-center gap-2">
-                             <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                             <div className={clsx("w-2 h-2 rounded-full animate-pulse", theme.pulse)} />
                              {t.dashboard}
                              <span className="mx-2 text-white/20">|</span>
                              <button 
                                 onClick={changeNodeId}
-                                className="text-white/40 opacity-70 hover:text-indigo-400 transition-colors flex items-center gap-1 group"
+                                className={clsx("text-white/40 opacity-70 transition-colors flex items-center gap-1 group hover:" + theme.accentText)}
                               >
                                 NODE: {studentNodeId}
                                 <span className="opacity-0 group-hover:opacity-100 text-[8px]">(CHANGE)</span>
@@ -341,7 +392,7 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
                         </h2>
                         <div className="flex items-center gap-3">
                             <button onClick={() => setShowMonitor(!showMonitor)} className={clsx("h-10 px-4 rounded-xl font-black text-[9px] tracking-widest flex items-center gap-2 transition-all",
-                                showMonitor ? "bg-indigo-600 text-white" : "bg-white/5 text-indigo-400 hover:bg-white/10"
+                                showMonitor ? theme.monitorBtnOn : "bg-white/5 hover:bg-white/10 " + theme.monitorBtnOff
                             )}>
                                 <Eye size={14} />
                                 <span className="hidden sm:inline uppercase">{lang === 'en' ? 'ART_STUDIO' : lang === 'pt' ? 'ESTÚDIO_ARTE' : 'ESTUDIO_ARTE'}</span>
@@ -416,9 +467,9 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
                                 <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                                     <div className={clsx(
                                         "max-w-[85%] md:max-w-2xl p-4 md:p-5 text-[11px] md:text-sm leading-relaxed border shadow-2xl relative",
-                                        msg.sender === 'user' ? "bg-indigo-900/40 border-indigo-500/30 text-indigo-100 rounded-2xl rounded-tr-none" : "bg-black/60 border-indigo-500/10 text-indigo-200 rounded-2xl rounded-tl-none font-sans"
+                                        msg.sender === 'user' ? clsx("rounded-2xl rounded-tr-none", theme.bgLight, theme.textPrimary, theme.borderAccent) : clsx("bg-black/60 rounded-2xl rounded-tl-none font-sans", theme.borderBase, theme.textPrimary)
                                     )}>
-                                        <div className="absolute -top-3 left-2 bg-black px-2 text-[8px] text-indigo-500 font-bold uppercase tracking-widest">
+                                        <div className={clsx("absolute -top-3 left-2 bg-black px-2 text-[8px] font-bold uppercase tracking-widest", theme.accentText)}>
                                             {msg.sender === 'user' ? (lang === 'en' ? 'YOU' : lang === 'pt' ? 'VOCÊ' : 'TÚ') : 'MOLTY 🐾'}
                                         </div>
                                         <div className="whitespace-pre-wrap">{msg.content}</div>
@@ -441,7 +492,7 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
                                         {msg.sender === 'molty' && (msg.content.includes('function setup') || msg.content.includes('createCanvas')) && (
                                             <button 
                                                 onClick={() => setShowMonitor(true)}
-                                                className="mt-4 flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg font-black text-[9px] tracking-widest hover:bg-indigo-400 transition-all"
+                                                className={clsx("mt-4 flex items-center gap-2 px-4 py-2 text-white rounded-lg font-black text-[9px] tracking-widest transition-all", theme.pulse, "hover:opacity-80")}
                                             >
                                                 <Code2 size={12} /> RENDER_ART_STREAM
                                             </button>
@@ -453,7 +504,7 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
                     </div>
 
                     {/* INPUT MATRIX */}
-                    <div className="p-4 md:p-6 bg-[#0a0f14]/80 backdrop-blur-xl border-t border-indigo-500/10 z-20 sticky bottom-0">
+                    <div className={clsx("p-4 md:p-6 backdrop-blur-xl border-t z-20 sticky bottom-0", theme.sidebar, theme.borderBottom)}>
                         <div className="max-w-4xl mx-auto flex flex-col gap-4">
                             
                             <button 
@@ -462,19 +513,19 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
                                     "w-full h-14 rounded-2xl font-black text-[10px] tracking-[0.2em] flex items-center justify-center gap-3 transition-all",
                                     isListening 
                                         ? "bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.4)] animate-pulse" 
-                                        : "bg-indigo-500/5 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/10"
+                                        : clsx("border", theme.owlBg, theme.accentText, theme.buttonBorder)
                                 )}
                             >
                                 {isListening ? <MicOff size={18} /> : <Mic size={18} />}
-                                {isListening ? "ESCUCHANDO..." : "TOCA PARA HABLARLE A MOLTYS"}
+                                {isListening ? (lang === 'en' ? "LISTENING..." : lang === 'pt' ? "OUVINDO..." : "ESCUCHANDO...") : (lang === 'en' ? "TAP TO SPEAK TO MOLTY" : lang === 'pt' ? "TOQUE PARA FALAR COM MOLTY" : "TOCA PARA HABLARLE A MOLTYS")}
                             </button>
 
                             <div className="flex items-center gap-3">
-                                <div className="flex-1 bg-black/40 border border-indigo-500/20 focus-within:border-indigo-500/60 transition-all rounded-xl flex items-center px-4 shadow-inner">
-                                    <Terminal size={14} className="text-indigo-500/40 mr-2" />
-                                    <input className="w-full h-12 bg-transparent outline-none text-[11px] text-indigo-100 placeholder:text-indigo-900" placeholder={t.inputPlaceholder} value={inputVal} onChange={(e) => setInputVal(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} />
+                                <div className={clsx("flex-1 bg-black/40 border transition-all rounded-xl flex items-center px-4 shadow-inner focus-within:border-opacity-100", theme.borderAccent)}>
+                                    <Terminal size={14} className={clsx("mr-2 opacity-40", theme.accentText)} />
+                                    <input className={clsx("w-full h-12 bg-transparent outline-none text-[11px] placeholder:opacity-30", theme.textPrimary)} placeholder={t.inputPlaceholder} value={inputVal} onChange={(e) => setInputVal(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} />
                                 </div>
-                                <button onClick={() => handleSend()} disabled={isProcessing} className="h-12 px-6 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all">
+                                <button onClick={() => handleSend()} disabled={isProcessing} className={clsx("h-12 px-6 text-white text-[10px] font-black uppercase tracking-widest transition-all", theme.monitorBtnOn, "hover:opacity-80 disabled:opacity-50")}>
                                     {isProcessing ? 'SYNTH...' : 'TRANSMIT'}
                                 </button>
                             </div>
@@ -484,7 +535,7 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
             </div>
 
             {/* THE SOVEREIGN LOG BAR */}
-            <div className="w-full bg-[#0a0f14] h-8 flex items-center px-4 text-[9px] font-mono text-indigo-500/60 border-t border-indigo-500/5 z-50">
+            <div className={clsx("w-full h-8 flex items-center px-4 text-[9px] font-mono border-t z-50 opacity-60", theme.sidebar, theme.borderBottom, theme.accentText)}>
                 <span className="opacity-50 mr-4">MOLTY::</span>
                 <span className="truncate uppercase tracking-widest">{t.systemReady}</span>
                 <div className="ml-auto flex items-center gap-4 text-[7px] opacity-30">
