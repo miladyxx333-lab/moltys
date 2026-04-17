@@ -315,7 +315,7 @@ function draw() {
 }
 \`\`\``
     }
-};`;
+};
 
 
 
@@ -394,7 +394,14 @@ async function executeSpartanSkill(name: string, args: any, senderId: string, en
             }
 
         case 'web_search':
-             // --- HUB HANDLER ---
+            return `[SEARCH]: Searching for '${args.query}'... (Search feature coming soon)`;
+
+        default:
+            return "[ERROR]: Tool not available.";
+    }
+}
+
+// --- HUB HANDLER ---
 export async function handleIncomingMessage(
     message: string, 
     senderId: string, 
@@ -435,7 +442,8 @@ export async function handleIncomingMessage(
     const aiMessages = [
         { role: 'system', content: systemPrompt },
         ...history,
-        { role: 'user', content: message }
+        { role: 'user', content: message },
+        { role: 'system', content: `MANDATORY: Respond only in ${lang === 'en' ? 'ENGLISH' : lang === 'pt' ? 'PORTUGUESE' : 'SPANISH'}. No exceptions.` }
     ];
 
     try {
