@@ -103,7 +103,11 @@ const THEMES = {
         monitorBtnOff: "text-rose-400",
         voiceBtnOn: "bg-rose-500/10 border-rose-500/40 text-rose-400",
         owlFill: "#f43f5e",
-        pulse: "bg-rose-500"
+        pulse: "bg-rose-500",
+        textPrimary: "text-rose-100",
+        bgLight: "bg-rose-900/40",
+        borderBase: "border-rose-500/10",
+        borderAccent: "border-rose-500/30"
     },
     en: {
         wrapper: "bg-[#05080a] text-indigo-100",
@@ -119,7 +123,11 @@ const THEMES = {
         monitorBtnOff: "text-indigo-400",
         voiceBtnOn: "bg-indigo-500/10 border-indigo-500/40 text-indigo-400",
         owlFill: "#6366f1",
-        pulse: "bg-indigo-500"
+        pulse: "bg-indigo-500",
+        textPrimary: "text-indigo-100",
+        bgLight: "bg-indigo-900/40",
+        borderBase: "border-indigo-500/10",
+        borderAccent: "border-indigo-500/30"
     },
     pt: {
         wrapper: "bg-[#050a06] text-emerald-100",
@@ -135,7 +143,11 @@ const THEMES = {
         monitorBtnOff: "text-emerald-400",
         voiceBtnOn: "bg-emerald-500/10 border-emerald-500/40 text-emerald-400",
         owlFill: "#10b981",
-        pulse: "bg-emerald-500"
+        pulse: "bg-emerald-500",
+        textPrimary: "text-emerald-100",
+        bgLight: "bg-emerald-900/40",
+        borderBase: "border-emerald-500/10",
+        borderAccent: "border-emerald-500/30"
     }
 };
 
