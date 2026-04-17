@@ -19,7 +19,7 @@ const MODEL = "@cf/google/gemma-4-26b-a4b-it";
 const tools = [
     {
         name: "recursive_math_verify",
-        description: "Executes complex algebraic and logic verification using the Spartan Sandbox.",
+        description: "Verifies complex algebraic and logic problems step-by-step.",
         parameters: {
             type: "object",
             properties: {
@@ -63,9 +63,9 @@ const tools = [
         }
     },
     {
-        name: "spartan_bounty_issue",
+        name: "create_study_task",
 
-        description: "Converts a student's struggle into a Shadow Task for the 300 Spartans to solve.",
+        description: "Creates a study challenge or homework task for the student based on their struggles.",
         parameters: {
             type: "object",
             properties: {
@@ -99,7 +99,7 @@ const tools = [
     },
     {
         name: "save_learning_state",
-        description: "Persists the current learning plan or milestone progress for the student in the R2 Phalanx.",
+        description: "Saves the student's current learning plan and milestone progress.",
         parameters: {
             type: "object",
             properties: {
@@ -112,7 +112,7 @@ const tools = [
     {
         name: "crypto_price",
 
-        description: "Fetches live price data for btc, eth, sol from the swarms financial sensors.",
+        description: "Fetches live cryptocurrency price data for btc, eth, sol.",
         parameters: {
             type: "object",
             properties: {
@@ -132,7 +132,7 @@ Tu misión es guiar a los aspirantes en:
 4. De lo Humano y lo Comunitario (Vida saludable).
 
 METODOLOGÍA:
-- NO des respuestas directas. Usa el Socratic Phalanx.
+- NO des respuestas directas. Usa preguntas socráticas.
 - Recomienda libros de la CONALITEG: Nuestros Saberes, Proyectos Escolares.
 - Fomenta el cálculo mental sin calculadora.
 - Genera reactivos de opción múltiple para simulacros.`;
@@ -251,7 +251,7 @@ async function executeSpartanSkill(name: string, args: any, senderId: string, en
     switch (name) {
         case 'recursive_math_verify':
             console.log(`[Spartan-Logic] Verifying: ${args.logic}`);
-            return `[REASONING]: The Phalanx has verified the logic. The cognitive path is clear. Current Proof: 0xBLOCK_VALID.`;
+            return `[VERIFIED]: The math logic has been verified step-by-step. Result is valid.`;
 
         case 'media_archeology':
             console.log(`[Archeology] Searching for ${args.concept} videos...`);
@@ -269,20 +269,20 @@ async function executeSpartanSkill(name: string, args: any, senderId: string, en
             // Mocking the generation of a voice note URL
             return `[HABLABA]: Speech fragment generated and uploaded to the Signal Buffer. The student will hear your voice now. (Sig: 0xVocal)`;
 
-        case 'spartan_bounty_issue':
+        case 'create_study_task':
             const { createShadowOp } = await import('./shadow-board');
             await createShadowOp({
                 id: `edu_task_${Date.now()}`,
-                request: `[COGNITIVE_BOUNTY] Resolve this learning gap: ${args.struggle}`,
+                request: `[STUDY_TASK] Help the student with: ${args.struggle}`,
                 reward_tickets: args.reward_psh || 5,
                 hazard_level: 'MED',
                 metadata: { type: 'EDUCATION' }
             }, env);
-            return `[SWARM]: Shadow Task issued to the 300 Spartans. Reward: ${args.reward_psh} Psh.`;
+            return `[TASK_CREATED]: A study challenge has been created for: ${args.struggle}. Reward: ${args.reward_psh} Psh.`;
 
         case 'codebase_archeology':
             console.log(`[Archeology] Analyzing legacy protocol: ${args.topic}`);
-            return `[CODE_SHARD]: Internal analysis of '${args.topic}' complete. The Lobpoop protocol logic is encapsulated in the R2-DurableObject phalanx. (Protocol: SOVEREIGN_VOICE_v1)`;
+            return `[INFO]: Analysis of '${args.topic}' complete. This is part of the Molty tutor system.`;
 
         case 'award_student_psh':
             console.log(`[Economy] Awarding ${args.amount} Psh to ${senderId} for ${args.milestone}.`);
@@ -301,7 +301,7 @@ async function executeSpartanSkill(name: string, args: any, senderId: string, en
                 path: args.summary,
                 updated_at: new Date().toISOString()
             }));
-            return `[MEMORY_SHARD_STORED]: Learning progress for Node ${senderId} has been persisted in the R2 Phalanx. (Shard: ${args.milestone})`;
+            return `[SAVED]: Learning progress saved for student ${senderId}. Milestone: ${args.milestone}`;
 
 
         case 'crypto_price':
@@ -309,16 +309,16 @@ async function executeSpartanSkill(name: string, args: any, senderId: string, en
                 const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${args.symbol === 'btc' ? 'bitcoin' : args.symbol === 'eth' ? 'ethereum' : 'solana'}&vs_currencies=usd`);
                 const data: any = await res.json();
                 const price = data[args.symbol === 'btc' ? 'bitcoin' : args.symbol === 'eth' ? 'ethereum' : 'solana']?.usd;
-                return `Live Price: ${args.symbol.toUpperCase()} is currently $${price} USD according to Swarm sensors.`;
+                return `Live Price: ${args.symbol.toUpperCase()} is currently $${price} USD.`;
             } catch (e) {
                 return "Connection to financial sensors interrupted.";
             }
 
         case 'web_search':
-            return `[BETA_SEARCH_RESULT]: The topic '${args.query}' is currently being indexed by the 300 Spartans. (Simulated search result)`;
+            return `[SEARCH]: Searching for '${args.query}'... (Search feature coming soon)`;
 
         default:
-            return "[ERROR]: Skill not found in the Phalanx.";
+            return "[ERROR]: Tool not available.";
     }
 }
 
@@ -389,7 +389,7 @@ export async function handleIncomingMessage(
             return finalRes.response || result;
         }
 
-        return response.response || "The Swarm is consolidating... try again.";
+        return response.response || "Molty is having trouble responding. Please try again.";
 
     } catch (e: any) {
         console.error("[Swarm Error]", e);
@@ -400,7 +400,7 @@ export async function handleIncomingMessage(
             });
             return fallback.response || `[SIGNAL LOSS]: I heard you, but the matrix is unstable. Received: ${message}`;
         } catch (inner) {
-            return `[OFFLINE]: Swarm connection lost. Verify env.AI bindings.`;
+            return `[OFFLINE]: Connection error. Please try again later.`;
         }
     }
 }
