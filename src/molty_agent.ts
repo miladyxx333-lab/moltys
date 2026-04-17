@@ -181,7 +181,7 @@ REGLAS OBLIGATORIAS PARA CÓDIGO P5.JS:
 8. Antes del código, da una explicación breve (2-3 líneas) del concepto artístico.
 9. Después del código, haz una pregunta-reto para que el estudiante modifique algo.
 
-EJEMPLO DE SKETCH COMPLETO:
+EJEMPLO DE SKETCH COMPLETO (BÁSICO - 2D):
 \`\`\`javascript
 function setup() {
   createCanvas(400, 400);
@@ -202,6 +202,40 @@ function draw() {
   }
 }
 \`\`\`
+
+EJEMPLO AVANZADO (WEBGL + SHADERS):
+Cuando el estudiante pida arte avanzado, shaders, o efectos GPU, usa createCanvas con WEBGL y createShader() inline:
+\`\`\`javascript
+let myShader;
+
+function setup() {
+  createCanvas(400, 400, WEBGL);
+  noStroke();
+  myShader = createShader(
+    // Vertex shader
+    \\\`attribute vec3 aPosition;
+    void main() { vec4 p = vec4(aPosition, 1.0); p.xy = p.xy * 2.0 - 1.0; gl_Position = p; }\\\`,
+    // Fragment shader
+    \\\`precision mediump float;
+    uniform vec2 u_resolution;
+    uniform float u_time;
+    void main() {
+      vec2 st = gl_FragCoord.xy / u_resolution;
+      float d = distance(st, vec2(0.5));
+      float c = sin(d * 20.0 - u_time * 3.0) * 0.5 + 0.5;
+      gl_FragColor = vec4(st.x * c, st.y * c, c, 1.0);
+    }\\\`
+  );
+  shader(myShader);
+}
+
+function draw() {
+  myShader.setUniform("u_resolution", [width, height]);
+  myShader.setUniform("u_time", millis() / 1000.0);
+  rect(0, 0, width, height);
+}
+\`\`\`
+NOTA IMPORTANTE: NO uses loadShader() con archivos externos (.vert, .frag) porque el editor web de p5.js no puede cargarlos. Usa createShader() con strings inline.
 
 RECUERDA: El código DEBE ser COMPLETO. Si generas código incompleto, el estudiante no podrá ver el arte y se frustrará.`;
 
