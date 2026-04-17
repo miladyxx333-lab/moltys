@@ -168,7 +168,11 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
         if (!query || isProcessing) return;
 
         stopListening();
-        setMessages(prev => [...prev, { sender: 'user', content: query }]);
+        if (override) {
+            setMessages([{ sender: 'user', content: query }]);
+        } else {
+            setMessages(prev => [...prev, { sender: 'user', content: query }]);
+        }
         setInputVal("");
         setIsProcessing(true);
 
