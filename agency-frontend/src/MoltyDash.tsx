@@ -157,6 +157,7 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
                 body: JSON.stringify({ 
                     message: query, 
                     senderId: studentNodeId, 
+                    lang: lang,
                     history: messages.slice(-10).map(m => ({ 
                         role: m.sender === 'user' ? 'user' : 'assistant', 
                         content: m.content 
