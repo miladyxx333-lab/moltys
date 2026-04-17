@@ -205,13 +205,15 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
         for (let i = messages.length - 1; i >= 0; i--) {
             const m = messages[i];
             if (m.sender === 'molty') {
-                // Regex más flexible: busca cualquier bloque de código o si el mensaje es puramente código
                 const match = m.content.match(/```(?:javascript|p5js|js)?\s*([\s\S]*?)```/i);
                 if (match) return match[1].trim();
                 
-                // Si el mensaje contiene setup() pero no tiene backticks
-                if (m.content.includes('function setup') && m.content.length < 2000) {
-                     return m.content.trim();
+                if (m.content.includes('function setup')) {
+                    const startIndex = m.content.indexOf('function setup');
+                    const possibleCode = m.content.substring(startIndex);
+                    if (possibleCode.includes('function draw')) {
+                        return possibleCode.trim();
+                    }
                 }
             }
         }
