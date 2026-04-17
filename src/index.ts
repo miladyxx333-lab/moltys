@@ -1187,7 +1187,7 @@ async function handleInternalRequest(request: Request, env: Env, ctx: ExecutionC
       const reply = await handleIncomingMessage(
         body.message || "", 
         senderId, 
-        { mode: body.mode, isEducator: body.isEducator, history: mergedHistory }, 
+        { mode: body.mode, isEducator: body.isEducator, history: mergedHistory, lang: body.lang || 'es' }, 
         env
       );
 

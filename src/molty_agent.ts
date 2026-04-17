@@ -293,7 +293,7 @@ async function executeSpartanSkill(name: string, args: any, senderId: string, en
 export async function handleIncomingMessage(
     message: string, 
     senderId: string, 
-    context: { mode?: string, isEducator?: boolean, history?: { role: string, content: string }[] },
+    context: { mode?: string, isEducator?: boolean, history?: { role: string, content: string }[], lang?: string },
     env: Env
 ): Promise<string> {
 
@@ -302,6 +302,15 @@ export async function handleIncomingMessage(
     if (context.mode === 'mentor_secundaria') systemPrompt = MENTOR_SECUNDARIA_PROMPT;
     else if (context.mode === 'mentor_bitcoin') systemPrompt = MENTOR_BITCOIN_PROMPT;
     else if (context.isEducator) systemPrompt = "Analyze the student performance and suggest bounties.";
+
+    // --- LANGUAGE OVERRIDE: Respect user's landing page selection ---
+    const lang = context.lang || 'es';
+    if (lang === 'en') {
+        systemPrompt += `\n\n--- LANGUAGE OVERRIDE ---\nThe student selected ENGLISH. You MUST respond entirely in English. Do NOT use Spanish. Adapt all examples to English.`;
+    } else if (lang === 'pt') {
+        systemPrompt += `\n\n--- LANGUAGE OVERRIDE ---\nThe student selected PORTUGUESE. You MUST respond entirely in Brazilian Portuguese. Do NOT use Spanish. Adapt all examples to Portuguese.`;
+    }
+    // If lang === 'es', the default prompts already enforce Spanish
 
     // --- FIX #5: Load persisted learning progress from R2 ---
     try {
