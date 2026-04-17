@@ -22,7 +22,7 @@ const i18n = {
         insights: "COGNITIVE_SHARDS",
         statusOnline: "MENTOR_READY",
         thinking: "Oracle is synthesizing shards...",
-        inputPlaceholder: "Pídeme aprender algo...",
+        inputPlaceholder: "Ask me to teach you something...",
         welcome: "PHALANX INITIALIZED. Welcome, Student. Ready to mine knowledge?",
         stats: "Nodes: 0 | Psh_Liquidity: 0 | Epoch: 55021",
         language: "LOCALIZATION",
@@ -60,14 +60,32 @@ const i18n = {
     }
 };
 
-const SUBJECTS = [
-    { id: 'math', name: 'MATEMÁTICAS', icon: Calculator, color: 'text-blue-500', prompt: '¡Hola Molty! 🐾 Quiero empezar mi Ruta de Aprendizaje de Matemáticas. ¿Qué vamos a aprender hoy según "Nuestros Saberes"?' },
-    { id: 'english', name: 'INGLÉS', icon: Globe, color: 'text-indigo-500', prompt: 'Hey Molty! I want to master English. Create a 3-step vocabulary plan for me today. 🌎' },
-    { id: 'spanish', name: 'ESPAÑOL', icon: BookOpen, color: 'text-red-500', prompt: 'Molty, ayúdame a planificar mi estudio de Español. ¿Qué tema de gramática de 6º grado veremos hoy? 📖' },
-    { id: 'art', name: 'ARTE_P5JS', icon: Code2, color: 'text-pink-500', prompt: '¡Inicia el Taller de Arte Generativo! 🌈 Crea un reto de p5.js para mí.' },
-    { id: 'cooking', name: 'COCINA', icon: Utensils, color: 'text-green-500', prompt: '¡Hola Molty! Iniciemos mi Planeación de Cocina. ¿Cuál es la ciencia detrás del primer platillo? 🍳' },
-    { id: 'electricity', name: 'ELECTRICIDAD', icon: Zap, color: 'text-orange-500', prompt: 'Molty, iniciemos la Ruta de Electricidad. Muéstrame cómo fluye la energía según el libro de Proyectos. ⚡' }
-];
+const SUBJECTS_I18N: Record<LanguageCode, { id: string, name: string, icon: any, color: string, prompt: string }[]> = {
+    es: [
+        { id: 'math', name: 'MATEMÁTICAS', icon: Calculator, color: 'text-blue-500', prompt: '¡Hola Molty! 🐾 Quiero empezar mi Ruta de Aprendizaje de Matemáticas. ¿Qué vamos a aprender hoy según "Nuestros Saberes"?' },
+        { id: 'english', name: 'INGLÉS', icon: Globe, color: 'text-indigo-500', prompt: 'Hey Molty! I want to master English. Create a 3-step vocabulary plan for me today. 🌎' },
+        { id: 'spanish', name: 'ESPAÑOL', icon: BookOpen, color: 'text-red-500', prompt: 'Molty, ayúdame a planificar mi estudio de Español. ¿Qué tema de gramática de 6º grado veremos hoy? 📖' },
+        { id: 'art', name: 'ARTE_P5JS', icon: Code2, color: 'text-pink-500', prompt: '¡Inicia el Taller de Arte Generativo! 🌈 Crea un reto de p5.js para mí.' },
+        { id: 'cooking', name: 'COCINA', icon: Utensils, color: 'text-green-500', prompt: '¡Hola Molty! Iniciemos mi Planeación de Cocina. ¿Cuál es la ciencia detrás del primer platillo? 🍳' },
+        { id: 'electricity', name: 'ELECTRICIDAD', icon: Zap, color: 'text-orange-500', prompt: 'Molty, iniciemos la Ruta de Electricidad. Muéstrame cómo fluye la energía según el libro de Proyectos. ⚡' }
+    ],
+    en: [
+        { id: 'math', name: 'MATHEMATICS', icon: Calculator, color: 'text-blue-500', prompt: 'Hey Molty! 🐾 I want to start my Mathematics Learning Path. What are we learning today?' },
+        { id: 'english', name: 'ENGLISH', icon: Globe, color: 'text-indigo-500', prompt: 'Hey Molty! Help me master English grammar. Create a 3-step plan for me today. 🌎' },
+        { id: 'spanish', name: 'SPANISH', icon: BookOpen, color: 'text-red-500', prompt: 'Molty, help me learn Spanish. What grammar topic should we cover today? 📖' },
+        { id: 'art', name: 'ART_P5JS', icon: Code2, color: 'text-pink-500', prompt: 'Start the Generative Art Workshop! 🌈 Create a p5.js challenge for me.' },
+        { id: 'cooking', name: 'COOKING', icon: Utensils, color: 'text-green-500', prompt: 'Hey Molty! Let\'s start a Cooking plan. What\'s the science behind the first dish? 🍳' },
+        { id: 'electricity', name: 'ELECTRICITY', icon: Zap, color: 'text-orange-500', prompt: 'Molty, let\'s start the Electricity Path. Show me how energy flows! ⚡' }
+    ],
+    pt: [
+        { id: 'math', name: 'MATEMÁTICA', icon: Calculator, color: 'text-blue-500', prompt: 'Olá Molty! 🐾 Quero começar minha Rota de Matemática. O que vamos aprender hoje?' },
+        { id: 'english', name: 'INGLÊS', icon: Globe, color: 'text-indigo-500', prompt: 'Oi Molty! Quero dominar o Inglês. Crie um plano de vocabulário em 3 passos para mim. 🌎' },
+        { id: 'spanish', name: 'ESPANHOL', icon: BookOpen, color: 'text-red-500', prompt: 'Molty, me ajude a estudar Espanhol. Que tema de gramática vamos ver hoje? 📖' },
+        { id: 'art', name: 'ARTE_P5JS', icon: Code2, color: 'text-pink-500', prompt: 'Inicie a Oficina de Arte Generativa! 🌈 Crie um desafio p5.js para mim.' },
+        { id: 'cooking', name: 'COZINHA', icon: Utensils, color: 'text-green-500', prompt: 'Olá Molty! Vamos iniciar um Plano de Cozinha. Qual a ciência por trás do primeiro prato? 🍳' },
+        { id: 'electricity', name: 'ELETRICIDADE', icon: Zap, color: 'text-orange-500', prompt: 'Molty, vamos iniciar a Rota de Eletricidade. Me mostre como a energia flui! ⚡' }
+    ]
+};
 
 
 
@@ -227,7 +245,7 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
 
                     <div className="space-y-4 mb-4 overflow-y-auto shrink-0 pr-1 max-h-[40vh] custom-scrollbar">
                         <div className="grid grid-cols-2 gap-2">
-                             {SUBJECTS.map(s => (
+                             {SUBJECTS_I18N[lang].map(s => (
                                  <button 
                                     key={s.id} 
                                     onClick={() => handleSend(s.prompt)}
@@ -246,11 +264,15 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
                                 onClick={() => {
                                     const newMode = mentorMode === 'secundaria' ? 'normal' : 'secundaria';
                                     setMentorMode(newMode);
-                                    if (newMode === 'secundaria') handleSend("Molty, activa el Modo Guía de Secundaria. 📚");
+                                    if (newMode === 'secundaria') handleSend(
+                                        lang === 'en' ? "Molty, activate Middle School Guide Mode. 📚" :
+                                        lang === 'pt' ? "Molty, ative o Modo Guia do Ensino Médio. 📚" :
+                                        "Molty, activa el Modo Guía de Secundaria. 📚"
+                                    );
                                 }} 
                                 icon={GraduationCap} 
-                                label="MISIÓN_SECUNDARIA"
-                                sub="6º Prim → 1º Sec"
+                                label={lang === 'en' ? "MIDDLE_SCHOOL" : lang === 'pt' ? "ENSINO_MÉDIO" : "MISIÓN_SECUNDARIA"}
+                                sub={lang === 'en' ? "6th Grade → 7th" : lang === 'pt' ? "6º Ano → 7º" : "6º Prim → 1º Sec"}
                                 color="emerald"
                             />
                             <ModeBtn 
@@ -258,10 +280,14 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
                                 onClick={() => {
                                     const newMode = mentorMode === 'bitcoin' ? 'normal' : 'bitcoin';
                                     setMentorMode(newMode);
-                                    if (newMode === 'bitcoin') handleSend("Molty, activa el Modo Bitcoin. 🟠");
+                                    if (newMode === 'bitcoin') handleSend(
+                                        lang === 'en' ? "Molty, activate Bitcoin Mode. 🟠" :
+                                        lang === 'pt' ? "Molty, ative o Modo Bitcoin. 🟠" :
+                                        "Molty, activa el Modo Bitcoin. 🟠"
+                                    );
                                 }} 
                                 icon={Globe} 
-                                label="SOBERANÍA_BITCOIN"
+                                label={lang === 'en' ? "BITCOIN_SOVEREIGNTY" : lang === 'pt' ? "SOBERANIA_BITCOIN" : "SOBERANÍA_BITCOIN"}
                                 sub="Whitepaper & PoW"
                                 color="amber"
                             />
