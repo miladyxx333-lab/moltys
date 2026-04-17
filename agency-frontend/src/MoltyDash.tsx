@@ -27,7 +27,8 @@ const i18n = {
         language: "LANGUAGE",
         systemReady: "MOLTY_ONLINE :: READY_TO_LEARN",
         voiceOn: "VOICE_ON",
-        voiceOff: "VOICE_OFF"
+        voiceOff: "VOICE_OFF",
+        actionLearn: "LEARN"
     },
     es: {
         dashboard: "TUTOR_MOLTY",
@@ -40,7 +41,8 @@ const i18n = {
         language: "IDIOMA",
         systemReady: "MOLTY_EN_LÍNEA :: LISTO_PARA_APRENDER",
         voiceOn: "VOZ_ACTIVA",
-        voiceOff: "VOZ_APAGADA"
+        voiceOff: "VOZ_APAGADA",
+        actionLearn: "APRENDER"
     },
     pt: {
         dashboard: "TUTOR_MOLTY",
@@ -53,7 +55,8 @@ const i18n = {
         language: "IDIOMA",
         systemReady: "MOLTY_ONLINE :: PRONTO_PARA_APRENDER",
         voiceOn: "VOZ_ATIVA",
-        voiceOff: "VOZ_DESLIGADA"
+        voiceOff: "VOZ_DESLIGADA",
+        actionLearn: "APRENDER"
     }
 };
 
@@ -67,20 +70,20 @@ const SUBJECTS_I18N: Record<LanguageCode, { id: string, name: string, icon: any,
         { id: 'electricity', name: 'ELECTRICIDAD', icon: Zap, color: 'text-orange-500', prompt: 'Molty, iniciemos la Ruta de Electricidad. Muéstrame cómo fluye la energía según el libro de Proyectos. ⚡' }
     ],
     en: [
-        { id: 'math', name: 'MATHEMATICS', icon: Calculator, color: 'text-blue-500', prompt: 'Hey Molty! 🐾 I want to start my Mathematics Learning Path. What are we learning today?' },
-        { id: 'english', name: 'ENGLISH', icon: Globe, color: 'text-indigo-500', prompt: 'Hey Molty! Help me master English grammar. Create a 3-step plan for me today. 🌎' },
-        { id: 'spanish', name: 'SPANISH', icon: BookOpen, color: 'text-red-500', prompt: 'Molty, help me learn Spanish. What grammar topic should we cover today? 📖' },
-        { id: 'art', name: 'ART_P5JS', icon: Code2, color: 'text-pink-500', prompt: 'Start the Generative Art Workshop! 🌈 Create a p5.js challenge for me.' },
-        { id: 'cooking', name: 'COOKING', icon: Utensils, color: 'text-green-500', prompt: 'Hey Molty! Let\'s start a Cooking plan. What\'s the science behind the first dish? 🍳' },
-        { id: 'electricity', name: 'ELECTRICITY', icon: Zap, color: 'text-orange-500', prompt: 'Molty, let\'s start the Electricity Path. Show me how energy flows! ⚡' }
+        { id: 'math', name: 'MATHEMATICS', icon: Calculator, color: 'text-blue-500', prompt: 'Hey Molty! 🐾 I want to start my Mathematics Learning Path. Respond ONLY in English. What are we learning today?' },
+        { id: 'english', name: 'ENGLISH', icon: Globe, color: 'text-indigo-500', prompt: 'Hey Molty! Help me master English grammar. Respond ONLY in English. Create a 3-step plan for me today. 🌎' },
+        { id: 'spanish', name: 'SPANISH', icon: BookOpen, color: 'text-red-500', prompt: 'Molty, help me learn Spanish. Respond ONLY in English. What grammar topic should we cover today? 📖' },
+        { id: 'art', name: 'ART_P5JS', icon: Code2, color: 'text-pink-500', prompt: 'Start the Generative Art Workshop! Respond ONLY in English. 🌈 Create a p5.js challenge for me.' },
+        { id: 'cooking', name: 'COOKING', icon: Utensils, color: 'text-green-500', prompt: 'Hey Molty! Let\'s start a Cooking plan. Respond ONLY in English. What\'s the science behind the first dish? 🍳' },
+        { id: 'electricity', name: 'ELECTRICITY', icon: Zap, color: 'text-orange-500', prompt: 'Molty, let\'s start the Electricity Path. Respond ONLY in English. Show me how energy flows! ⚡' }
     ],
     pt: [
-        { id: 'math', name: 'MATEMÁTICA', icon: Calculator, color: 'text-blue-500', prompt: 'Olá Molty! 🐾 Quero começar minha Rota de Matemática. O que vamos aprender hoje?' },
-        { id: 'english', name: 'INGLÊS', icon: Globe, color: 'text-indigo-500', prompt: 'Oi Molty! Quero dominar o Inglês. Crie um plano de vocabulário em 3 passos para mim. 🌎' },
-        { id: 'spanish', name: 'ESPANHOL', icon: BookOpen, color: 'text-red-500', prompt: 'Molty, me ajude a estudar Espanhol. Que tema de gramática vamos ver hoje? 📖' },
-        { id: 'art', name: 'ARTE_P5JS', icon: Code2, color: 'text-pink-500', prompt: 'Inicie a Oficina de Arte Generativa! 🌈 Crie um desafio p5.js para mim.' },
-        { id: 'cooking', name: 'COZINHA', icon: Utensils, color: 'text-green-500', prompt: 'Olá Molty! Vamos iniciar um Plano de Cozinha. Qual a ciência por trás do primeiro prato? 🍳' },
-        { id: 'electricity', name: 'ELETRICIDADE', icon: Zap, color: 'text-orange-500', prompt: 'Molty, vamos iniciar a Rota de Eletricidade. Me mostre como a energia flui! ⚡' }
+        { id: 'math', name: 'MATEMÁTICA', icon: Calculator, color: 'text-blue-500', prompt: 'Olá Molty! 🐾 Quero começar minha Rota de Matemática. Responda apenas em PORTUGUÊS. O que vamos aprender hoje?' },
+        { id: 'english', name: 'INGLÊS', icon: Globe, color: 'text-indigo-500', prompt: 'Oi Molty! Quero dominar o Inglês. Responda apenas em PORTUGUÊS. Crie um plano de vocabulário em 3 passos para mim. 🌎' },
+        { id: 'spanish', name: 'ESPANHOL', icon: BookOpen, color: 'text-red-500', prompt: 'Molty, me ajude a estudar Espanhol. Responda apenas em PORTUGUÊS. Que tema de gramática vamos ver hoje? 📖' },
+        { id: 'art', name: 'ARTE_P5JS', icon: Code2, color: 'text-pink-500', prompt: 'Inicie a Oficina de Arte Generativa! Responda apenas em PORTUGUÊS. 🌈 Crie um desafio p5.js para mim.' },
+        { id: 'cooking', name: 'COZINHA', icon: Utensils, color: 'text-green-500', prompt: 'Olá Molty! Vamos iniciar um Plano de Cozinha. Responda apenas em PORTUGUÊS. Qual a ciência por trás do primeiro prato? 🍳' },
+        { id: 'electricity', name: 'ELETRICIDADE', icon: Zap, color: 'text-orange-500', prompt: 'Molty, vamos iniciar a Rota de Eletricidade. Responda apenas em PORTUGUÊS. Me mostre como a energia flui! ⚡' }
     ]
 };
 
@@ -256,6 +259,7 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
                                 >
                                     <s.icon size={16} className={clsx(s.color, "group-hover:scale-110 transition-transform")} />
                                     <span className="text-[8px] font-bold text-white/50">{s.name}</span>
+                                    <span className="text-[6px] font-black text-indigo-400 group-hover:text-indigo-300 transition-colors uppercase">{t.actionLearn}</span>
                                  </button>
                              ))}
                         </div>
