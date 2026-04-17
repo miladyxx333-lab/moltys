@@ -1094,6 +1094,59 @@ async function handleInternalRequest(request: Request, env: Env, ctx: ExecutionC
     return Response.json({ success: true, message: "Trinity Pulse Sync Complete." });
   }
 
+  // --- 11a. EDU-DUNGEON: QUIZ ENGINE ---
+  if (url.pathname.startsWith("/edu/")) {
+    if (url.pathname === "/edu/question" && request.method === "POST") {
+      const body = await request.clone().json().catch(() => ({})) as any;
+      const { generateQuizQuestion } = await import('./molty_agent');
+      
+      try {
+        const quiz = await generateQuizQuestion(
+          body.subject || "",
+          body.floor || 1,
+          body.studentId || "anon",
+          env
+        );
+        return Response.json(quiz, { headers: corsHeaders });
+      } catch (e: any) {
+        return Response.json({ error: e.message }, { status: 500, headers: corsHeaders });
+      }
+    }
+
+    if (url.pathname === "/edu/answer" && request.method === "POST") {
+      const body = await request.clone().json().catch(() => ({})) as any;
+      const { correct, studentId, floor, subject } = body;
+      
+      if (correct) {
+        // Award PSH for correct answer
+        const pshReward = Math.min(5 + Math.floor((floor || 1) / 3), 25);
+        try {
+          const { mintPooptoshis } = await import('./economy');
+          const newBalance = await mintPooptoshis(
+            studentId || "anon", 
+            pshReward, 
+            `EDU_DUNGEON:floor_${floor}_${subject}`, 
+            env
+          );
+          return Response.json({ 
+            rewarded: true, 
+            psh: pshReward, 
+            balance: newBalance,
+            message: `¡Correcto! +${pshReward} PSH 🐾` 
+          }, { headers: corsHeaders });
+        } catch (e: any) {
+          return Response.json({ rewarded: false, error: e.message }, { headers: corsHeaders });
+        }
+      }
+      
+      return Response.json({ 
+        rewarded: false, 
+        psh: 0, 
+        message: "Respuesta incorrecta. ¡Sigue intentando! 🐾" 
+      }, { headers: corsHeaders });
+    }
+  }
+
   // --- 11. MOLTYS AGENCY PROTOCOL (The Tamagotchi Layer) ---
   if (url.pathname.startsWith("/agent") || url.pathname.startsWith("/system")) {
     if (url.pathname === "/agent/molty/trigger") {

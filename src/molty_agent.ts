@@ -389,3 +389,172 @@ export async function runMoltyCycle(env: Env): Promise<void> {
         console.error("[Oracle Cycle Failure]", e);
     }
 }
+
+// --- EDU-DUNGEON: QUIZ GENERATION ENGINE ---
+
+const SUBJECT_MAP: Record<string, { name: string, topics: string[] }> = {
+    math: {
+        name: "Matemáticas",
+        topics: ["fracciones", "decimales", "porcentajes", "geometría básica", "operaciones con fracciones", "perímetro y área", "proporcionalidad", "gráficas y tablas", "números enteros", "ecuaciones simples"]
+    },
+    spanish: {
+        name: "Español",
+        topics: ["comprensión lectora", "sinónimos y antónimos", "sujeto y predicado", "tipos de texto", "ortografía (b/v, s/c/z)", "verbos regulares e irregulares", "signos de puntuación", "figuras retóricas", "nexos y conectores", "acentuación"]
+    },
+    science: {
+        name: "Ciencias Naturales",
+        topics: ["ecosistemas", "cadenas alimenticias", "sistema solar", "estados de la materia", "cuerpo humano (aparatos)", "reproducción", "energía y movimiento", "mezclas y soluciones", "biodiversidad de México", "cambio climático"]
+    },
+    history: {
+        name: "Historia de México",
+        topics: ["culturas prehispánicas (aztecas, mayas)", "la conquista española", "la Independencia de México", "la Revolución Mexicana", "la Reforma (Benito Juárez)", "el Porfiriato", "México contemporáneo", "patrimonio cultural", "símbolos patrios", "la Constitución de 1917"]
+    }
+};
+
+function getSubjectForFloor(floor: number): string {
+    if (floor <= 5) return "math";
+    if (floor <= 10) return "spanish";
+    if (floor <= 15) return "science";
+    if (floor <= 20) return "history";
+    // Mixed mode for floors 21+
+    const subjects = ["math", "spanish", "science", "history"];
+    return subjects[Math.floor(Math.random() * subjects.length)];
+}
+
+function getDifficultyForFloor(floor: number): string {
+    const level = ((floor - 1) % 5) + 1;
+    if (level <= 2) return "fácil";
+    if (level <= 4) return "intermedio";
+    return "difícil";
+}
+
+export async function generateQuizQuestion(
+    subject: string,
+    floor: number,
+    studentId: string,
+    env: Env
+): Promise<{
+    question: string;
+    options: string[];
+    correct: number;
+    explanation: string;
+    difficulty: string;
+    topic: string;
+    subject: string;
+}> {
+    const subjectKey = subject || getSubjectForFloor(floor);
+    const subjectData = SUBJECT_MAP[subjectKey] || SUBJECT_MAP.math;
+    const difficulty = getDifficultyForFloor(floor);
+    const topic = subjectData.topics[Math.floor(Math.random() * subjectData.topics.length)];
+
+    // Load previously asked topics to avoid repetition
+    let askedTopics: string[] = [];
+    try {
+        const historyObj = await env.MEMORY_BUCKET.get(`edu/quiz/${studentId}`);
+        if (historyObj) {
+            askedTopics = await historyObj.json() as string[];
+        }
+    } catch (e) {}
+
+    const avoidClause = askedTopics.length > 0
+        ? `\nEVITA repetir estos temas que ya se preguntaron: ${askedTopics.slice(-10).join(", ")}.`
+        : "";
+
+    const quizPrompt = `Genera UNA pregunta de opción múltiple para un estudiante de 6º de primaria (México, Plan NEM 2022).
+
+MATERIA: ${subjectData.name}
+TEMA: ${topic}
+DIFICULTAD: ${difficulty}
+PISO DEL LABERINTO: ${floor}${avoidClause}
+
+REGLAS:
+- La pregunta debe ser clara, concreta y en español de México.
+- Exactamente 4 opciones de respuesta (A, B, C, D).
+- Solo UNA respuesta correcta.
+- La explicación debe ser breve (1-2 oraciones) y educativa.
+- NO incluyas el índice de la respuesta correcta en la pregunta.
+
+Responde EXCLUSIVAMENTE con este JSON válido, sin texto adicional, sin markdown, sin backticks:
+{"question":"[pregunta aquí]","options":["opción A","opción B","opción C","opción D"],"correct":[índice 0-3 de la respuesta correcta],"explanation":"[explicación breve]","topic":"${topic}"}`;
+
+    try {
+        const response: any = await env.AI.run(MODEL, {
+            messages: [
+                { role: "system", content: "Eres un generador de preguntas educativas. Responde SOLO con JSON válido. Sin markdown, sin explicaciones, sin backticks. Solo el objeto JSON." },
+                { role: "user", content: quizPrompt }
+            ]
+        });
+
+        const rawText = response.response || "";
+        
+        // Robust JSON extraction: find the JSON object in the response
+        let parsed: any;
+        try {
+            // Try direct parse first
+            parsed = JSON.parse(rawText.trim());
+        } catch {
+            // Extract JSON from potential markdown wrapping
+            const jsonMatch = rawText.match(/\{[\s\S]*"question"[\s\S]*"options"[\s\S]*\}/);
+            if (jsonMatch) {
+                parsed = JSON.parse(jsonMatch[0]);
+            }
+        }
+
+        if (parsed && parsed.question && Array.isArray(parsed.options) && parsed.options.length === 4 && typeof parsed.correct === 'number') {
+            // Save this topic to history to avoid repetition
+            askedTopics.push(topic);
+            if (askedTopics.length > 50) askedTopics = askedTopics.slice(-30);
+            await env.MEMORY_BUCKET.put(`edu/quiz/${studentId}`, JSON.stringify(askedTopics)).catch(() => {});
+
+            return {
+                question: parsed.question,
+                options: parsed.options,
+                correct: parsed.correct,
+                explanation: parsed.explanation || "¡Sigue estudiando! 🐾",
+                difficulty,
+                topic: parsed.topic || topic,
+                subject: subjectKey
+            };
+        }
+
+        // Fallback: model didn't return valid JSON, generate a hardcoded question
+        console.warn("[QuizGen] Model returned invalid JSON, using fallback. Raw:", rawText.substring(0, 200));
+        return generateFallbackQuestion(subjectKey, topic, difficulty);
+
+    } catch (e: any) {
+        console.error("[QuizGen Error]", e);
+        return generateFallbackQuestion(subjectKey, topic, difficulty);
+    }
+}
+
+function generateFallbackQuestion(subject: string, topic: string, difficulty: string) {
+    const fallbacks: Record<string, any> = {
+        math: {
+            question: "¿Cuánto es 3/4 + 1/4?",
+            options: ["1", "2/4", "1/2", "3/8"],
+            correct: 0,
+            explanation: "3/4 + 1/4 = 4/4 = 1. Al sumar fracciones con el mismo denominador, solo sumas los numeradores."
+        },
+        spanish: {
+            question: "¿Cuál es el sujeto en la oración: 'Los niños juegan en el parque'?",
+            options: ["Los niños", "juegan", "en el parque", "el parque"],
+            correct: 0,
+            explanation: "El sujeto es 'Los niños' porque es quien realiza la acción de jugar."
+        },
+        science: {
+            question: "¿Cuál es el planeta más cercano al Sol?",
+            options: ["Mercurio", "Venus", "Tierra", "Marte"],
+            correct: 0,
+            explanation: "Mercurio es el primer planeta del sistema solar, el más cercano al Sol."
+        },
+        history: {
+            question: "¿En qué año inició la Independencia de México?",
+            options: ["1810", "1821", "1910", "1521"],
+            correct: 0,
+            explanation: "El Grito de Dolores, el 16 de septiembre de 1810, marcó el inicio de la lucha por la Independencia."
+        }
+    };
+
+    const fb = fallbacks[subject] || fallbacks.math;
+    return { ...fb, difficulty, topic, subject };
+}
