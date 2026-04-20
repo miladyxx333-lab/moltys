@@ -1,15 +1,13 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { 
     BookOpen, Terminal, 
     Zap, Globe, Calculator, GraduationCap, 
     Mic, MicOff, Volume2, VolumeX, Code2, Sparkles,
-    Utensils, Eye
+    Utensils, Eye, Maximize
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { useSpeech } from './hooks/useSpeech';
-
 // --- CONFIG ---
 const BACKEND_URL = "https://lobpoop-core.miladyxx333.workers.dev";
 
@@ -192,6 +190,9 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
 
     const [mentorMode, setMentorMode] = useState<'normal' | 'secundaria' | 'bitcoin'>('normal');
     const [showMonitor, setShowMonitor] = useState(false);
+    const [showVisualTerminal, setShowVisualTerminal] = useState(false);
+    const [isVisualFullscreen, setIsVisualFullscreen] = useState(false);
+    const [visualQuery, setVisualQuery] = useState("");
     
     const [messages, setMessages] = useState<{ sender: 'user' | 'molty', content: string }[]>([
         { sender: 'molty', content: t.welcome }
@@ -261,7 +262,9 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
             speakText(reply);
             
             // Si el reply contiene código p5.js, abrir monitor automáticamente si es la primera vez o si lo pide el usuario
-            if (reply.includes('function setup') || reply.includes('createCanvas')) {
+            // Si el reply contiene parámetros de motor o código p5.js
+            const hasArt = reply.includes('"params":') || reply.includes('"seed":') || reply.includes('function setup') || reply.includes('createCanvas');
+            if (hasArt) {
                 setTimeout(() => setShowMonitor(true), 2000);
             }
         } catch (error: any) {
@@ -409,6 +412,12 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
                                 <Eye size={14} />
                                 <span className="hidden sm:inline uppercase">{lang === 'en' ? 'ART_STUDIO' : lang === 'pt' ? 'ESTÚDIO_ARTE' : 'ESTUDIO_ARTE'}</span>
                             </button>
+                            <button onClick={() => setShowVisualTerminal(!showVisualTerminal)} className={clsx("h-10 px-4 rounded-xl font-black text-[9px] tracking-widest flex items-center gap-2 transition-all",
+                                showVisualTerminal ? "bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.5)]" : "bg-white/5 hover:bg-white/10 text-red-400"
+                            )}>
+                                <Globe size={14} />
+                                <span className="hidden sm:inline uppercase">VISUAL_TERM</span>
+                            </button>
                             {mentorMode !== 'normal' && (
                                 <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className={clsx("px-3 py-1 rounded-full border text-[9px] font-black tracking-widest uppercase flex items-center gap-2 shadow-lg", mentorMode === 'secundaria' ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400 shadow-emerald-500/10" : "bg-amber-500/20 border-amber-500/40 text-amber-400 shadow-amber-500/10")}>
                                     <Sparkles size={10} /> {mentorMode === 'secundaria' ? (lang === 'en' ? 'MODE: MIDDLE_SCHOOL' : lang === 'pt' ? 'MODO: ENSINO_MÉDIO' : 'MODO: SECUNDARIA') : (lang === 'en' ? 'MODE: BITCOIN' : 'MODO: BITCOIN')}
@@ -419,7 +428,75 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
 
                     <div className="flex-1 flex flex-col relative overflow-hidden">
                         <AnimatePresence mode="wait">
-                            {showMonitor ? (
+                            {showVisualTerminal ? (
+                                <motion.div 
+                                    key="visual-term"
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    className={clsx(
+                                        "bg-[#0a0f14] flex flex-col p-4 md:p-8 transition-all duration-300",
+                                        isVisualFullscreen ? "fixed inset-0 z-50" : "absolute inset-0 z-40"
+                                    )}
+                                >
+                                    <div className="flex gap-2 mb-4">
+                                        <input 
+                                            type="text" 
+                                            placeholder={lang === 'en' ? 'Search Visual Matrix...' : lang === 'pt' ? 'Buscar na Matrix Visual...' : 'Buscar en la Matrix Visual...'}
+                                            value={visualQuery}
+                                            onChange={(e) => setVisualQuery(e.target.value)}
+                                            className="flex-1 bg-black/50 border border-red-500/30 text-red-100 px-6 py-4 rounded-2xl text-sm font-mono outline-none focus:border-red-500 transition-colors shadow-inner"
+                                        />
+                                    </div>
+                                    <div className="flex-1 bg-black rounded-2xl border border-red-500/20 overflow-hidden shadow-2xl relative flex flex-col">
+                                        {visualQuery.trim() ? (
+                                            <>
+                                                <div className="h-12 bg-red-900/20 border-b border-red-500/20 flex items-center justify-between px-4">
+                                                    <span className="text-[10px] font-mono text-red-400 uppercase tracking-widest hidden sm:inline">
+                                                        KNOWLEDGE_NODE :: {visualQuery}
+                                                    </span>
+                                                    <div className="flex items-center gap-2">
+                                                        <button 
+                                                            onClick={() => setIsVisualFullscreen(!isVisualFullscreen)}
+                                                            className="px-3 py-1 bg-red-900/30 text-red-400 border border-red-500/30 rounded text-[9px] font-black tracking-widest hover:bg-red-900/50 transition-colors flex items-center gap-2"
+                                                        >
+                                                            <Maximize size={10} /> <span className="hidden sm:inline">{isVisualFullscreen ? 'MINIMIZE' : 'FULLSCREEN'}</span>
+                                                        </button>
+                                                        <a 
+                                                            href={`https://www.youtube.com/results?search_query=${encodeURIComponent(visualQuery)}`} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer"
+                                                            className="px-3 py-1 bg-red-600 text-white rounded text-[9px] font-black tracking-widest hover:bg-red-500 transition-colors flex items-center gap-2"
+                                                        >
+                                                            <Globe size={10} /> <span className="hidden sm:inline">YOUTUBE_PORTAL ↗</span>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <iframe
+                                                    width="100%"
+                                                    height="100%"
+                                                    src={`https://${lang === 'en' ? 'en' : lang === 'pt' ? 'pt' : 'es'}.wikipedia.org/wiki/${encodeURIComponent(visualQuery)}`}
+                                                    title="Matrix Terminal"
+                                                    className="flex-1"
+                                                />
+                                            </>
+                                        ) : (
+                                            <div className="absolute inset-0 flex items-center justify-center text-red-500/30 text-xs font-black tracking-widest uppercase">
+                                                AWAITING_QUERY...
+                                            </div>
+                                        )}
+                                    </div>
+                                    <button 
+                                        onClick={() => {
+                                            setShowVisualTerminal(false);
+                                            setIsVisualFullscreen(false);
+                                        }} 
+                                        className="mt-4 h-14 bg-red-600/10 border border-red-600/30 text-red-500 rounded-2xl font-black text-[10px] tracking-widest uppercase hover:bg-red-600 hover:text-white transition-all"
+                                    >
+                                        CLOSE_TERMINAL
+                                    </button>
+                                </motion.div>
+                            ) : showMonitor ? (
                                 <motion.div 
                                     key="monitor"
                                     initial={{ opacity: 0, x: 20 }}
@@ -428,44 +505,93 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
                                     className="absolute inset-0 z-30 bg-[#0a0f14] flex flex-col"
                                 >
                                     <div className="flex-1 bg-black relative">
-                                        {p5Code ? (
-                                            <iframe
-                                                key={p5Code}
-                                                srcDoc={`
-                                                    <html>
-                                                        <head>
-                                                            <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
-                                                            <style>
-                                                                body { margin: 0; background: #05080a; display: flex; align-items: center; justify-content: center; overflow: hidden; height: 100vh; width: 100vw; }
-                                                                canvas { max-width: 100vw !important; max-height: 100vh !important; object-fit: contain !important; height: auto !important; width: auto !important; box-shadow: 0 0 50px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); }
-                                                            </style>
-                                                        </head>
-                                                        <body>
-                                                            <script>
-                                                                // Polyfill for responsiveness
-                                                                const _createCanvas = createCanvas;
-                                                                window.createCanvas = function(w, h, mode) {
-                                                                    const c = _createCanvas(w, h, mode);
-                                                                    return c;
-                                                                };
-                                                                function windowResized() { 
-                                                                    // Optional: keep original aspect ratio but fit
-                                                                }
-                                                                ${p5Code}
-                                                            </script>
-                                                        </body>
-                                                    </html>
-                                                `}
-                                                className="w-full h-full border-none"
-                                                sandbox="allow-scripts"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex flex-col items-center justify-center font-mono text-indigo-900 text-xs animate-pulse p-10 text-center">
-                                                <Terminal size={48} className="mb-4 opacity-20" />
-                                                WAITING_FOR_DATA_STREAM...
-                                                <br/>No p5.js code detected in recent history.
-                                            </div>
-                                        )}
+                                        <iframe
+                                            key={p5Code || 'default-engine'}
+                                            srcDoc={`
+<!DOCTYPE html>
+<html>
+    <head>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+        <style>
+            body { margin: 0; overflow: hidden; background: #05080a; display: flex; align-items: center; justify-content: center; height: 100vh; width: 100vw; }
+            #metadata { position: absolute; bottom: 10px; left: 10px; color: #0f0; font-family: monospace; font-size: 9px; pointer-events: none; opacity: 0.6; }
+            canvas { box-shadow: 0 0 50px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.05); max-width: 90vw; max-height: 90vh; object-fit: contain; }
+        </style>
+    </head>
+    <body>
+        <div id="metadata"></div>
+        <script>
+            let engineState = { seed: null, params: {}, palette: [] };
+            function setup() {
+                let canvas = createCanvas(800, 800);
+                canvas.id('art-canvas');
+                noLoop();
+                try {
+                    const raw = ${JSON.stringify(p5Code || '')};
+                    const cleanCode = raw.replace(/\`\`\`javascript|\`\`\`html|\`\`\`/g, '').trim();
+                    if (cleanCode.startsWith('{')) {
+                        const config = JSON.parse(cleanCode);
+                        runEngine(config.seed || floor(random(1000000)), config.params || {});
+                    } else {
+                        eval(cleanCode);
+                    }
+                } catch(e) {
+                    runEngine(floor(random(1000000)));
+                }
+            }
+
+            function runEngine(seed, customParams = {}) {
+                noiseSeed(seed); randomSeed(seed);
+                engineState.seed = seed;
+                engineState.palette = ["#050505", "#ffffff", "#0037ff", "#ff0040", "#7df9ff"];
+                engineState.params = {
+                    density: customParams.density || random(50, 200),
+                    chaos: customParams.chaos || random(0.1, 0.8),
+                    strokeWeight: customParams.strokeWeight || random(0.5, 4),
+                    mode: customParams.mode ?? floor(random(3))
+                };
+                updateMetadata(); redraw();
+            }
+
+            function draw() {
+                background(engineState.palette[0]); translate(width / 2, height / 2);
+                let steps = engineState.params.density;
+                let radius = 300;
+                for (let i = 0; i < steps; i++) {
+                    let angle = map(i, 0, steps, 0, TWO_PI);
+                    let n = noise(cos(angle) + 1, sin(angle) + 1, engineState.params.chaos);
+                    let r = radius * n;
+                    let x = r * cos(angle); let y = r * sin(angle);
+                    renderPrimitive(x, y, i);
+                }
+            }
+
+            function renderPrimitive(x, y, index) {
+                push();
+                stroke(engineState.palette[index % engineState.palette.length === 0 ? 1 : 2]);
+                strokeWeight(engineState.params.strokeWeight);
+                noFill();
+                if (engineState.params.mode === 0) line(0, 0, x, y);
+                else if (engineState.params.mode === 1) rect(x, y, 10, 10);
+                else { beginShape(); vertex(x, y); bezierVertex(x + 50, y, x, y + 50, 0, 0); endShape(); }
+                pop();
+            }
+
+            function updateMetadata() {
+                document.getElementById('metadata').innerText = JSON.stringify({
+                    engine: "AetherSnap_Native_v2",
+                    seed: engineState.seed,
+                    params: engineState.params
+                }, null, 2);
+            }
+            window.agentControl = { generate: (s, p) => runEngine(s, p) };
+        </script>
+    </body>
+</html>
+`}
+                                            className="w-full h-full border-none"
+                                            sandbox="allow-scripts"
+                                        />
                                     </div>
                                     <button onClick={() => setShowMonitor(false)} className="h-12 bg-indigo-600 text-white font-black text-[10px] tracking-widest uppercase">
                                         RETURN_TO_COMMS
@@ -485,23 +611,8 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
                                             {msg.sender === 'user' ? (lang === 'en' ? 'YOU' : lang === 'pt' ? 'VOCÊ' : 'TÚ') : 'MOLTY 🐾'}
                                         </div>
                                         <div className="whitespace-pre-wrap">{msg.content}</div>
-                                        
-                                        {/* YOUTUBE EMBED DETECTOR */}
-                                        {msg.sender === 'molty' && msg.content.includes('youtube.com/watch') && (
-                                            <div className="mt-4 rounded-xl overflow-hidden border border-white/10 shadow-2xl aspect-video">
-                                                <iframe
-                                                    width="100%"
-                                                    height="100%"
-                                                    src={`https://www.youtube.com/embed/${msg.content.match(/v=([^& \n]*)/)?.[1]}`}
-                                                    title="YouTube video player"
-                                                    frameBorder="0"
-                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                    allowFullScreen
-                                                />
-                                            </div>
-                                        )}
 
-                                        {msg.sender === 'molty' && (msg.content.includes('function setup') || msg.content.includes('createCanvas')) && (
+                                        {msg.sender === 'molty' && (msg.content?.includes('"params":') || msg.content?.includes('function setup')) && (
                                             <button 
                                                 onClick={() => setShowMonitor(true)}
                                                 className={clsx("mt-4 flex items-center gap-2 px-4 py-2 text-white rounded-lg font-black text-[9px] tracking-widest transition-all", theme.pulse, "hover:opacity-80")}
