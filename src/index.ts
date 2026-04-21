@@ -1155,6 +1155,23 @@ async function handleInternalRequest(request: Request, env: Env, ctx: ExecutionC
       return Response.json({ status: "TRIGGERED", agent: "Molty", info: "Marketing cycle started." });
     }
 
+    if (url.pathname === "/agent/vault" && request.method === "GET") {
+      const studentId = request.headers.get("X-Lob-Peer-ID") || url.searchParams.get("nodeId") || "anon";
+      try {
+        const list = await env.MEMORY_BUCKET.list({ prefix: `vault/${studentId}/` });
+        const notes = await Promise.all(
+          list.objects.map(async (o) => {
+            const res = await env.MEMORY_BUCKET.get(o.key);
+            if (!res) return null;
+            return await res.json();
+          })
+        );
+        return Response.json(notes.filter(n => n !== null));
+      } catch (e: any) {
+        return new Response(e.message, { status: 400 });
+      }
+    }
+
     if (url.pathname === "/agent/ask") {
       const body = await request.clone().json().catch(() => ({})) as any;
       const senderId = body.senderId || "anon";

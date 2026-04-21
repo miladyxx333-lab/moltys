@@ -110,6 +110,19 @@ const tools = [
         }
     },
     {
+        name: "save_obsidian_note",
+        description: "Creates and saves a structured Markdown note to the student's Obsidian Second Brain vault.",
+        parameters: {
+            type: "object",
+            properties: {
+                title: { type: "string", description: "The title of the note (e.g. 'Fractions', 'Photosynthesis')." },
+                tags: { type: "array", items: { type: "string" }, description: "List of relevant tags (e.g. ['math', 'fractions'])." },
+                content: { type: "string", description: "The Markdown content of the note. Must be concise and informative." }
+            },
+            required: ["title", "tags", "content"]
+        }
+    },
+    {
         name: "crypto_price",
 
         description: "Fetches live cryptocurrency price data for btc, eth, sol.",
@@ -396,6 +409,30 @@ async function executeSpartanSkill(name: string, args: any, senderId: string, en
                 updated_at: new Date().toISOString()
             }));
             return `[SAVED]: Learning progress saved for student ${senderId}. Milestone: ${args.milestone}`;
+
+        case 'save_obsidian_note':
+            const noteId = Date.now().toString();
+            const noteKey = `vault/${senderId}/${noteId}`;
+            const mdContent = `---
+title: "${args.title}"
+date: ${new Date().toISOString()}
+tags: [${args.tags.map((t: string) => `"${t}"`).join(", ")}]
+---
+
+# ${args.title}
+
+${args.content}
+
+*Saved by Molty Oracle*
+`;
+            await env.MEMORY_BUCKET.put(noteKey, JSON.stringify({
+                id: noteId,
+                title: args.title,
+                tags: args.tags,
+                content: mdContent,
+                created_at: new Date().toISOString()
+            }));
+            return `[OBSIDIAN_VAULT]: Note "${args.title}" successfully saved to the Second Brain.`;
 
 
         case 'crypto_price':

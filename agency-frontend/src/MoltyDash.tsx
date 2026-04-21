@@ -194,6 +194,11 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
     const [isVisualFullscreen, setIsVisualFullscreen] = useState(false);
     const [visualQuery, setVisualQuery] = useState("");
     
+    const [showVault, setShowVault] = useState(false);
+    const [vaultNotes, setVaultNotes] = useState<any[]>([]);
+    const [obsidianVaultName, setObsidianVaultName] = useState(() => localStorage.getItem('lob_obsidian_vault') || 'EduMolty');
+
+    
     const [messages, setMessages] = useState<{ sender: 'user' | 'molty', content: string }[]>([
         { sender: 'molty', content: t.welcome }
     ]);
@@ -226,6 +231,22 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
         const timer = setInterval(fetchBalance, 10000);
         return () => clearInterval(timer);
     }, [studentNodeId]);
+
+    const fetchVaultNotes = async () => {
+        try {
+            const res = await fetch(`${BACKEND_URL}/agent/vault`, {
+                headers: { 'X-Lob-Peer-ID': studentNodeId }
+            });
+            const data = await res.json();
+            setVaultNotes(data);
+        } catch (e) {
+            console.error("Failed to fetch vault notes");
+        }
+    };
+
+    useEffect(() => {
+        if (showVault) fetchVaultNotes();
+    }, [showVault, studentNodeId]);
 
     const handleSend = async (override?: string) => {
         const query = (override || inputVal).trim();
@@ -418,6 +439,12 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
                                 <Globe size={14} />
                                 <span className="hidden sm:inline uppercase">VISUAL_TERM</span>
                             </button>
+                            <button onClick={() => setShowVault(!showVault)} className={clsx("h-10 px-4 rounded-xl font-black text-[9px] tracking-widest flex items-center gap-2 transition-all",
+                                showVault ? "bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.5)]" : "bg-white/5 hover:bg-white/10 text-purple-400"
+                            )}>
+                                <BookOpen size={14} />
+                                <span className="hidden sm:inline uppercase">SECOND_BRAIN</span>
+                            </button>
                             {mentorMode !== 'normal' && (
                                 <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className={clsx("px-3 py-1 rounded-full border text-[9px] font-black tracking-widest uppercase flex items-center gap-2 shadow-lg", mentorMode === 'secundaria' ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400 shadow-emerald-500/10" : "bg-amber-500/20 border-amber-500/40 text-amber-400 shadow-amber-500/10")}>
                                     <Sparkles size={10} /> {mentorMode === 'secundaria' ? (lang === 'en' ? 'MODE: MIDDLE_SCHOOL' : lang === 'pt' ? 'MODO: ENSINO_MÉDIO' : 'MODO: SECUNDARIA') : (lang === 'en' ? 'MODE: BITCOIN' : 'MODO: BITCOIN')}
@@ -595,6 +622,72 @@ export default function MoltyDash({ onExit, initialLang = 'es' }: { onExit: () =
                                     </div>
                                     <button onClick={() => setShowMonitor(false)} className="h-12 bg-indigo-600 text-white font-black text-[10px] tracking-widest uppercase">
                                         RETURN_TO_COMMS
+                                    </button>
+                                </motion.div>
+                            ) : showVault ? (
+                                <motion.div 
+                                    key="vault"
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: 20 }}
+                                    className="absolute inset-0 z-40 bg-[#0a0f14] flex flex-col p-4 md:p-8"
+                                >
+                                    <div className="flex gap-4 items-center mb-6 bg-black/50 p-4 rounded-2xl border border-purple-500/20">
+                                        <div className="flex-1">
+                                            <label className="text-[9px] font-black tracking-widest text-purple-400 uppercase mb-1 block">Local Obsidian Vault Name</label>
+                                            <input 
+                                                type="text" 
+                                                value={obsidianVaultName}
+                                                onChange={(e) => {
+                                                    setObsidianVaultName(e.target.value);
+                                                    localStorage.setItem('lob_obsidian_vault', e.target.value);
+                                                }}
+                                                className="bg-transparent border-b border-purple-500/50 text-white text-sm font-mono outline-none w-full pb-1 focus:border-purple-400"
+                                                placeholder="e.g. MyDigitalBrain"
+                                            />
+                                        </div>
+                                        <BookOpen className="text-purple-500 opacity-50" size={32} />
+                                    </div>
+
+                                    <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pb-10">
+                                        {vaultNotes.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center h-full text-purple-500/40 text-xs font-black tracking-widest uppercase gap-4">
+                                                <BookOpen size={48} className="opacity-20" />
+                                                NO_NEURAL_NOTES_FOUND
+                                            </div>
+                                        ) : (
+                                            vaultNotes.map((note) => {
+                                                const uri = `obsidian://new?vault=${encodeURIComponent(obsidianVaultName)}&file=${encodeURIComponent(note.title)}&content=${encodeURIComponent(note.content)}`;
+                                                return (
+                                                    <div key={note.id} className="bg-black/60 border border-purple-500/20 rounded-2xl p-6 shadow-xl group">
+                                                        <div className="flex justify-between items-start mb-4">
+                                                            <h3 className="text-lg font-bold text-purple-100">{note.title}</h3>
+                                                            <a 
+                                                                href={uri}
+                                                                className="px-4 py-2 bg-purple-600/20 text-purple-300 border border-purple-500/30 rounded-xl text-[10px] font-black tracking-widest uppercase hover:bg-purple-600 hover:text-white transition-all flex items-center gap-2"
+                                                            >
+                                                                <Zap size={12} /> SYNC TO OBSIDIAN
+                                                            </a>
+                                                        </div>
+                                                        <div className="flex gap-2 mb-4">
+                                                            {note.tags.map((tag: string) => (
+                                                                <span key={tag} className="text-[9px] px-2 py-1 bg-purple-900/40 text-purple-400 rounded-md">#{tag}</span>
+                                                            ))}
+                                                        </div>
+                                                        <pre className="text-xs text-purple-200/70 font-sans whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto custom-scrollbar p-4 bg-black/40 rounded-xl border border-white/5">
+                                                            {note.content}
+                                                        </pre>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                    
+                                    <button 
+                                        onClick={() => setShowVault(false)} 
+                                        className="mt-4 h-14 bg-purple-600/10 border border-purple-600/30 text-purple-500 rounded-2xl font-black text-[10px] tracking-widest uppercase hover:bg-purple-600 hover:text-white transition-all"
+                                    >
+                                        CLOSE_VAULT
                                     </button>
                                 </motion.div>
                             ) : null}
