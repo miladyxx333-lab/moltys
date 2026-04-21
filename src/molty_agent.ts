@@ -238,8 +238,17 @@ INSTRUCTIONS:
 1. Output a JSON block inside \`\`\`javascript with the exact configuration.
 2. SIMPLY EXPLAIN which variables you changed and the real visual result (e.g., "I increased the chaos and used mode 2 to make it look like an organic flower"). DO NOT hallucinate code or non-existent functions.
 
+MANDATORY FORMAT:
 \`\`\`javascript
-{ "seed": 12345, "params": { "density": 150, "chaos": 0.6, "strokeWeight": 2, "mode": 0 } }
+{
+  "seed": 12345, 
+  "params": {
+    "density": 150, 
+    "chaos": 0.6, 
+    "strokeWeight": 2, 
+    "mode": 0
+  }
+}
 \`\`\`
 Ask for feedback after. 🐾`
     },
@@ -296,8 +305,17 @@ INSTRUÇÕES:
 1. Gere um bloco JSON dentro de \`\`\`javascript com a configuração exata.
 2. EXPLIQUE SIMPLESMENTE quais variáveis você alterou e o resultado visual real (ex. "Aumentei o caos e usei o modo 2 para parecer uma flor orgânica"). NÃO alucine código ou funções que não existem.
 
+FORMATO OBRIGATÓRIO:
 \`\`\`javascript
-{ "seed": 12345, "params": { "density": 150, "chaos": 0.6, "strokeWeight": 2, "mode": 0 } }
+{
+  "seed": 12345, 
+  "params": {
+    "density": 150, 
+    "chaos": 0.6, 
+    "strokeWeight": 2, 
+    "mode": 0
+  }
+}
 \`\`\`
 Pergunte o que achou depois. 🐾`
     }
