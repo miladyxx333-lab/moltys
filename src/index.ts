@@ -1201,12 +1201,15 @@ async function handleInternalRequest(request: Request, env: Env, ctx: ExecutionC
         content: h.content
       }));
 
-      const reply = await handleIncomingMessage(
+      const result = await handleIncomingMessage(
         body.message || "", 
         senderId, 
         { mode: body.mode, isEducator: body.isEducator, history: mergedHistory, lang: body.lang || 'es' }, 
         env
       );
+
+      const reply = typeof result === 'string' ? result : result.reply;
+      const awarded = typeof result === 'string' ? 0 : result.awarded;
 
       // Persist the new exchange to DO history
       await stub.fetch("http://agent/append", { 
@@ -1218,7 +1221,7 @@ async function handleInternalRequest(request: Request, env: Env, ctx: ExecutionC
         body: JSON.stringify({ role: "assistant", content: reply }) 
       }).catch(() => {});
 
-      return Response.json({ reply });
+      return Response.json({ reply, awarded });
     }
 
     if (url.pathname === "/system/stats") {

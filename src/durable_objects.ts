@@ -43,6 +43,12 @@ export class AccountDurableObject {
                     await txn.put('migrated', true);
                 }
 
+                // --- NEW: Reset Mock Balance for Students ---
+                if (account && account.balance_psh === 5000 && account.nodeId.startsWith('student_')) {
+                    account.balance_psh = 0;
+                    console.log(`[Economy] Resetting legacy mock balance for ${account.nodeId}`);
+                }
+
                 const body = request.method === 'POST' ? await request.json<any>() : {};
 
                 switch (action) {
@@ -247,7 +253,7 @@ export class AccountDurableObject {
     private initAccount(nodeId: string): Account {
         return {
             nodeId: nodeId,
-            balance_psh: 5000, // Regalo inicial aumentado para testeo de coliseo
+            balance_psh: 0, // Inicia con 0 PSH como lo requiere el sistema de recompensas real
             badges: [],
             reputation: 0.5,
             lobpoops_minted: 0,

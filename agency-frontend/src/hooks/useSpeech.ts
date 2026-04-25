@@ -8,7 +8,14 @@ declare global {
     }
 }
 
-export const useSpeech = (onTextRecognized?: (text: string) => void) => {
+// Map our language codes to BCP 47 locale tags
+const SPEECH_LOCALE: Record<string, string> = {
+    en: 'en-US',
+    es: 'es-MX',
+    pt: 'pt-BR'
+};
+
+export const useSpeech = (onTextRecognized?: (text: string) => void, lang: string = 'es') => {
     const [isListening, setIsListening] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
@@ -18,6 +25,7 @@ export const useSpeech = (onTextRecognized?: (text: string) => void) => {
     const isVoiceEnabledRef = useRef(true);
     const onTextRecognizedRef = useRef(onTextRecognized);
     const ignoreAudioRef = useRef(false);
+    const currentLocale = SPEECH_LOCALE[lang] || 'es-MX';
 
     useEffect(() => {
         onTextRecognizedRef.current = onTextRecognized;
@@ -31,14 +39,20 @@ export const useSpeech = (onTextRecognized?: (text: string) => void) => {
         isVoiceEnabledRef.current = isVoiceEnabled;
     }, [isVoiceEnabled]);
 
+    // Rebuild recognition when language changes
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (SpeechRecognition) {
+                // Clean up previous instance
+                if (recognitionRef.current) {
+                    try { recognitionRef.current.abort(); } catch (e) {}
+                }
+
                 const recognitionInstance = new SpeechRecognition();
                 recognitionInstance.continuous = true;
                 recognitionInstance.interimResults = true;
-                recognitionInstance.lang = 'es-MX'; 
+                recognitionInstance.lang = currentLocale;
 
                 recognitionInstance.onstart = () => {
                     setIsListening(true);
@@ -78,7 +92,7 @@ export const useSpeech = (onTextRecognized?: (text: string) => void) => {
                 };
             }
         }
-    }, []); 
+    }, [currentLocale]);
 
     const toggleListening = useCallback(() => {
         if (isListening) {
@@ -109,7 +123,7 @@ export const useSpeech = (onTextRecognized?: (text: string) => void) => {
         const cleanText = text.replace(/\[.*?\]/g, '').replace(/\*|#|`|_/g, '').trim();
         if (!cleanText) return;
 
-        // Asegurar que las voces carguen
+        // Ensure voices are loaded
         if (window.speechSynthesis.getVoices().length === 0) {
             window.speechSynthesis.onvoiceschanged = () => speakText(text);
             return;
@@ -118,14 +132,18 @@ export const useSpeech = (onTextRecognized?: (text: string) => void) => {
         window.speechSynthesis.cancel();
 
         const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.lang = 'es-MX';
+        utterance.lang = currentLocale;
         utterance.pitch = 1.3;
         utterance.rate = 1.0;
 
+        // Find a voice matching the current language
         const voices = window.speechSynthesis.getVoices();
-        const spanishVoice = voices.find(v => v.lang.includes('es-') || v.lang === 'es-MX');
-        if (spanishVoice) {
-            utterance.voice = spanishVoice;
+        const langPrefix = currentLocale.split('-')[0]; // 'en', 'es', 'pt'
+        const matchingVoice = voices.find(v => v.lang === currentLocale) ||
+                              voices.find(v => v.lang.startsWith(langPrefix + '-')) ||
+                              voices.find(v => v.lang.startsWith(langPrefix));
+        if (matchingVoice) {
+            utterance.voice = matchingVoice;
         }
 
         ignoreAudioRef.current = true;
@@ -154,7 +172,7 @@ export const useSpeech = (onTextRecognized?: (text: string) => void) => {
             window.speechSynthesis.speak(utterance);
         }, 50);
 
-    }, [isListening]);
+    }, [isListening, currentLocale]);
 
     const toggleVoice = () => setIsVoiceEnabled(prev => !prev);
 

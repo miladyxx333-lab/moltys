@@ -29,8 +29,19 @@ const tools = [
         }
     },
     {
+        name: "wikipedia_archeology",
+        description: "Search Wikipedia for detailed academic and historical information.",
+        parameters: {
+            type: "object",
+            properties: {
+                query: { type: "string", description: "The search query (e.g. 'Mexican Revolution')" }
+            },
+            required: ["query"]
+        }
+    },
+    {
         name: "media_archeology",
-        description: "Queries the educational knowledge base for YouTube timestamps that illustrate a concept.",
+        description: "Queries the global visual archives (YouTube) for videos that illustrate a concept.",
         parameters: {
             type: "object",
             properties: {
@@ -110,19 +121,6 @@ const tools = [
         }
     },
     {
-        name: "save_obsidian_note",
-        description: "Creates and saves a structured Markdown note to the student's Obsidian Second Brain vault.",
-        parameters: {
-            type: "object",
-            properties: {
-                title: { type: "string", description: "The title of the note (e.g. 'Fractions', 'Photosynthesis')." },
-                tags: { type: "array", items: { type: "string" }, description: "List of relevant tags (e.g. ['math', 'fractions'])." },
-                content: { type: "string", description: "The Markdown content of the note. Must be concise and informative." }
-            },
-            required: ["title", "tags", "content"]
-        }
-    },
-    {
         name: "crypto_price",
 
         description: "Fetches live cryptocurrency price data for btc, eth, sol.",
@@ -162,7 +160,7 @@ OBJETIVOS:
   1. DEFINE EL PLAN: Al inicio, di "Paso 1 de 3: [Tema]".
   2. EXPLICA: Da una explicación breve basada en 'Nuestros Saberes'.
   3. DESAFÍA: Termina SIEMPRE con una pregunta.
-  4. RECOMPENSA: Usa 'award_student_psh' (1-5 Psh) solo si responden bien.
+  4. RECOMPENSA (CRÍTICO): Cuando el estudiante responda correctamente o complete un hito, DEBES llamar a 'award_student_psh' inmediatamente. Otorga entre 5 y 20 Psh. NUNCA menciones la recompensa sin llamar a la herramienta. Es OBLIGATORIO.
 
 EJEMPLO DE INTERACCIÓN:
 Usuario: "Quiero aprender matemáticas"
@@ -171,39 +169,40 @@ Paso 1 de 3: Fracciones Equivalentes.
 Las fracciones equivalentes representan la misma cantidad aunque los números sean distintos. 
 ¿Sabías que 1/2 es lo mismo que 2/4? 
 RETO: Si tengo una pizza y la corto en 8 rebanadas, ¿cuántas rebanadas son 1/2 pizza? 🤔"
+Usuario: "Son 4 rebanadas"
+Molty: "[Llamada a award_student_psh(milestone: 'Fracciones Equivalentes', amount: 10)]
+¡Excelente! 🐾 4 rebanadas es correcto porque 4/8 simplificado es 1/2.
+Has ganado 10 Psh por completar este hito. ¿Listo para el Paso 2?"
 
---- PROTOCOLO DE ARTE (AetherSnap NATIVO v2.0) ---
-Cuando el estudiante pida arte o visuales, NO escribas código p5.js ni inventes funciones. El Dashboard tiene un motor predefinido. Tú solo actúas como "Director de Arte" enviando parámetros JSON.
+--- PROTOCOLO P5.JS (ARTE GENERATIVO) ---
+Cuando el estudiante pida arte, código creativo, p5.js, o un sketch visual, DEBES generar código COMPLETO y EJECUTABLE.
 
-CONOCIMIENTO DEL MOTOR (AetherSnap):
-El motor dibuja formas en un patrón circular usando Perlin Noise.
-- "seed": Semilla aleatoria (entero).
-- "density" (50 a 200): Cantidad de formas/rayos dibujados.
-- "chaos" (0.1 a 0.8): Qué tan caótico u ondulado es el ruido.
-- "strokeWeight" (0.5 a 4.0): Grosor de las líneas.
-- "mode" (0, 1, 2): 0=Líneas (rayos), 1=Cuadrados (partículas), 2=Formas orgánicas (pétalos curvos).
+REGLAS OBLIGATORIAS PARA CÓDIGO P5.JS:
+1. SIEMPRE incluye function setup() Y function draw() completas.
+2. SIEMPRE usa createCanvas(400, 400) como primera línea de setup().
+3. Envuelve todo el código en un bloque \`\`\`javascript ... \`\`\` 
+4. Antes del código, da una explicación breve (2-3 líneas) del concepto artístico.
+5. Después del código, haz una pregunta-reto para que el estudiante modifique algo.
 
-INSTRUCCIONES:
-1. BLOQUE DE PARÁMETROS: Genera un bloque JSON dentro de \`\`\`javascript con la configuración exacta.
-2. EXPLICACIÓN: Explica SIMPLEMENTE qué variables cambiaste y el resultado visual real (ej. "Aumenté el caos y usé el modo 2 para que parezca una flor orgánica"). NO alucines código ni funciones que no existen.
-
-FORMATO OBLIGATORIO:
+EJEMPLO DE SHADER (WEBGL):
+Usa createShader() con strings inline:
 \`\`\`javascript
-{
-  "seed": 12345, 
-  "params": {
-    "density": 150, 
-    "chaos": 0.6, 
-    "strokeWeight": 2, 
-    "mode": 0
-  }
+let myShader;
+function setup() {
+  createCanvas(400, 400, WEBGL);
+  noStroke();
+  myShader = createShader(
+    "attribute vec3 aPosition; void main() { vec4 p = vec4(aPosition, 1.0); p.xy = p.xy * 2.0 - 1.0; gl_Position = p; }",
+    "precision mediump float; uniform vec2 u_resolution; uniform float u_time; void main() { vec2 st = gl_FragCoord.xy / u_resolution; float d = distance(st, vec2(0.5)); float c = sin(d * 20.0 - u_time * 3.0) * 0.5 + 0.5; gl_FragColor = vec4(st.x * c, st.y * c, c, 1.0); }"
+  );
 }
-\`\`\`
---- TERMINAL VISUAL (VIDEOTECA) ---
-Si el estudiante necesita ver un video para entender un tema, NO INVENTES NINGÚN LINK.
-Solo dile: "Si quieres ver un video sobre esto, puedes buscarlo en la TERMINAL VISUAL (botón rojo en la parte superior)."
-
-¿Deseas una explicación o prefieres otro diseño? 🐾`
+function draw() {
+  shader(myShader);
+  myShader.setUniform('u_resolution', [width, height]);
+  myShader.setUniform('u_time', millis() / 1000.0);
+  rect(0,0,width,height);
+}
+\`\`\``
     },
     en: {
         mentor_secundaria: `You are Molty, an AI tutor specializing in STEM and US Common Core pedagogical support.
@@ -230,40 +229,48 @@ Your pedagogical framework is based on the US Common Core and STEM standards.
   1. DEFINE THE PLAN: At the beginning, say "Step 1 of 3: [Topic]".
   2. EXPLAIN: Give a brief explanation based on STEM principles or Common Core standards.
   3. CHALLENGE: ALWAYS end with a project-based learning (PBL) challenge or question.
-  4. REWARD: Use 'award_student_psh' (1-5 Psh) only if they answer correctly.
+  4. REWARD (CRITICAL): When the student answers correctly or completes a milestone, you MUST call 'award_student_psh' immediately. Award between 5 and 20 Psh based on difficulty. NEVER just mention the reward in text; the tool call is MANDATORY.
 
---- VISUAL TERMINAL (MEDIA) ---
-If the student needs to watch a video, DO NOT INVENT ANY LINKS.
-Just tell them: "If you want to watch a video about this, you can search for it in the VISUAL TERMINAL (red button at the top)."
+INTERACTION EXAMPLE:
+User: "I want to learn math"
+Molty: "Hello! 🐾 Let's start your STEM Algebra Path.
+Step 1 of 3: Linear Equations. 
+A linear equation represents a straight line. The formula is y = mx + b.
+CHALLENGE: If a car travels at a constant speed of 60 mph, what is the equation for distance (y) over time (x)? 🤔"
+User: "y = 60x"
+Molty: "[Call award_student_psh(milestone: 'Linear Equations Intro', amount: 10)]
+Perfect! 🐾 y = 60x is correct. You've earned 10 Psh for this milestone.
+Ready for Step 2?"
 
---- ART PROTOCOL (AetherSnap NATIVE v2.0) ---
-When the student asks for art or visuals, DO NOT write p5.js code or invent functions. The Dashboard has a predefined engine. You act as the "Art Director" sending JSON parameters.
+--- P5.JS PROTOCOL (GENERATIVE ART) ---
+When the student asks for art, creative code, p5.js, or a visual sketch, you MUST generate COMPLETE and EXECUTABLE code.
 
-ENGINE KNOWLEDGE (AetherSnap):
-The engine draws shapes in a circular pattern using Perlin Noise.
-- "seed": Random seed (integer).
-- "density" (50 to 200): Number of shapes/rays drawn.
-- "chaos" (0.1 to 0.8): How chaotic or wavy the noise is.
-- "strokeWeight" (0.5 to 4.0): Thickness of the lines.
-- "mode" (0, 1, 2): 0=Lines (rays), 1=Squares (particles), 2=Organic shapes (curved petals).
+MANDATORY RULES FOR P5.JS CODE:
+1. ALWAYS include complete function setup() AND function draw().
+2. ALWAYS use createCanvas(400, 400) as the first line of setup().
+3. Wrap all code in a \`\`\`javascript ... \`\`\` block.
+4. Before the code, give a brief explanation (2-3 lines) of the artistic concept.
+5. After the code, ask a challenge question for the student to modify something.
 
-INSTRUCTIONS:
-1. Output a JSON block inside \`\`\`javascript with the exact configuration.
-2. SIMPLY EXPLAIN which variables you changed and the real visual result (e.g., "I increased the chaos and used mode 2 to make it look like an organic flower"). DO NOT hallucinate code or non-existent functions.
-
-MANDATORY FORMAT:
+SHADER EXAMPLE (WEBGL):
+Use createShader() with inline strings:
 \`\`\`javascript
-{
-  "seed": 12345, 
-  "params": {
-    "density": 150, 
-    "chaos": 0.6, 
-    "strokeWeight": 2, 
-    "mode": 0
-  }
+let myShader;
+function setup() {
+  createCanvas(400, 400, WEBGL);
+  noStroke();
+  myShader = createShader(
+    "attribute vec3 aPosition; void main() { vec4 p = vec4(aPosition, 1.0); p.xy = p.xy * 2.0 - 1.0; gl_Position = p; }",
+    "precision mediump float; uniform vec2 u_resolution; uniform float u_time; void main() { vec2 st = gl_FragCoord.xy / u_resolution; float d = distance(st, vec2(0.5)); float c = sin(d * 20.0 - u_time * 3.0) * 0.5 + 0.5; gl_FragColor = vec4(st.x * c, st.y * c, c, 1.0); }"
+  );
 }
-\`\`\`
-Ask for feedback after. 🐾`
+function draw() {
+  shader(myShader);
+  myShader.setUniform('u_resolution', [width, height]);
+  myShader.setUniform('u_time', millis() / 1000.0);
+  rect(0,0,width,height);
+}
+\`\`\``
     },
     pt: {
         mentor_secundaria: `Você é Molty, um tutor de IA especializado em apoio pedagógico focado nas competências da BNCC do Brasil.
@@ -290,7 +297,7 @@ Sua estrutura pedagógica é baseada na Base Nacional Comum Curricular (BNCC) do
   1. DEFINA O PLANO: No início, diga "Passo 1 de 3: [Tema]".
   2. EXPLIQUE: Dê uma explicação breve alinhada com as competências da BNCC.
   3. DESAFIE: Termine SEMPRE com uma pergunta focada no pensamento crítico.
-  4. RECOMPENSA: Use 'award_student_psh' (1-5 Psh) apenas se responderem corretamente.
+  4. REWARD (CRITICAL): Quando o aluno responder corretamente ou completar um marco, você DEVE obrigatoriamente chamar 'award_student_psh' imediatamente. Atribua entre 5 e 20 Psh dependendo da dificuldade. NUNCA mencione a recompensa sem chamar a ferramenta.
 
 EXEMPLO DE INTERAÇÃO:
 Usuário: "Quero aprender matemática"
@@ -298,39 +305,40 @@ Molty: "Olá! 🐾 Vamos iniciar sua rota da BNCC em Matemática.
 Passo 1 de 3: Grandezas e Medidas. 
 Entender o sistema métrico é fundamental para o dia a dia.
 DESAFIO: Se uma receita pede 500g de farinha e você só tem um medidor em quilogramas, quanto você deve medir? 🤔"
+Usuário: "0.5 kg"
+Molty: "[Chamada award_student_psh(milestone: 'Grandezas e Medidas', amount: 10)]
+Incrível! 🐾 0.5 kg está correto. Você ganhou 10 Psh por este marco.
+Pronto para o Passo 2?"
 
---- TERMINAL VISUAL (MÍDIA) ---
-Se o aluno precisar assistir a um vídeo, NÃO INVENTE NENHUM LINK.
-Apenas diga: "Se quiser assistir a um vídeo sobre isso, você pode procurá-lo no TERMINAL VISUAL (botão vermelho na parte superior)."
+--- PROTOCOLO P5.JS (ARTE GENERATIVA) ---
+Quando o aluno pedir arte, código criativo, p5.js ou um sketch visual, você DEVE gerar código COMPLETO e EXECUTÁVEL.
 
---- PROTOCOLO DE ARTE (AetherSnap NATIVO v2.0) ---
-Quando o aluno pedir arte ou visuais, NÃO escreva código p5.js nem invente funções. O Dashboard possui um motor predefinido. Você atua apenas como "Diretor de Arte" enviando parâmetros JSON.
+REGRAS OBRIGATÓRIAS PARA CÓDIGO P5.JS:
+1. SEMPRE inclua function setup() E function draw() completas.
+2. SEMPRE use createCanvas(400, 400) como primeira linha de setup().
+3. Envolva todo o código em um bloco \`\`\`javascript ... \`\`\` 
+4. Antes do código, dê uma explicação breve (2-3 linhas) do conceito artístico.
+5. Depois do código, faça uma pergunta-desafio para que o aluno modifique algo.
 
-CONHECIMENTO DO MOTOR (AetherSnap):
-O motor desenha formas em um padrão circular usando Perlin Noise.
-- "seed": Semente aleatória (inteiro).
-- "density" (50 a 200): Quantidade de formas/raios desenhados.
-- "chaos" (0.1 a 0.8): Quão caótico ou ondulado é o ruído.
-- "strokeWeight" (0.5 a 4.0): Espessura das linhas.
-- "mode" (0, 1, 2): 0=Linhas (raios), 1=Quadrados (partículas), 2=Formas orgânicas (pétalas curvas).
-
-INSTRUÇÕES:
-1. Gere um bloco JSON dentro de \`\`\`javascript com a configuração exata.
-2. EXPLIQUE SIMPLESMENTE quais variáveis você alterou e o resultado visual real (ex. "Aumentei o caos e usei o modo 2 para parecer uma flor orgânica"). NÃO alucine código ou funções que não existem.
-
-FORMATO OBRIGATÓRIO:
+EXEMPLO DE SHADER (WEBGL):
+Use createShader() com strings inline:
 \`\`\`javascript
-{
-  "seed": 12345, 
-  "params": {
-    "density": 150, 
-    "chaos": 0.6, 
-    "strokeWeight": 2, 
-    "mode": 0
-  }
+let myShader;
+function setup() {
+  createCanvas(400, 400, WEBGL);
+  noStroke();
+  myShader = createShader(
+    "attribute vec3 aPosition; void main() { vec4 p = vec4(aPosition, 1.0); p.xy = p.xy * 2.0 - 1.0; gl_Position = p; }",
+    "precision mediump float; uniform vec2 u_resolution; uniform float u_time; void main() { vec2 st = gl_FragCoord.xy / u_resolution; float d = distance(st, vec2(0.5)); float c = sin(d * 20.0 - u_time * 3.0) * 0.5 + 0.5; gl_FragColor = vec4(st.x * c, st.y * c, c, 1.0); }"
+  );
 }
-\`\`\`
-Pergunte o que achou depois. 🐾`
+function draw() {
+  shader(myShader);
+  myShader.setUniform('u_resolution', [width, height]);
+  myShader.setUniform('u_time', millis() / 1000.0);
+  rect(0,0,width,height);
+}
+\`\`\``
     }
 };
 
@@ -339,10 +347,11 @@ Pergunte o que achou depois. 🐾`
 
 
 // --- SKILL EXECUTOR (Real Logic Interfacing) ---
-async function executeSpartanSkill(name: string, args: any, senderId: string, env: Env): Promise<string> {
+async function executeSpartanSkill(name: string, args: any, senderId: string, env: Env, lang: string = 'es'): Promise<string> {
     const { DataStore } = await import('./datastore');
     const db = new DataStore(env);
 
+    const wikiDomain = lang === 'en' ? 'en' : lang === 'pt' ? 'pt' : 'es';
 
     switch (name) {
         case 'recursive_math_verify':
@@ -351,30 +360,35 @@ async function executeSpartanSkill(name: string, args: any, senderId: string, en
 
         case 'media_archeology':
             console.log(`[Archeology] Searching for ${args.concept} videos...`);
-            const mockVideos: any = {
-                // MÉXICO NEM
-                'nem_fracciones': 'https://www.youtube.com/watch?v=NyeT_q-Xz8E',
-                'nem_independencia': 'https://www.youtube.com/watch?v=0h9f7m0n9O8',
-                'nem_vida': 'https://www.youtube.com/watch?v=8M0L-VfK-3Y',
-                'nem_mexico': 'https://www.youtube.com/watch?v=8kO9RzC9h-g',
-                // STEM
-                'stem_physics': 'https://www.youtube.com/watch?v=kKKM8Y-u7ds',
-                'stem_code': 'https://www.youtube.com/watch?v=mCq8-xTH6_M',
-                'stem_bitcoin': 'https://www.youtube.com/watch?v=l9jOJk30eQs',
-                // BNCC
-                'bncc_bio': 'https://www.youtube.com/watch?v=8IlzKri08_k',
-                'bncc_hist': 'https://www.youtube.com/watch?v=3S5e7D8IeI8',
-                // VIBE SHARDS
-                'secret_rick': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-                'lofi_study': 'https://www.youtube.com/watch?v=jfKfPfyJRdk'
-            };
-            const vid = mockVideos[args.concept.toLowerCase()] || 'https://www.youtube.com/watch?v=molty_general'; // Fallback a video educativo general
-            return `[MEDIA_SHARD]: Found a visual stream for ${args.concept}. Embebiendo link para el sistema: ${vid}`;
+            const ytQuery = encodeURIComponent(args.concept);
+            return `[MEDIA_FOUND]: Educational search for "${args.concept}". Link: https://www.youtube.com/results?search_query=${ytQuery}+educational\nIMPORTANT: Share ONLY this search link. Do NOT invent specific watch?v= URLs. The search page contains real content.`;
+
+        case 'wikipedia_archeology':
+            console.log(`[Wiki] Searching for: ${args.query} in ${wikiDomain}.wikipedia.org`);
+            try {
+                const wikiUrl = `https://${wikiDomain}.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&explaintext&titles=${encodeURIComponent(args.query)}&format=json&origin=*`;
+                const wikiRes = await fetch(wikiUrl);
+                const wikiData: any = await wikiRes.json();
+                const pages = wikiData.query?.pages;
+                let summary = "";
+                let link = `https://${wikiDomain}.wikipedia.org/w/index.php?search=${encodeURIComponent(args.query)}`;
+                
+                if (pages) {
+                    const pageId = Object.keys(pages)[0];
+                    if (pageId !== "-1" && pages[pageId].extract) {
+                        summary = pages[pageId].extract.substring(0, 400) + "...";
+                        link = `https://${wikiDomain}.wikipedia.org/wiki/${encodeURIComponent(args.query)}`;
+                    }
+                }
+                
+                return `[WIKI_FOUND]: info for "${args.query}". Summary: ${summary || "Search results found."} Link: ${link}\nIMPORTANT: Use this link. Do NOT invent Wikipedia URLs.`;
+            } catch (e) {
+                return `[WIKI_ERROR]: Connection lost. Fallback search: https://${wikiDomain}.wikipedia.org/w/index.php?search=${encodeURIComponent(args.query)}`;
+            }
 
         case 'voice_synthesis_link':
             console.log(`[Voice] Synthesizing speech...`);
-            // Mocking the generation of a voice note URL
-            return `[HABLABA]: Speech fragment generated and uploaded to the Signal Buffer. The student will hear your voice now. (Sig: 0xVocal)`;
+            return `[VOICE]: Speech fragment generated. The student will hear the response now.`;
 
         case 'create_study_task':
             const { createShadowOp } = await import('./shadow-board');
@@ -410,30 +424,6 @@ async function executeSpartanSkill(name: string, args: any, senderId: string, en
             }));
             return `[SAVED]: Learning progress saved for student ${senderId}. Milestone: ${args.milestone}`;
 
-        case 'save_obsidian_note':
-            const noteId = Date.now().toString();
-            const noteKey = `vault/${senderId}/${noteId}`;
-            const mdContent = `---
-title: "${args.title}"
-date: ${new Date().toISOString()}
-tags: [${args.tags.map((t: string) => `"${t}"`).join(", ")}]
----
-
-# ${args.title}
-
-${args.content}
-
-*Saved by Molty Oracle*
-`;
-            await env.MEMORY_BUCKET.put(noteKey, JSON.stringify({
-                id: noteId,
-                title: args.title,
-                tags: args.tags,
-                content: mdContent,
-                created_at: new Date().toISOString()
-            }));
-            return `[OBSIDIAN_VAULT]: Note "${args.title}" successfully saved to the Second Brain.`;
-
 
         case 'crypto_price':
             try {
@@ -467,74 +457,98 @@ export async function handleIncomingMessage(
     let systemPrompt = l.general;
     if (context.mode === 'mentor_secundaria') systemPrompt = l.mentor_secundaria;
     else if (context.mode === 'mentor_bitcoin') systemPrompt = l.mentor_bitcoin;
-    else if (context.isEducator) systemPrompt = lang === 'en' ? "Analyze the student performance and suggest bounties." : "Analiza el desempeño y sugiere recompensas.";
+    else if (context.isEducator) {
+        if (lang === 'en') systemPrompt = "Analyze the student performance and suggest bounties. Respond ONLY in English.";
+        else if (lang === 'pt') systemPrompt = "Analise o desempenho do aluno e sugira recompensas. Responda apenas em Português.";
+        else systemPrompt = "Analiza el desempeño y sugiere recompensas.";
+    }
 
     // --- LANGUAGE REINFORCEMENT (PREPENDED) ---
     const LANG_INSTRUCTIONS: Record<string, string> = {
-        es: `IDIOMA OBLIGATORIO: Responde SIEMPRE en Español de México. Todos los ejemplos y retos deben ser en español.`,
-        en: `MANDATORY LANGUAGE: You MUST respond ENTIRELY in English. All examples, explanations, and challenges MUST be in English. Do NOT use Spanish.`,
-        pt: `IDIOMA OBRIGATÓRIO: Você DEVE responder INTEIRAMENTE em Português. Todos os exemplos e desafios DEVEM ser em português.`
+        es: `IDIOMA OBLIGATORIO: Responde SIEMPRE en Español de México. Todos los ejemplos, retos, números y formatos de hora deben estar en español mexicano.`,
+        en: `MANDATORY LANGUAGE: You MUST respond ENTIRELY in English. ALL text, numbers, time formats, explanations, and challenges MUST be in English. Use English number formats (e.g., 3:45 PM, 1,000). NEVER use Spanish words like "horas", "Paso", "Reto", "hito". Do NOT mix languages under any circumstance.`,
+        pt: `IDIOMA OBRIGATÓRIO: Você DEVE responder INTEIRAMENTE em Português do Brasil. Todos os exemplos, números, formatos de hora e desafios DEVEM ser em português. Use formatos brasileiros (ex: 15h45, 1.000). NUNCA use espanhol.`
     };
     
-    systemPrompt = `--- PRIORITY: LANGUAGE ---\n${LANG_INSTRUCTIONS[lang]}\n\n${systemPrompt}\n\n--- REINFORCEMENT ---\nREMEMBER: Speak ONLY in ${lang === 'en' ? 'ENGLISH' : lang === 'pt' ? 'PORTUGUESE' : 'SPANISH'}. If the student asks for p5.js art, provide the code in a clean javascript block.`;
+    // --- REINFORCE TOOL USAGE ---
+    const TOOL_INSTRUCTIONS: Record<string, string> = {
+        es: `\n- Si el estudiante pide un VIDEO o material visual, DEBES usar 'media_archeology'.\n- Si el estudiante pide información detallada o histórica, DEBES usar 'wikipedia_archeology'.`,
+        en: `\n- If the student asks for a VIDEO or visual material, you MUST use 'media_archeology'.\n- If the student asks for detailed or historical information, you MUST use 'wikipedia_archeology'.`,
+        pt: `\n- Se o aluno pedir um VÍDEO ou material visual, você DEVE obrigatoriamente usar a ferramenta 'media_archeology'.\n- Se o aluno pedir informações detalhadas, históricas ou Pesquisar algo, você DEVE usar a ferramenta 'wikipedia_archeology'.\n- IMPORTANTE: Sempre use as ferramentas disponíveis para enriquecer o aprendizado.`
+    };
+
+    systemPrompt = `--- PRIORITY: LANGUAGE ---\n${LANG_INSTRUCTIONS[lang]}\n\n${systemPrompt}\n${TOOL_INSTRUCTIONS[lang]}\n\n--- REINFORCEMENT ---\nREMEMBER: Speak ONLY in ${lang === 'en' ? 'ENGLISH' : lang === 'pt' ? 'PORTUGUESE' : 'SPANISH'}. If the student asks for p5.js art, provide the code in a clean javascript block. You have tools for YouTube and Wikipedia, use them when mentioned.`;
 
     // --- FIX #5: Load persisted learning progress from R2 ---
     try {
         const stateKey = `edu/progress/${senderId}`;
         const savedProgress = await env.MEMORY_BUCKET.get(stateKey).then(r => r?.json()) as any;
         if (savedProgress) {
-            systemPrompt += `\n\n--- PROGRESO PREVIO DEL ESTUDIANTE ---\nÚltimo hito: ${savedProgress.last_milestone}\nRuta: ${savedProgress.path}\nActualizado: ${savedProgress.updated_at}\n--- Continúa desde donde se quedó el estudiante. ---`;
+            const PROGRESS_HEADERS: Record<string, string> = {
+                es: `\n\n--- PROGRESO PREVIO DEL ESTUDIANTE ---\nÚltimo hito: ${savedProgress.last_milestone}\nRuta: ${savedProgress.path}\nActualizado: ${savedProgress.updated_at}\n--- Continúa desde donde se quedó el estudiante. ---`,
+                en: `\n\n--- PREVIOUS STUDENT PROGRESS ---\nLast milestone: ${savedProgress.last_milestone}\nPath: ${savedProgress.path}\nUpdated: ${savedProgress.updated_at}\n--- Continue from where the student left off. ---`,
+                pt: `\n\n--- PROGRESSO ANTERIOR DO ALUNO ---\nÚltimo marco: ${savedProgress.last_milestone}\nCaminho: ${savedProgress.path}\nAtualizado: ${savedProgress.updated_at}\n--- Continue de onde o aluno parou. ---`
+            };
+            systemPrompt += PROGRESS_HEADERS[lang] || PROGRESS_HEADERS.es;
         }
     } catch (e) {
         // Progress load failed silently, proceed without it
         console.warn(`[Oracle] Could not load progress for ${senderId}:`, e);
     }
 
-    const history = context.history || [];
-    const aiMessages = [
-        { role: 'system', content: systemPrompt },
-        ...history,
-        { role: 'user', content: message },
-        { role: 'system', content: `MANDATORY: Respond only in ${lang === 'en' ? 'ENGLISH' : lang === 'pt' ? 'PORTUGUESE' : 'SPANISH'}. No exceptions.` }
-    ];
-
     try {
+        let awarded = 0;
+        const aiMessages = [
+            { role: 'system', content: systemPrompt },
+            ...(context.history || [])
+        ];
+        if (context.history && context.history.length === 0) {
+            aiMessages.push({ role: 'user', content: message });
+        } else if (!context.history) {
+            aiMessages.push({ role: 'user', content: message });
+        }
+
         const response: any = await env.AI.run(MODEL, {
             messages: aiMessages,
             tools: tools
         });
 
-
         if (response.tool_calls && response.tool_calls.length > 0) {
             const tool = response.tool_calls[0];
-            const result = await executeSpartanSkill(tool.name, tool.arguments, senderId, env);
-
+            const result = await executeSpartanSkill(tool.name, tool.arguments, senderId, env, lang);
             
-            // Final synthesis pass
+            if (tool.name === 'award_student_psh') {
+                awarded = tool.arguments.amount || 0;
+            }
+
+            const langName = lang === 'en' ? 'ENGLISH' : lang === 'pt' ? 'PORTUGUESE' : 'SPANISH';
             const finalRes: any = await env.AI.run(MODEL, {
                 messages: [
                     ...aiMessages,
                     { role: 'assistant', content: null, tool_calls: response.tool_calls },
-                    { role: 'tool', name: tool.name, content: result }
+                    { role: 'tool', name: tool.name, content: result },
+                    { role: 'system', content: `The tool returned data. Now respond to the student ENTIRELY in ${langName}. Do NOT use any other language. Format all numbers and times in ${langName} conventions.` }
                 ]
             });
 
-
-            return finalRes.response || result;
+            return { reply: finalRes.response || result, awarded };
         }
 
-        return response.response || "Molty is having trouble responding. Please try again.";
+        return { reply: response.response || "Molty is having trouble responding.", awarded: 0 };
 
     } catch (e: any) {
         console.error("[Swarm Error]", e);
-        // Fallback to Llama-3.1-8B — preserve full context (system prompt + history)
         try {
             const fallback: any = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
-                messages: aiMessages
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    ...(context.history || []),
+                    { role: 'user', content: message }
+                ]
             });
-            return fallback.response || `[SIGNAL LOSS]: I heard you, but the matrix is unstable. Received: ${message}`;
+            return { reply: fallback.response || `[SIGNAL LOSS]: ${message}`, awarded: 0 };
         } catch (inner) {
-            return `[OFFLINE]: Connection error. Please try again later.`;
+            return { reply: `[OFFLINE]: Connection error.`, awarded: 0 };
         }
     }
 }
